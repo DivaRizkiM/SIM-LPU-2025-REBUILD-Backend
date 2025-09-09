@@ -1,0 +1,66 @@
+# Laravel-specific files and directories
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+.env
+.env.*
+/phpunit.xml
+/phpunit.xml.dist
+
+# Laravel debug log
+/storage/logs
+
+# Laravel IDE helper files
+/_ide_helper.php
+/_ide_helper_models.php
+
+# Laravel mix files
+/public/mix-manifest.json
+/public/hot
+
+# Sails.js specific files
+.sailsrc
+
+# Nginx logs and config
+/logs
+/nginx
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode files
+.vscode/
+
+# Sublime Text files
+*.sublime-workspace
+*.sublime-project
+
+# JetBrains IDEs
+.idea/
+
+# PHPUnit coverage reports
+coverage/
+
+# Composer files
+composer.phar
+
+# Node.js
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# Laravel tinker output
+*.tinker
+
+# Other
+*.bak
+*.swp
+*.swo
+*.tmp
+*.log
+
+/caddy
+frankenphp
+frankenphp-worker.php
