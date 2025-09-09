@@ -89,7 +89,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
                 foreach ($kategori_bisnis as $kb) {
                     $apiController = new ApiController();
-                    $url_request = $this->endpoint . '?kd_bisnis=' . $kb->id . '&nopend=' . $ls->id . '&tahun=' . $this->tahun . '&triwulan=' . $this->triwulan;
+                    $url_request = $this->endpoint .'?bulan='.$this->bulan. '&kd_bisnis=' . $kb->id . '&nopend=' . $ls->id . '&tahun=' . $this->tahun;
                     $request = request();
                     $request->merge(['end_point' => $url_request]);
 

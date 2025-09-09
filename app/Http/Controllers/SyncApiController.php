@@ -1012,7 +1012,7 @@ class SyncApiController extends Controller
     {
         try {
 
-            $endpoint = 'produksi';
+            $endpoint = 'produksi_bulanan';
             $id_regional = $request->id_regional;
             $id_kprk = $request->id_kprk ?? '';
             $id_kpc = $request->id_kpc ?? '';
