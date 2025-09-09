@@ -97,7 +97,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
                         $url_request = $this->endpoint
                             . '?bulan=' . $this->bulan
                             . '&kd_bisnis=' . $kd_bisnis
-                            . '&nopend=' . $ls->id
+                            . '&nopend=' . $ls->id   // kalau perlu nomor_dirian: ganti $ls->id -> $ls->nomor_dirian
                             . '&tahun=' . $this->tahun;
 
                         $request = request();
@@ -105,12 +105,12 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
                         $response = $apiController->makeRequest($request);
 
-                        // Ubah JsonResponse -> array aman
+                        // JsonResponse -> array aman
                         $payloadArr = $response instanceof \Illuminate\Http\JsonResponse
                             ? $response->getData(true)
                             : (is_array($response) ? $response : []);
 
-                        // Ambil koleksi data dari beberapa kemungkinan key
+                        // Ambil koleksi data (coba beberapa key umum)
                         $dataProduksi = [];
                         if (isset($payloadArr['data']) && is_array($payloadArr['data'])) {
                             $dataProduksi = $payloadArr['data'];
@@ -120,7 +120,6 @@ class ProcessSyncProduksiJob implements ShouldQueue
                             $dataProduksi = $payloadArr['payload'];
                         }
 
-                        // Jika kosong → log & lanjut (abaikan)
                         if (empty($dataProduksi)) {
                             Log::info('Produksi kosong/diabaikan', [
                                 'nopend'    => $ls->id,
@@ -131,9 +130,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
                         }
 
                         foreach ($dataProduksi as $data) {
-                            if (!is_array($data)) {
-                                continue;
-                            }
+                            if (!is_array($data)) continue;
                             $allFetchedData[] = $data;
                             $totalTarget++;
                         }
@@ -153,7 +150,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
             $apiRequestLog->update([
                 'total_records'     => $totalTarget,
-                'available_records' => $totalTarget, // fallback aman
+                'available_records' => $totalTarget,
                 'status'            => $status,
             ]);
 
@@ -161,46 +158,65 @@ class ProcessSyncProduksiJob implements ShouldQueue
             @mkdir(storage_path('/app/public/lampiran'), 0775, true);
 
             foreach ($allFetchedData as $data) {
+                // --- siapkan triwulan: dari response (trim), fallback dari bulan ---
+                $tw = null;
+                if (isset($data['triwulan']) && trim((string)$data['triwulan']) !== '') {
+                    $tw = (int) trim((string) $data['triwulan']);   // contoh "1 " -> 1
+                } elseif (isset($data['nama_bulan']) && is_numeric($data['nama_bulan'])) {
+                    $tw = (int) ceil(((int) $data['nama_bulan']) / 3);
+                }
+
+                // ID unik produksi
                 $id = ($data['id_kpc'] ?? '') . ($data['tahun_anggaran'] ?? '') . ($data['nama_bulan'] ?? '');
 
                 $produksi = Produksi::updateOrCreate(
                     ['id' => $id],
                     [
-                        'id' => $id,
-                        'id_regional' => $data['id_regional'] ?? null,
-                        'id_kprk' => $data['id_kprk'] ?? null,
-                        'id_kpc' => $data['id_kpc'] ?? null,
-                        'tahun_anggaran' => $data['tahun_anggaran'] ?? null,
-                        'bulan' => $data['nama_bulan'] ?? null,
+                        'id'                => $id,
+                        'id_regional'       => $data['id_regional'] ?? null,
+                        'id_kprk'           => $data['id_kprk'] ?? null,
+                        'id_kpc'            => $data['id_kpc'] ?? null,
+                        'tahun_anggaran'    => $data['tahun_anggaran'] ?? null,
+                        'bulan'             => $data['nama_bulan'] ?? null,
+                        'triwulan'          => $tw, // <-- simpan triwulan
                         'tgl_singkronisasi' => now(),
-                        'status_regional' => 7,
-                        'status_kprk' => 7,
+                        'status_regional'   => 7,
+                        'status_kprk'       => 7,
                     ]
                 );
+
+                // (opsional) logging bantu debug triwulan
+                Log::info('Triwulan disimpan', [
+                    'raw_triwulan' => $data['triwulan'] ?? null,
+                    'nama_bulan'   => $data['nama_bulan'] ?? null,
+                    'saved_tw'     => $tw,
+                    'id_produksi'  => $id,
+                ]);
 
                 ProduksiDetail::updateOrCreate(
                     ['id' => $data['id']],
                     [
-                        'id' => $data['id'],
-                        'id_produksi' => $id,
-                        'nama_bulan' => $data['nama_bulan'] ?? null,
-                        'kode_bisnis' => $data['kode_bisnis'] ?? null,
-                        'kode_rekening' => $data['koderekening'] ?? null,
-                        'nama_rekening' => $data['nama_rekening'] ?? null,
-                        'rtarif' => $data['rtarif'] ?? null,
-                        'tpkirim' => $data['tpkirim'] ?? null,
-                        'pelaporan' => $data['bsu_pso'] ?? 0,
+                        'id'             => $data['id'],
+                        'id_produksi'    => $id,
+                        'nama_bulan'     => $data['nama_bulan'] ?? null,
+                        'kode_bisnis'    => $data['kode_bisnis'] ?? null,
+                        'kode_rekening'  => $data['koderekening'] ?? null,
+                        'nama_rekening'  => $data['nama_rekening'] ?? null,
+                        'rtarif'         => $data['rtarif'] ?? null,
+                        'tpkirim'        => $data['tpkirim'] ?? null,
+                        'pelaporan'      => $data['bsu_pso'] ?? 0,
                         'jenis_produksi' => $data['jenis'] ?? null,
                         'kategori_produksi' => $data['kategori_produksi'] ?? null,
-                        'keterangan' => $data['keterangan'] ?? null,
-                        'lampiran' => $data['lampiran'] ?? null,
+                        'keterangan'     => $data['keterangan'] ?? null,
+                        'lampiran'       => $data['lampiran'] ?? null,
                     ]
                 );
 
+                // rekap kategori → total_lpu/lpk/lbf
                 $categories = [
                     'LAYANAN POS UNIVERSAL' => 'total_lpu',
-                    'LAYANAN POS KOMERSIL' => 'total_lpk',
-                    'LAYANAN BERBASIS FEE' => 'total_lbf',
+                    'LAYANAN POS KOMERSIL'  => 'total_lpk',
+                    'LAYANAN BERBASIS FEE'  => 'total_lbf',
                 ];
 
                 $totals = [];
@@ -213,13 +229,13 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
                 $produksi->update(array_merge($totals, [
                     'status_regional' => 7,
-                    'status_kprk' => 7,
+                    'status_kprk'     => 7,
                 ]));
 
+                // rsync lampiran (jika ada)
                 if (!empty($data['lampiran'])) {
                     $namaFile = $data['lampiran'];
                     $destinationPath = storage_path('/app/public/lampiran');
-                    // IP & port baru
                     $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --port=2129 --delete rsync://kominfo2@103.123.39.226/lpu/{$namaFile} {$destinationPath} 2>&1";
                     $output = shell_exec($rsyncCommand);
                     Log::info('rsync lampiran', ['file' => $namaFile, 'out' => $output]);
@@ -237,18 +253,13 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 if ($updated_payload !== '' || $payload->payload !== null) {
                     $existing_payload = json_decode($updated_payload, true);
                     $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
-
-                    $new_payload = (object) $data;
-                    $existing_payload[] = $new_payload;
-
+                    $existing_payload[] = (object) $data;
                     $updated_payload = json_encode($existing_payload);
                 } else {
                     $updated_payload = json_encode([(object) $data]);
                 }
 
-                $payload->update([
-                    'payload' => $updated_payload,
-                ]);
+                $payload->update(['payload' => $updated_payload]);
 
                 $apiRequestLog->update([
                     'successful_records' => $totalSumber,
@@ -256,20 +267,18 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 ]);
             }
         } catch (\Exception $e) {
-            // Tidak ada DB::beginTransaction, jadi jangan rollBack di sini
+            // Tidak ada beginTransaction di atas, jadi jangan rollBack
 
             if ($apiRequestLog) {
-                $apiRequestLog->update([
-                    'status' => 'gagal',
-                ]);
+                $apiRequestLog->update(['status' => 'gagal']);
             }
 
             Log::error('Job ProcessSyncProduksiJob gagal: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Supaya job tidak ditandai fail untuk kasus non-fatal, JANGAN lempar ulang.
-            // Jika ingin fail pada error fatal, aktifkan baris di bawah:
+            // Supaya job tidak langsung fail untuk kasus non-fatal, jangan lempar ulang.
+            // Jika ingin fail untuk error fatal, aktifkan baris berikut:
             // throw $e;
         }
     }
@@ -317,45 +326,40 @@ class ProcessSyncProduksiJob implements ShouldQueue
         $id = trim($data['id_kpc']) . trim($data['tahun_anggaran']) . trim($data['triwulan']);
 
         $produksi = Produksi::updateOrCreate(
+            ["id" => $id],
             [
-                "id" => $id,
-
-            ],
-            [
-                'triwulan' => $data['triwulan'],
-                'id_regional' => $data['id_regional'],
-                'id_kprk' => $data['id_kprk'],
-                'id_kpc' => $data['id_kpc'],
-                'tahun_anggaran' => $data['tahun_anggaran'],
+                'triwulan' => (isset($data['triwulan']) && trim((string)$data['triwulan']) !== '')
+                    ? (int) trim((string)$data['triwulan'])
+                    : (isset($data['nama_bulan']) ? (int) ceil(((int)$data['nama_bulan']) / 3) : null),
+                'id_regional' => $data['id_regional'] ?? null,
+                'id_kprk' => $data['id_kprk'] ?? null,
+                'id_kpc' => $data['id_kpc'] ?? null,
+                'tahun_anggaran' => $data['tahun_anggaran'] ?? null,
                 'tgl_singkronisasi' => now(),
                 'status_regional' => 7,
                 'status_kprk' => 7,
-
             ]
         );
 
         ProduksiDetail::updateOrCreate(
+            ['id' => $data['id']],
             [
-                'id' => $data['id'],
-            ],
-            [
-                'nama_bulan' => $data['nama_bulan'],
+                'nama_bulan' => $data['nama_bulan'] ?? null,
                 'id_produksi' => $id,
-                'kode_bisnis' => $data['kode_bisnis'],
-                'kode_rekening' => $data['koderekening'],
-                'nama_rekening' => $data['nama_rekening'],
-                'jenis_produksi' => $data['jenis'],
-                'kategori_produksi' => $data['kategori_produksi'],
-                'keterangan' => $data['keterangan'],
-                'rtarif' => $data['rtarif'],
-                'tpkirim' => $data['tpkirim'],
-                'pelaporan' => $data['bsu_pso'],
-                'lampiran' => $data['lampiran'],
+                'kode_bisnis' => $data['kode_bisnis'] ?? null,
+                'kode_rekening' => $data['koderekening'] ?? null,
+                'nama_rekening' => $data['nama_rekening'] ?? null,
+                'jenis_produksi' => $data['jenis'] ?? null,
+                'kategori_produksi' => $data['kategori_produksi'] ?? null,
+                'keterangan' => $data['keterangan'] ?? null,
+                'rtarif' => $data['rtarif'] ?? null,
+                'tpkirim' => $data['tpkirim'] ?? null,
+                'pelaporan' => $data['bsu_pso'] ?? 0,
+                'lampiran' => $data['lampiran'] ?? null,
             ]
         );
 
         $this->updateProduksiTotals($produksi);
-
         $this->updatePayload($data, $payload);
     }
 
@@ -385,7 +389,6 @@ class ProcessSyncProduksiJob implements ShouldQueue
     protected function syncLampiran($namaFile)
     {
         $destinationPath = storage_path('/app/public/lampiran');
-        // (Tidak dipakai karena kita sudah lakukan rsync inline di atas)
         $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --port=2129 --delete rsync://kominfo2@103.123.39.226/lpu/{$namaFile} {$destinationPath} 2>&1";
         shell_exec($rsyncCommand);
     }
