@@ -1011,69 +1011,70 @@ class SyncApiController extends Controller
     public function syncProduksi(Request $request)
     {
         try {
-            $endpoint     = 'produksi_bulanan';
-            $id_regional  = $request->id_regional;      // tidak dipakai untuk API, tapi tetap dicatat di log
-            $id_kprk      = $request->id_kprk ?? '';    // tidak dipakai untuk API
-            $id_kpc       = $request->id_kpc ?? '';     // ← ini adalah nopend (nomor_dirian)
-            $bulan        = str_pad($request->bulan, 2, '0', STR_PAD_LEFT);
-            $tahun        = $request->tahun;
-            $tipe_bisnis  = $request->tipe_bisnis ?? '';
-            $triwulan     = (int) ceil(((int) $bulan) / 3);
+
+            $endpoint = 'produksi_bulanan';
+            $id_regional = $request->id_regional;
+            $id_kprk = $request->id_kprk ?? '';
+            $id_kpc = $request->id_kpc ?? '';
+            $bulan = $request->bulan;
+            $tahun = $request->tahun;
+            $tipe_bisnis = $request->tipe_bisnis ?? '';
+            $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $agent = new Agent();
+            $userAgent = $request->header('User-Agent');
+            $agent->setUserAgent($userAgent);
+            $platform = $agent->platform();
+            $browser = $agent->browser();
+            $triwulan = ceil($bulan / 3);
 
             $validator = Validator::make($request->all(), [
-                // validasi disesuaikan: API hanya menerima nopend (nomor_dirian)
-                'id_kpc'       => 'required|exists:kpc,nomor_dirian', // wajib → sesuai kebutuhan API
-                'tahun'        => 'required|integer',
-                'bulan'        => 'required|integer|min:1|max:12',
-                'tipe_bisnis'  => 'nullable|exists:jenis_layanan,id',
-                // id_regional / id_kprk tidak dijadikan syarat karena API tidak pakai itu
+                'id_regional' => 'required|exists:regional,id',
+                'id_kprk' => 'exists:kprk,id',
+                'id_kpc' => 'exists:kpc,nomor_dirian',
+                'tahun' => 'required',
+                'bulan' => 'required',
+                'tipe_bisnis' => 'exists:jenis_layanan,id',
             ]);
 
             if ($validator->fails()) {
                 return response()->json(['status' => 'ERROR', 'message' => $validator->errors()], 422);
             }
+            $list = [];
 
-            // Karena API butuh nopend = nomor_dirian, maka list di-build dari nomor_dirian saja.
-            // Jika kamu ingin support lebih dari 1 KPC sekaligus, kirim array id_kpc[] dari FE dan sesuaikan query IN.
-            $list = Kpc::where('nomor_dirian', $id_kpc)->get();
-
-            if ($list->isEmpty()) {
-                return response()->json(['error' => 'kpc not found'], 404);
+            if ($id_regional) {
+                $list = Kpc::where('id_regional', $id_regional)->get();
             }
+            if ($id_kprk) {
+                $list = Kpc::where('id_kprk', $id_kprk)->get();
+            }
+            if ($id_kpc) {
+                $list = Kpc::where('nomor_dirian', $id_kpc)->get();
+            }
+            // dd($list);
+            if (!$list || $list->isEmpty()) {
+                return response()->json(['error' => 'kpc not found'], 404);
+            } else {
+                $totalItems = $list->count();
+                // dd($list);
+                $userLog = [
+                    'timestamp' => now(),
+                    'aktifitas' => 'Sinkronisasi Produksi',
+                    'modul' => 'biaya produksi',
+                    'id_user' => $this->auth(),
+                ];
 
-            $totalItems = $list->count();
 
-            // simpan log user (opsional)
-            $userLog = UserLog::create([
-                'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi Produksi',
-                'modul'     => 'biaya produksi',
-                'id_user'   => $this->auth(), // asumsi method auth() ada
-            ]);
+                $userLog = UserLog::create($userLog);
+                // Dispatch job sebelum pernyataan return
+                $job = ProcessSyncProduksiJob::dispatch($list, $totalItems, $endpoint, $id_regional, $id_kprk, $id_kpc, $bulan, $tahun, $userAgent, $tipe_bisnis);
 
-            // HATI-HATI: urutan parameter ke Job harus sama dengan __construct di Job
-            // __construct($list, $totalItems, $endpoint, $id_regional, $id_kprk, $id_kpc, $bulan, $triwulan, $tahun, $userAgent, $tipe_bisnis)
-            $userAgent = $request->header('User-Agent');
-            ProcessSyncProduksiJob::dispatch(
-                $list,
-                $totalItems,
-                $endpoint,
-                $id_regional,
-                $id_kprk,
-                $id_kpc,
-                $bulan,
-                $triwulan,   // ← triwulan MENDULUI tahun (ini yang tadi ketuker)
-                $tahun,
-                $userAgent,
-                $tipe_bisnis
-            );
-
-            return response()->json([
-                'status'  => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang diproses',
-            ], 200);
+                return response()->json([
+                    'status' => 'IN_PROGRESS',
+                    'message' => 'Sinkronisasi sedang di proses',
+                ], 200);
+            }
         } catch (\Exception $e) {
-            // Jangan dd() di production
+            dd($e);
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
@@ -2202,3 +2203,5 @@ class SyncApiController extends Controller
         }
     }
 }
+
+
