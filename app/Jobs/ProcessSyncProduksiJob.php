@@ -90,7 +90,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
                     $apiController = new ApiController();
                     $kdBisnisInt = (int) ($kb->kd_bisnis ?? $kb->id);
                     $kd_bisnis   = sprintf('%02d', $kdBisnisInt);
-                    $url_request = $this->endpoint . '?bulan=' . $this->bulan . '&kd_bisnis=' . $kb->id . '&nopend=' . $ls->id . '&tahun=' . $this->tahun;
+                    $url_request = $this->endpoint . '?bulan=' . $this->bulan . '&kd_bisnis=' . $kd_bisnis . '&nopend=' . $ls->id . '&tahun=' . $this->tahun;
                     $request = request();
                     $request->merge(['end_point' => $url_request]);
 
