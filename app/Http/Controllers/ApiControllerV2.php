@@ -18,7 +18,7 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $request->merge(['end_point' => 'produksi?&kd_bisnis=03&nopend=20356&tahun=2025&triwulan=1']);
+        $request->merge(['end_point' => 'produksi?&kd_bisnis=03&nopend=61151&tahun=2025&triwulan=1']);
         // $request->merge(['end_point' => 'lampiran_biaya?id_biaya=22694932']);
         $this->makeRequest($request);
         // return response()->json(['id' => 22135799]);
