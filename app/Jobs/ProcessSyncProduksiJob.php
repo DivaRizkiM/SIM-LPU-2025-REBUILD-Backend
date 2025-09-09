@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Http\Controllers\ApiController; // atau ApiControllerV2 jika itu yang dipakai
+use App\Http\Controllers\ApiController; // pakai ApiController/ApiControllerV2 sesuai yang kamu gunakan
 use App\Models\JenisBisnis;
 use App\Models\Produksi;
 use App\Models\ProduksiDetail;
@@ -22,7 +22,6 @@ class ProcessSyncProduksiJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    // optional retry
     public $tries   = 3;
     public $backoff = [10, 60, 300];
 
@@ -58,10 +57,10 @@ class ProcessSyncProduksiJob implements ShouldQueue
         $apiRequestLog = null;
 
         try {
-            $serverIpAddress   = gethostbyname(gethostname());
-            $agent             = new Agent();
+            $serverIpAddress  = gethostbyname(gethostname());
+            $agent            = new Agent();
             $agent->setUserAgent($this->userAgent);
-            $platform_request  = $agent->platform() . '/' . $agent->browser();
+            $platform_request = $agent->platform() . '/' . $agent->browser();
 
             $totalTarget    = 0;
             $totalSumber    = 0;
@@ -88,18 +87,22 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 ? JenisBisnis::where('id', $this->tipe_bisnis)->get()
                 : JenisBisnis::get();
 
-            $apiController = new ApiController(); // atau ApiControllerV2
+            $apiController = new ApiController(); // atau ApiControllerV2 jika itu yang dipakai
 
             foreach ($this->list as $ls) {
                 foreach ($kategori_bisnis as $kb) {
-                    // API: GET /pso/1.0.0/data/produksi_bulanan?bulan=12&kd_bisnis=10&nopend=20356&tahun=2022
+                    // kd_bisnis di-zeropad 2 digit: 1 -> 01, 2 -> 02, ..., 10 -> 10
+                    $kdBisnisInt = (int) ($kb->kd_bisnis ?? $kb->id); // prefer kolom kd_bisnis kalau ada
+                    $kd_bisnis   = sprintf('%02d', $kdBisnisInt);
+
+                    // API: /pso/1.0.0/data/produksi_bulanan?bulan=12&kd_bisnis=10&nopend=20356&tahun=2022
                     $url_request = $this->endpoint
                         . '?bulan=' . $this->bulan
-                        . '&kd_bisnis=' . $kb->id
-                        . '&nopend=' . $ls->nomor_dirian   // ← nopend = nomor_dirian
+                        . '&kd_bisnis=' . $kd_bisnis
+                        . '&nopend=' . ($ls->nomor_dirian ?? $ls->id) // nopend = nomor_dirian
                         . '&tahun=' . $this->tahun;
 
-                    // bikin Request terisolasi (jangan pakai helper request() di Job)
+                    // buat Request terisolasi (jangan pakai helper request() di Job)
                     $req = new HttpRequest();
                     $req->merge(['end_point' => $url_request]);
 
@@ -110,16 +113,32 @@ class ProcessSyncProduksiJob implements ShouldQueue
                         ? $jsonResponse->getData(true)
                         : (is_array($jsonResponse) ? $jsonResponse : []);
 
-                    $dataProduksi = $payloadArr['data'] ?? [];
-
-                    Log::info('Produksi fetched', [
-                        'nopend'     => $ls->nomor_dirian ?? null,
-                        'kd_bisnis'  => $kb->id,
-                        'count'      => is_countable($dataProduksi) ? count($dataProduksi) : 0,
-                        'endpoint'   => $url_request,
+                    // logging panggilan API
+                    $httpStatus  = method_exists($jsonResponse, 'getStatusCode') ? $jsonResponse->getStatusCode() : null;
+                    $bodyPreview = substr(json_encode($payloadArr), 0, 500);
+                    Log::info('Call API produksi_bulanan', [
+                        'url'        => $url_request,
+                        'status'     => $httpStatus,
+                        'body_first' => $bodyPreview,
                     ]);
 
-                    if (!empty($dataProduksi) && is_array($dataProduksi)) {
+                    // fleksibel ambil koleksi data
+                    $dataProduksi = [];
+                    if (isset($payloadArr['data']) && is_array($payloadArr['data'])) {
+                        $dataProduksi = $payloadArr['data'];
+                    } elseif (isset($payloadArr['result']) && is_array($payloadArr['result'])) {
+                        $dataProduksi = $payloadArr['result'];
+                    } elseif (isset($payloadArr['payload']) && is_array($payloadArr['payload'])) {
+                        $dataProduksi = $payloadArr['payload'];
+                    }
+
+                    Log::info('Produksi fetched', [
+                        'nopend'    => $ls->nomor_dirian ?? null,
+                        'kd_bisnis' => $kd_bisnis,
+                        'count'     => is_countable($dataProduksi) ? count($dataProduksi) : 0,
+                    ]);
+
+                    if (!empty($dataProduksi)) {
                         foreach ($dataProduksi as $data) {
                             if (!is_array($data)) continue;
                             $allFetchedData[] = $data;
@@ -133,8 +152,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
             $apiRequestLog->update([
                 'total_records'     => $totalTarget,
-                // kalau API kasih total_data, pakai itu; kalau tidak, fallback totalTarget
-                'available_records' => isset($payloadArr['total_data']) ? (int) $payloadArr['total_data'] : $totalTarget,
+                'available_records' => $totalTarget, // fallback aman
                 'status'            => $status,
             ]);
 
@@ -143,19 +161,19 @@ class ProcessSyncProduksiJob implements ShouldQueue
 
             foreach ($allFetchedData as $data) {
                 // ID unik produksi (sesuaikan kebutuhanmu)
-                $id = trim(($data['id_kpc'] ?? ''))
-                    . trim((string) ($data['tahun_anggaran'] ?? ''))
-                    . trim((string) ($data['nama_bulan'] ?? ''));
+                $id = trim((string)($data['id_kpc'] ?? ''))
+                    . trim((string)($data['tahun_anggaran'] ?? ''))
+                    . trim((string)($data['nama_bulan'] ?? ''));
 
                 $produksi = Produksi::updateOrCreate(
                     ['id' => $id],
                     [
                         'id'               => $id,
-                        'id_regional'      => $data['id_regional'] ?? null,
-                        'id_kprk'          => $data['id_kprk'] ?? null,
-                        'id_kpc'           => $data['id_kpc'] ?? null,
+                        'id_regional'      => $data['id_regional']   ?? null,
+                        'id_kprk'          => $data['id_kprk']       ?? null,
+                        'id_kpc'           => $data['id_kpc']        ?? null,
                         'tahun_anggaran'   => $data['tahun_anggaran'] ?? null,
-                        'bulan'            => $data['nama_bulan'] ?? null,
+                        'bulan'            => $data['nama_bulan']    ?? null,
                         'tgl_singkronisasi' => now(),
                         'status_regional'  => 7,
                         'status_kprk'      => 7,
@@ -166,17 +184,17 @@ class ProcessSyncProduksiJob implements ShouldQueue
                     ['id' => $data['id']],
                     [
                         'id_produksi'       => $id,
-                        'nama_bulan'        => $data['nama_bulan'] ?? null,
-                        'kode_bisnis'       => $data['kode_bisnis'] ?? null,
-                        'kode_rekening'     => $data['koderekening'] ?? null,
-                        'nama_rekening'     => $data['nama_rekening'] ?? null,
-                        'rtarif'            => $data['rtarif'] ?? null,
-                        'tpkirim'           => $data['tpkirim'] ?? null,
-                        'pelaporan'         => $data['bsu_pso'] ?? 0,
-                        'jenis_produksi'    => $data['jenis'] ?? null,
+                        'nama_bulan'        => $data['nama_bulan']        ?? null,
+                        'kode_bisnis'       => $data['kode_bisnis']       ?? null,
+                        'kode_rekening'     => $data['koderekening']      ?? null,
+                        'nama_rekening'     => $data['nama_rekening']     ?? null,
+                        'rtarif'            => $data['rtarif']            ?? null,
+                        'tpkirim'           => $data['tpkirim']           ?? null,
+                        'pelaporan'         => $data['bsu_pso']           ?? 0,
+                        'jenis_produksi'    => $data['jenis']             ?? null,
                         'kategori_produksi' => $data['kategori_produksi'] ?? null,
-                        'keterangan'        => $data['keterangan'] ?? null,
-                        'lampiran'          => $data['lampiran'] ?? null,
+                        'keterangan'        => $data['keterangan']        ?? null,
+                        'lampiran'          => $data['lampiran']          ?? null,
                     ]
                 );
 
@@ -200,11 +218,12 @@ class ProcessSyncProduksiJob implements ShouldQueue
                     'status_kprk'     => 7,
                 ]));
 
-                // sinkron lampiran (jika ada)
+                // sinkron lampiran (jika ada) → rsync server baru
                 if (!empty($data['lampiran'])) {
                     $namaFile        = $data['lampiran'];
                     $destinationPath = storage_path('app/public/lampiran');
-                    $rsyncCommand    = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --delete rsync://kominfo2@103.123.39.227:/lpu/{$namaFile} {$destinationPath} 2>&1";
+                    // gunakan port 2129 + IP baru
+                    $rsyncCommand    = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --port=2129 --delete rsync://kominfo2@103.123.39.226/lpu/{$namaFile} {$destinationPath} 2>&1";
                     $output          = shell_exec($rsyncCommand);
                     Log::info('rsync lampiran', ['file' => $namaFile, 'out' => $output]);
                 }
@@ -239,15 +258,12 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 'status'       => ($totalSumber === $totalTarget) ? 'success' : 'on progress',
             ]);
         } catch (\Exception $e) {
-            // JANGAN rollBack kalau tidak beginTransaction
             if ($apiRequestLog) {
                 $apiRequestLog->update(['status' => 'gagal']);
             }
-
             Log::error('Job ProcessSyncProduksiJob gagal: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
-
             throw $e; // biar masuk failed_jobs
         }
     }
