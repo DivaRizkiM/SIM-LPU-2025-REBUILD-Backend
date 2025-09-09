@@ -87,50 +87,91 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 }
 
                 foreach ($kategori_bisnis as $kb) {
-                    $apiController = new ApiController();
-                    $kdBisnisInt = (int) ($kb->kd_bisnis ?? $kb->id);
-                    $kd_bisnis   = sprintf('%02d', $kdBisnisInt);
-                    $url_request = $this->endpoint . '?bulan=' . $this->bulan . '&kd_bisnis=' . $kd_bisnis . '&nopend=' . $ls->id . '&tahun=' . $this->tahun;
-                    $request = request();
-                    $request->merge(['end_point' => $url_request]);
+                    try {
+                        $apiController = new ApiController();
 
-                    $response = $apiController->makeRequest($request);
-                    $dataProduksi = $response['data'] ?? [];
+                        // Zero-pad kd_bisnis (1 -> 01, 2 -> 02, ..., 10 -> 10)
+                        $kdBisnisInt = (int) ($kb->kd_bisnis ?? $kb->id);
+                        $kd_bisnis   = sprintf('%02d', $kdBisnisInt);
 
-                    foreach ($dataProduksi as $data) {
+                        $url_request = $this->endpoint
+                            . '?bulan=' . $this->bulan
+                            . '&kd_bisnis=' . $kd_bisnis
+                            . '&nopend=' . $ls->id
+                            . '&tahun=' . $this->tahun;
+
+                        $request = request();
+                        $request->merge(['end_point' => $url_request]);
+
+                        $response = $apiController->makeRequest($request);
+
+                        // Ubah JsonResponse -> array aman
+                        $payloadArr = $response instanceof \Illuminate\Http\JsonResponse
+                            ? $response->getData(true)
+                            : (is_array($response) ? $response : []);
+
+                        // Ambil koleksi data dari beberapa kemungkinan key
+                        $dataProduksi = [];
+                        if (isset($payloadArr['data']) && is_array($payloadArr['data'])) {
+                            $dataProduksi = $payloadArr['data'];
+                        } elseif (isset($payloadArr['result']) && is_array($payloadArr['result'])) {
+                            $dataProduksi = $payloadArr['result'];
+                        } elseif (isset($payloadArr['payload']) && is_array($payloadArr['payload'])) {
+                            $dataProduksi = $payloadArr['payload'];
+                        }
+
+                        // Jika kosong → log & lanjut (abaikan)
                         if (empty($dataProduksi)) {
+                            Log::info('Produksi kosong/diabaikan', [
+                                'nopend'    => $ls->id,
+                                'kd_bisnis' => $kd_bisnis,
+                                'url'       => $url_request,
+                            ]);
                             continue;
-                        } else {
+                        }
+
+                        foreach ($dataProduksi as $data) {
+                            if (!is_array($data)) {
+                                continue;
+                            }
                             $allFetchedData[] = $data;
                             $totalTarget++;
                         }
+                    } catch (\Throwable $ex) {
+                        // Error per item → jangan fail job, cukup log dan lanjut
+                        Log::warning('Gagal fetch 1 item (diabaikan)', [
+                            'nopend'    => $ls->id,
+                            'kd_bisnis' => $kb->kd_bisnis ?? $kb->id,
+                            'msg'       => $ex->getMessage(),
+                        ]);
+                        continue;
                     }
                 }
             }
 
-            $status = 'on progress';
-            if ($allFetchedData == []) {
-                $status = 'data tidak tersedia';
-            }
+            $status = empty($allFetchedData) ? 'data tidak tersedia' : 'on progress';
 
             $apiRequestLog->update([
-                'total_records' => $totalTarget,
-                'available_records' => $response['total_data'] ?? $totalTarget,
-                'status' => $status,
+                'total_records'     => $totalTarget,
+                'available_records' => $totalTarget, // fallback aman
+                'status'            => $status,
             ]);
 
+            // Pastikan folder lampiran ada
+            @mkdir(storage_path('/app/public/lampiran'), 0775, true);
+
             foreach ($allFetchedData as $data) {
-                $id = $data['id_kpc'] . $data['tahun_anggaran'] . $data['nama_bulan'];
+                $id = ($data['id_kpc'] ?? '') . ($data['tahun_anggaran'] ?? '') . ($data['nama_bulan'] ?? '');
 
                 $produksi = Produksi::updateOrCreate(
                     ['id' => $id],
                     [
                         'id' => $id,
-                        'id_regional' => $data['id_regional'],
-                        'id_kprk' => $data['id_kprk'],
-                        'id_kpc' => $data['id_kpc'],
-                        'tahun_anggaran' => $data['tahun_anggaran'],
-                        'bulan' => $data['nama_bulan'],
+                        'id_regional' => $data['id_regional'] ?? null,
+                        'id_kprk' => $data['id_kprk'] ?? null,
+                        'id_kpc' => $data['id_kpc'] ?? null,
+                        'tahun_anggaran' => $data['tahun_anggaran'] ?? null,
+                        'bulan' => $data['nama_bulan'] ?? null,
                         'tgl_singkronisasi' => now(),
                         'status_regional' => 7,
                         'status_kprk' => 7,
@@ -142,17 +183,17 @@ class ProcessSyncProduksiJob implements ShouldQueue
                     [
                         'id' => $data['id'],
                         'id_produksi' => $id,
-                        'nama_bulan' => $data['nama_bulan'],
-                        'kode_bisnis' => $data['kode_bisnis'],
-                        'kode_rekening' => $data['koderekening'],
-                        'nama_rekening' => $data['nama_rekening'],
-                        'rtarif' => $data['rtarif'],
-                        'tpkirim' => $data['tpkirim'],
-                        'pelaporan' => $data['bsu_pso'],
-                        'jenis_produksi' => $data['jenis'],
-                        'kategori_produksi' => $data['kategori_produksi'],
-                        'keterangan' => $data['keterangan'],
-                        'lampiran' => $data['lampiran'],
+                        'nama_bulan' => $data['nama_bulan'] ?? null,
+                        'kode_bisnis' => $data['kode_bisnis'] ?? null,
+                        'kode_rekening' => $data['koderekening'] ?? null,
+                        'nama_rekening' => $data['nama_rekening'] ?? null,
+                        'rtarif' => $data['rtarif'] ?? null,
+                        'tpkirim' => $data['tpkirim'] ?? null,
+                        'pelaporan' => $data['bsu_pso'] ?? 0,
+                        'jenis_produksi' => $data['jenis'] ?? null,
+                        'kategori_produksi' => $data['kategori_produksi'] ?? null,
+                        'keterangan' => $data['keterangan'] ?? null,
+                        'lampiran' => $data['lampiran'] ?? null,
                     ]
                 );
 
@@ -175,17 +216,19 @@ class ProcessSyncProduksiJob implements ShouldQueue
                     'status_kprk' => 7,
                 ]));
 
-                if ($data['lampiran']) {
-                    $namaFile = $data['lampiran'] ?? null;
+                if (!empty($data['lampiran'])) {
+                    $namaFile = $data['lampiran'];
                     $destinationPath = storage_path('/app/public/lampiran');
-                    // gunakan IP baru + port 2129
+                    // IP & port baru
                     $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --port=2129 --delete rsync://kominfo2@103.123.39.226/lpu/{$namaFile} {$destinationPath} 2>&1";
                     $output = shell_exec($rsyncCommand);
+                    Log::info('rsync lampiran', ['file' => $namaFile, 'out' => $output]);
                 }
 
                 $totalSumber++;
 
                 $status = ($totalSumber == $totalTarget) ? 'success' : 'on progress';
+
                 $updated_payload = $payload->payload ?? '';
                 $jsonData = json_encode($data);
                 $fileSize = strlen($jsonData);
@@ -213,22 +256,21 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 ]);
             }
         } catch (\Exception $e) {
-            DB::rollBack();
+            // Tidak ada DB::beginTransaction, jadi jangan rollBack di sini
 
-            // ✅ Update status log menjadi 'gagal'
             if ($apiRequestLog) {
                 $apiRequestLog->update([
                     'status' => 'gagal',
                 ]);
             }
 
-            // Log error detail ke laravel.log
             Log::error('Job ProcessSyncProduksiJob gagal: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Rethrow supaya Laravel tahu job ini failed dan masuk ke failed_jobs
-            throw $e;
+            // Supaya job tidak ditandai fail untuk kasus non-fatal, JANGAN lempar ulang.
+            // Jika ingin fail pada error fatal, aktifkan baris di bawah:
+            // throw $e;
         }
     }
 
@@ -343,7 +385,8 @@ class ProcessSyncProduksiJob implements ShouldQueue
     protected function syncLampiran($namaFile)
     {
         $destinationPath = storage_path('/app/public/lampiran');
-        $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --delete rsync://kominfo2@103.123.39.227:/lpu/{$namaFile} {$destinationPath} 2>&1";
+        // (Tidak dipakai karena kita sudah lakukan rsync inline di atas)
+        $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --port=2129 --delete rsync://kominfo2@103.123.39.226/lpu/{$namaFile} {$destinationPath} 2>&1";
         shell_exec($rsyncCommand);
     }
 
