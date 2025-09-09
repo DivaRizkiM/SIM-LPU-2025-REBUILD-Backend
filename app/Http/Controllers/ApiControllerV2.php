@@ -18,11 +18,18 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $request->merge(['end_point' => 'produksi_bulanan?bulan=01&kd_bisnis=03&nopend=31400&tahun=2025']);
-        // $request->merge(['end_point' => 'lampiran_biaya?id_biaya=22694932']);
+        $bulan     = $request->get('bulan', '01');       // default '01'
+        $tahun     = $request->get('tahun', date('Y'));  // default tahun sekarang
+        $kd_bisnis = $request->get('kd_bisnis', '03');   // default '03'
+        $nopend    = $request->get('nopend', '31400');   // default '31400'
+
+        $endpoint = "produksi_bulanan?bulan={$bulan}&kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}";
+
+        $request->merge(['end_point' => $endpoint]);
+
         return $this->makeRequest($request);
-        // return response()->json(['id' => 22135799]);
     }
+
 
     public function makeRequest(Request $request)
     {
