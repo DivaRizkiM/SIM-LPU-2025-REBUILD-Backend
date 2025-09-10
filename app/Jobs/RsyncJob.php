@@ -5,15 +5,16 @@ namespace App\Jobs;
 use App\Http\Controllers\ApiController;
 use App\Models\ApiRequestLog;
 use App\Models\ApiRequestPayloadLog;
+use App\Models\VerifikasiBiayaRutinDetailLampiran;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Log;
-use Exception;
-use App\Models\VerifikasiBiayaRutinDetailLampiran;
+use Illuminate\Support\Facades\Storage;
+use Jenssegers\Agent\Agent;
 
 class RsyncJob implements ShouldQueue
 {
@@ -24,22 +25,27 @@ class RsyncJob implements ShouldQueue
     protected $userAgent;
     protected $totalData;
 
+    /**
+     * @param \Illuminate\Support\Collection|array $list   daftar objek yang minimal punya properti id (id_biaya)
+     * @param string $endpoint                        endpoint API POS (tanpa query string)
+     * @param int $totalData                          total item sumber (untuk log progres)
+     * @param string $userAgent                       UA yang dipakai untuk pencatatan
+     */
     public function __construct($list, $endpoint, $totalData, $userAgent)
     {
         $this->list = $list;
         $this->endpoint = $endpoint;
-        $this->totalData = $totalData;
-        $this->userAgent = $userAgent;
+        $this->totalData = (int) $totalData;
+        $this->userAgent = (string) $userAgent;
     }
-
 
     public function handle()
     {
         try {
-            \Log::info('RsyncJob started.', ['total_data' => $this->totalData, 'endpoint' => $this->endpoint]);
+            Log::info('RsyncJob started.', ['total_data' => $this->totalData, 'endpoint' => $this->endpoint]);
 
-            if ($this->totalData == 0) {
-                \Log::warning('RsyncJob stopped: totalData is zero.');
+            if ($this->totalData === 0) {
+                Log::warning('RsyncJob stopped: totalData is zero.');
                 $this->createApiRequestLog($this->totalData);
                 return;
             }
@@ -50,28 +56,28 @@ class RsyncJob implements ShouldQueue
 
             foreach ($this->list as $ls) {
                 $url_request = $this->endpoint . '?id_biaya=' . $ls->id;
-                \Log::info('Fetching data for URL: ' . $url_request);
+                Log::info('Fetching data for URL: ' . $url_request);
 
                 $response = $this->fetchData($url_request);
-                \Log::info('Raw API Response: ' . json_encode($response));
+                Log::info('Raw API Response: ' . json_encode($response));
 
                 $dataLampiran = $response['data'] ?? [];
 
                 if (!empty($dataLampiran)) {
-                    \Log::info('Data found, processing...', ['id' => $ls->id]);
+                    Log::info('Data found, processing...', ['id_biaya' => $ls->id, 'lampiran_id' => $dataLampiran['id'] ?? null]);
                     $this->processFetchedData($dataLampiran, $payload);
                 } else {
-                    \Log::warning('Data not available from API for ID: ' . $ls->id);
-                    $this->updatePayload('data tidak tersedia', $payload);
+                    Log::warning('Data not available from API for ID: ' . $ls->id);
+                    $this->updatePayload(['error' => 'data tidak tersedia', 'id_biaya' => $ls->id], $payload);
                 }
 
                 $totalSumber++;
                 $this->updateApiRequestLogProgress($apiRequestLog, $totalSumber, $this->totalData, $payload);
             }
 
-            \Log::info('RsyncJob finished successfully.');
-        } catch (\Exception $e) {
-            \Log::error('An exception occurred in RsyncJob: ' . $e->getMessage(), [
+            Log::info('RsyncJob finished successfully.');
+        } catch (Exception $e) {
+            Log::error('An exception occurred in RsyncJob: ' . $e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
@@ -79,6 +85,9 @@ class RsyncJob implements ShouldQueue
         }
     }
 
+    /** =========================
+     *  Helpers: API Request Log
+     *  ========================= */
     protected function createApiRequestLog($totalData)
     {
         $serverIpAddress = gethostbyname(gethostname());
@@ -86,6 +95,7 @@ class RsyncJob implements ShouldQueue
         $agent->setUserAgent($this->userAgent);
         $platformRequest = $agent->platform() . '/' . $agent->browser();
         $status = $totalData == 0 ? 'data tidak tersedia' : 'on progress';
+
         return ApiRequestLog::create([
             'komponen' => 'Lampiran Biaya',
             'tanggal' => now(),
@@ -105,6 +115,7 @@ class RsyncJob implements ShouldQueue
             'payload' => null,
         ]);
     }
+
     protected function updateApiRequestLog($apiRequestLog, $totalTarget, $dataLampiran)
     {
         $status = empty($dataLampiran) ? 'data tidak tersedia' : 'on progress';
@@ -115,35 +126,48 @@ class RsyncJob implements ShouldQueue
             'status' => $status,
         ]);
     }
+
+    /** =====================
+     *  Helpers: Fetch Data
+     *  ===================== */
     protected function fetchData($url_request)
     {
         $apiController = new ApiController();
         $request = request();
         $request->merge(['end_point' => $url_request]);
+
+        // makeRequest diharapkan mengembalikan array dengan key: success, message, total_data, data
         return $apiController->makeRequest($request);
     }
 
-
+    /** =========================
+     *  Process & Sync Lampiran
+     *  ========================= */
     protected function processFetchedData($dataLampiran, $payload)
     {
+        $fileSize = 0; // pastikan selalu terdefinisi
+
+        // Simpan/Update meta lampiran ke DB
         $verifikasi = VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
             [
                 'id' => $dataLampiran['id'],
             ],
             [
                 'nama_file' => $dataLampiran['nama_file'],
+                // Pastikan field ini memang FK ke detail; sesuaikan bila berbeda.
                 'verifikasi_biaya_rutin_detail' => $dataLampiran['id'],
             ]
         );
 
+        // Sync file jika ada nama_file
         if (!empty($dataLampiran['nama_file'])) {
             $fileSize = $this->syncFile($dataLampiran['nama_file']);
 
+            // Jika ekstensi awal tak valid, update nama_file ke ekstensi yang benar (hanya jika file lokalnya memang ada)
             if ($fileSize > 0) {
                 $fileInfo = pathinfo($dataLampiran['nama_file']);
-                $extension = isset($fileInfo['extension']) ? $fileInfo['extension'] : '';
-
-                $allowedExtensions = [
+                $currentExt = $fileInfo['extension'] ?? '';
+                $allowed = [
                     "pdf",
                     "PDF",
                     "doc",
@@ -165,30 +189,61 @@ class RsyncJob implements ShouldQueue
                     "ZIP"
                 ];
 
-                if (!in_array($extension, $allowedExtensions)) {
-                    foreach ($allowedExtensions as $ext) {
-                        $newFileName = $fileInfo['filename'] . '.' . $ext;
-                        $verifikasi->update(['nama_file' => $newFileName]);
-                        break;
+                if (!in_array($currentExt, $allowed, true)) {
+                    foreach ($allowed as $ext) {
+                        $try = ($fileInfo['filename'] ?? $dataLampiran['nama_file']) . '.' . $ext;
+                        $local = storage_path('app/public/lampiran/' . $try);
+                        if (is_file($local) && filesize($local) > 0) {
+                            $verifikasi->update(['nama_file' => $try]);
+                            $dataLampiran['nama_file'] = $try;
+                            break;
+                        }
                     }
                 }
             }
 
             $dataLampiran['size'] = $fileSize;
         }
-        if ($fileSize == 0) {
-            $payload->payload = 'file tidak tersedia';
-        }
 
-        // Memperbarui payload
-        $this->updatePayload($dataLampiran, $payload);
+        if ($fileSize === 0) {
+            $this->updatePayload([
+                'error' => 'file tidak tersedia',
+                'nama_file' => $dataLampiran['nama_file'] ?? null,
+                'id' => $dataLampiran['id'] ?? null,
+                'id_biaya' => $dataLampiran['id_biaya'] ?? null,
+            ], $payload);
+        } else {
+            $this->updatePayload($dataLampiran, $payload);
+        }
     }
 
     protected function syncFile($namaFile)
     {
-        $destinationPath = storage_path('/app/public/lampiran');
+        // Pastikan folder tujuan ada
+        $destinationPath = storage_path('app/public/lampiran'); // tanpa leading slash
+        if (!is_dir($destinationPath)) {
+            Storage::makeDirectory('public/lampiran'); // otomatis buat storage/app/public/lampiran
+        }
+
+        // Baca konfigurasi dari ENV agar fleksibel
+        $rsyncHost     = env('RSYNC_HOST', '103.123.39.226');
+        $rsyncPort     = (int) env('RSYNC_PORT', 2129);
+        $rsyncUser     = env('RSYNC_USER', 'kominfo2');
+        $rsyncPassword = env('RSYNC_PASSWORD', 'k0minf0!');
+        $rsyncModule   = env('RSYNC_MODULE', 'lpu');
+
+        // Cek rsync binary tersedia
+        $linesCheck = [];
+        $codeCheck = 0;
+        exec('command -v rsync || which rsync', $linesCheck, $codeCheck);
+        if ($codeCheck !== 0 || empty($linesCheck)) {
+            Log::error('Rsync binary not found. Install rsync terlebih dahulu.');
+            return 0;
+        }
+
         $fileInfo = pathinfo($namaFile);
-        $filenameWithoutExt = $fileInfo['filename'];
+        $filenameWithoutExt = $fileInfo['filename'] ?? $namaFile;
+        $currentExtension = $fileInfo['extension'] ?? '';
 
         $allowedExtensions = [
             "pdf",
@@ -212,49 +267,54 @@ class RsyncJob implements ShouldQueue
             "ZIP"
         ];
 
-        $currentExtension = isset($fileInfo['extension']) ? $fileInfo['extension'] : '';
-
-        if (!empty($currentExtension) && in_array($currentExtension, $allowedExtensions)) {
+        if ($currentExtension && in_array($currentExtension, $allowedExtensions, true)) {
             array_unshift($allowedExtensions, $currentExtension);
-            $allowedExtensions = array_unique($allowedExtensions);
+            $allowedExtensions = array_values(array_unique($allowedExtensions));
         }
 
         foreach ($allowedExtensions as $ext) {
             $fileToSync = "{$filenameWithoutExt}.{$ext}";
-            \Log::info("file name:" . $fileToSync);
-            // $rsyncCommand = "export RSYNC_PASSWORD='r4has1ia_dev' && rsync -arvz --delete rsync://kominfo2@149.129.221.192::lpu/{$fileToSync} {$destinationPath} 2>&1";
-            $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!' && rsync -avz --port=2129 kominfo2@103.123.39.226::lpu/{$fileToSync} {$destinationPath} 2>&1";
+            $remote = "{$rsyncUser}@{$rsyncHost}::{$rsyncModule}/{$fileToSync}";
 
-            \Log::info('Executing Rsync Command: ' . $rsyncCommand);
+            // Gunakan exec agar dapat exit code
+            $cmd = 'RSYNC_PASSWORD=' . escapeshellarg($rsyncPassword)
+                . ' rsync -avz --port=' . (int) $rsyncPort . ' '
+                . escapeshellarg($remote) . ' '
+                . escapeshellarg($destinationPath . DIRECTORY_SEPARATOR) . ' 2>&1';
 
-            $output = shell_exec($rsyncCommand);
+            Log::info('Trying rsync', ['file' => $fileToSync, 'cmd' => $cmd]);
 
-            \Log::info('Rsync Output: ' . $output);
+            $lines = [];
+            $code  = 0;
+            exec($cmd, $lines, $code);
 
-            $localFilePath = "{$destinationPath}/{$fileToSync}";
+            Log::info('Rsync result', ['file' => $fileToSync, 'exit_code' => $code, 'output' => $lines]);
 
-            // LOG 8: Catat path file lokal yang sedang diperiksa
-            \Log::info('Checking for local file at: ' . $localFilePath);
+            $local = $destinationPath . DIRECTORY_SEPARATOR . $fileToSync;
 
-            if (file_exists($localFilePath) && filesize($localFilePath) > 0) {
-                \Log::info('File synced successfully!', ['file' => $localFilePath, 'size' => filesize($localFilePath)]);
-                return filesize($localFilePath); // Kembalikan ukuran file jika berhasil
+            if (is_file($local) && filesize($local) > 0) {
+                @chmod($local, 0644);
+                Log::info('File synced successfully!', ['file' => $local, 'size' => filesize($local)]);
+                return filesize($local);
+            }
+
+            if ($code === 0 && !is_file($local)) {
+                Log::warning('Rsync reported success but file not found locally.', ['expected' => $local]);
             }
         }
 
-        \Log::warning('Rsync failed for all attempted extensions.', ['original_file' => $namaFile]);
-        return 0; // Kembalikan 0 jika tidak ada file yang berhasil disinkronkan
+        Log::warning('Rsync failed for all attempted extensions.', ['original_file' => $namaFile]);
+        return 0;
     }
 
-
+    /** ======================
+     *  Payload Aggregation
+     *  ====================== */
     protected function updatePayload($dataLampiran, $payload)
     {
         $updated_payload = $payload->payload ?? '';
-        // $jsonData = json_encode($dataLampiran);
-        // $fileSize = strlen($jsonData);
-        // $dataLampiran['size'] = $fileSize;
 
-        if ($updated_payload !== '' || $payload->payload !== null) {
+        if ($updated_payload !== '' && $payload->payload !== null) {
             $existing_payload = json_decode($updated_payload, true);
             $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
             $existing_payload[] = (object) $dataLampiran;
@@ -266,6 +326,9 @@ class RsyncJob implements ShouldQueue
         $payload->update(['payload' => $updated_payload]);
     }
 
+    /** ======================
+     *  Progress Logging
+     *  ====================== */
     protected function updateApiRequestLogProgress($apiRequestLog, $totalSumber, $totalData, $payload)
     {
         $status = ($totalSumber == $totalData) ? 'success' : 'on progress';
