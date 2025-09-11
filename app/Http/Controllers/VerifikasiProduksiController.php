@@ -159,7 +159,7 @@ class VerifikasiProduksiController extends Controller
             $validator = Validator::make($request->all(), [
                 'tahun'      => 'nullable|numeric',
                 'triwulan'   => 'nullable|numeric|in:1,2,3,4',
-                'id_regional'=> 'nullable|numeric|exists:regional,id',
+                'id_regional' => 'nullable|numeric|exists:regional,id',
                 'status'     => 'nullable|string|in:7,9',
             ]);
 
@@ -261,7 +261,7 @@ class VerifikasiProduksiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'tahun'   => 'nullable|numeric',
-                'triwulan'=> 'nullable|numeric|in:1,2,3,4',
+                'triwulan' => 'nullable|numeric|in:1,2,3,4',
                 'id_kcu'  => 'nullable|numeric|exists:kprk,id',
                 'status'  => 'nullable|string|in:7,9',
             ]);
@@ -389,6 +389,7 @@ class VerifikasiProduksiController extends Controller
             $id_kcu      = $request->get('id_kcu', '');
             $id_kpc      = $request->get('id_kpc', '');
 
+            // Validasi utama
             $validator = Validator::make($request->all(), [
                 'id_produksi' => 'required|string|exists:produksi,id',
                 'id_kpc'      => 'required|string|exists:kpc,id',
@@ -403,6 +404,7 @@ class VerifikasiProduksiController extends Controller
                 ], 422);
             }
 
+            // Sorting
             $defaultOrder = "produksi_detail.kategori_produksi ASC";
             $orderMappings = [
                 'kodeproduksiASC'  => 'rekening_produksi.kodeproduksi ASC',
@@ -412,6 +414,7 @@ class VerifikasiProduksiController extends Controller
             ];
             $order = $orderMappings[$getOrder] ?? $defaultOrder;
 
+            // Validasi offset/limit/order
             $validOrderValues = implode(',', array_keys($orderMappings));
             $rules = [
                 'offset' => 'integer|min:0',
@@ -432,6 +435,7 @@ class VerifikasiProduksiController extends Controller
                 ], 400);
             }
 
+            // Query utama
             $produksiDetails = ProduksiDetail::select(
                 'produksi.id as id_produksi',
                 'produksi.triwulan',
@@ -471,41 +475,52 @@ class VerifikasiProduksiController extends Controller
             $lockStatuses = LockVerifikasi::where('tahun', $tahunAnggaran)->pluck('status', 'bulan');
 
             $bulanIndonesia = [
-                1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-                5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-                9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+                1 => 'Januari',
+                2 => 'Februari',
+                3 => 'Maret',
+                4 => 'April',
+                5 => 'Mei',
+                6 => 'Juni',
+                7 => 'Juli',
+                8 => 'Agustus',
+                9 => 'September',
+                10 => 'Oktober',
+                11 => 'November',
+                12 => 'Desember',
             ];
 
             $grouped = [];
 
+            // Isi data dari DB
             foreach ($produksiDetails as $item) {
                 $key   = "{$item->kode_rekening}_{$item->jenis_produksi}_{$item->kategori_produksi}_{$item->keterangan}";
-                $bulan = (int) $item->nama_bulan;
+                $bulan = str_pad((int) $item->nama_bulan, 2, '0', STR_PAD_LEFT);
 
                 if (!isset($grouped[$key])) {
                     $grouped[$key] = [
-                        'kode_rekening'    => $item->kode_rekening,
-                        'nama_rekening'    => $item->nama_rekening,
-                        'jenis_layanan'    => $item->kategori_produksi,
-                        'aktifitas'        => $item->jenis_produksi,
-                        'produk_keterangan'=> $item->keterangan,
-                        'laporan'          => [],
+                        'kode_rekening'     => $item->kode_rekening,
+                        'nama_rekening'     => $item->nama_rekening,
+                        'jenis_layanan'     => $item->kategori_produksi,
+                        'aktifitas'         => $item->jenis_produksi,
+                        'produk_keterangan' => $item->keterangan,
+                        'laporan'           => [],
                     ];
                 }
 
                 $grouped[$key]['laporan'][$bulan] = [
-                    'id_produksi_detail'=> $item->id_produksi_detail,
+                    'id_produksi_detail' => $item->id_produksi_detail,
                     'aktivitas'         => $item->jenis_produksi,
                     'produk_keterangan' => $item->keterangan,
                     'jenis_layanan'     => $item->kategori_produksi,
-                    'bulan_string'      => $bulanIndonesia[$bulan],
-                    'bulan'             => str_pad($bulan, 2, '0', STR_PAD_LEFT),
+                    'bulan_string'      => $bulanIndonesia[(int) $item->nama_bulan],
+                    'bulan'             => $bulan,
                     'pelaporan'         => 'Rp. ' . number_format((float) $item->pelaporan, 0, '', '.'),
                     'verifikasi'        => 'Rp. ' . number_format((float) $item->verifikasi, 0, '', '.'),
-                    'isLock'            => $lockStatuses[str_pad($bulan, 2, '0', STR_PAD_LEFT)] ?? false
+                    'isLock'            => $lockStatuses[$bulan] ?? false,
                 ];
             }
 
+            // Tambah filler bulan yang kosong
             foreach ($grouped as &$group) {
                 $laporan        = $group['laporan'];
                 $laporanByBulan = [];
@@ -518,7 +533,7 @@ class VerifikasiProduksiController extends Controller
                     $bulanKey = str_pad($bulan, 2, '0', STR_PAD_LEFT);
                     if (!isset($laporanByBulan[$bulanKey])) {
                         $laporanByBulan[$bulanKey] = [
-                            'id_produksi_detail'=> null,
+                            'id_produksi_detail' => null,
                             'aktivitas'         => $group['aktifitas'],
                             'produk_keterangan' => $group['produk_keterangan'],
                             'jenis_layanan'     => $group['jenis_layanan'],
@@ -551,6 +566,7 @@ class VerifikasiProduksiController extends Controller
             ], 500);
         }
     }
+
 
     public function notSimpling(Request $request)
     {
@@ -639,9 +655,18 @@ class VerifikasiProduksiController extends Controller
             }
 
             $bulanIndonesia = [
-                'Januari', 'Februari', 'Maret', 'April',
-                'Mei', 'Juni', 'Juli', 'Agustus',
-                'September', 'Oktober', 'November', 'Desember',
+                'Januari',
+                'Februari',
+                'Maret',
+                'April',
+                'Mei',
+                'Juni',
+                'Juli',
+                'Agustus',
+                'September',
+                'Oktober',
+                'November',
+                'Desember',
             ];
 
             $produksi = ProduksiDetail::select(
@@ -670,7 +695,7 @@ class VerifikasiProduksiController extends Controller
                     $item->periode     = $bulanIndonesia[$item->nama_bulan - 1];
                     $item->pelaporan   = "Rp " . number_format(round($item->pelaporan), 0, '', '.');
                     $item->verifikasi  = "Rp " . number_format(round($item->verifikasi), 0, '', '.');
-                    $item->url_lampiran= env('ENV_CONFIG_PATH') . $item->lampiran;
+                    $item->url_lampiran = env('ENV_CONFIG_PATH') . $item->lampiran;
 
                     $isLock = LockVerifikasi::where('tahun', $item->tahun_anggaran)->where('bulan', $bulan)->first();
                     if ($isLock) {
@@ -719,7 +744,7 @@ class VerifikasiProduksiController extends Controller
             $id_produksi_detail = $data['id_produksi_detail'];
             $verifikasi         = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
             $verifikasiFloat    = round((float) $verifikasi);
-            $verifikasiFormatted= (string) $verifikasiFloat;
+            $verifikasiFormatted = (string) $verifikasiFloat;
             $catatan_pemeriksa  = $data['catatan_pemeriksa'] ?? '';
             $id_validator       = Auth::user()->id;
             $tanggal_verifikasi = now();
