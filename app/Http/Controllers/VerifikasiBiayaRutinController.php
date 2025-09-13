@@ -1025,7 +1025,7 @@ class VerifikasiBiayaRutinController extends Controller
                 case 'FULLCOST':
                 case 'FULL':
                 case '100%':
-                    $proporsiBiayaJaskugNasional = $biayaPso * 1.0; 
+                    $proporsiBiayaJaskugNasional = $biayaPso * 1.0;
 
                     $rumusFase2 = $produksiJaskugNasional > 0 ?
                         ($produksiJaskugKCPLpuNasional / $produksiJaskugNasional) : 0;
@@ -1102,7 +1102,7 @@ class VerifikasiBiayaRutinController extends Controller
                 case 'COMMON COST':
                     $commonCost = $this->calculateCommonCost('', $tahun, $bulan);
                     $pendapatanJaskug = $commonCost['pendapatan_jaskug'] ?? 0;
-                    $pendapatanKurir = $commonCost['produksi_kurir'] ?? 0; 
+                    $pendapatanKurir = $commonCost['produksi_kurir'] ?? 0;
                     $totalPendapatan = $pendapatanJaskug + $pendapatanKurir;
 
                     $rumusFase1 = $totalPendapatan > 0 ? ($pendapatanJaskug / $totalPendapatan) : 0;
@@ -1276,64 +1276,64 @@ class VerifikasiBiayaRutinController extends Controller
                 $item->pelaporan = "Rp " . number_format(round($item->pelaporan), 0, '', '.');
                 $item->verifikasi = "Rp " . number_format(round($item->verifikasi), 0, '', '.');
 
-                if ($item->kode_rekening == '5000000010') {
-                    $ltk = VerifikasiLtk::select(
-                        'verifikasi_ltk.id',
-                        'verifikasi_ltk.kode_rekening',
-                        'rekening_biaya.nama as nama_rekening',
-                        'verifikasi_ltk.bulan',
-                        'verifikasi_ltk.tahun',
-                        'verifikasi_ltk.mtd_akuntansi',
-                        'verifikasi_ltk.verifikasi_akuntansi',
-                        'verifikasi_ltk.biaya_pso',
-                        'verifikasi_ltk.verifikasi_pso',
-                        'verifikasi_ltk.mtd_biaya_pos',
-                        'verifikasi_ltk.mtd_biaya_hasil',
-                        'verifikasi_ltk.proporsi_rumus',
-                        'verifikasi_ltk.verifikasi_proporsi',
-                        'verifikasi_ltk.keterangan',
-                        'verifikasi_ltk.catatan_pemeriksa',
-                        'verifikasi_ltk.nama_file',
-                        'verifikasi_ltk.kategori_cost',
-                    )->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')
-                        ->where('verifikasi_ltk.bulan', $bulan)
-                        ->where('verifikasi_ltk.tahun', $tahun)
-                        ->get();
+                // if ($item->kode_rekening == '5000000010') {
+                //     $ltk = VerifikasiLtk::select(
+                //         'verifikasi_ltk.id',
+                //         'verifikasi_ltk.kode_rekening',
+                //         'rekening_biaya.nama as nama_rekening',
+                //         'verifikasi_ltk.bulan',
+                //         'verifikasi_ltk.tahun',
+                //         'verifikasi_ltk.mtd_akuntansi',
+                //         'verifikasi_ltk.verifikasi_akuntansi',
+                //         'verifikasi_ltk.biaya_pso',
+                //         'verifikasi_ltk.verifikasi_pso',
+                //         'verifikasi_ltk.mtd_biaya_pos',
+                //         'verifikasi_ltk.mtd_biaya_hasil',
+                //         'verifikasi_ltk.proporsi_rumus',
+                //         'verifikasi_ltk.verifikasi_proporsi',
+                //         'verifikasi_ltk.keterangan',
+                //         'verifikasi_ltk.catatan_pemeriksa',
+                //         'verifikasi_ltk.nama_file',
+                //         'verifikasi_ltk.kategori_cost',
+                //     )->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')
+                //         ->where('verifikasi_ltk.bulan', $bulan)
+                //         ->where('verifikasi_ltk.tahun', $tahun)
+                //         ->get();
 
-                    // Check if collection is empty instead of null
-                    if ($ltk->isEmpty()) {
-                        continue; // Use continue instead of break to skip this iteration
-                    }
+                //     // Check if collection is empty instead of null
+                //     if ($ltk->isEmpty()) {
+                //         continue; // Use continue instead of break to skip this iteration
+                //     }
 
-                    $ltkSums = [
-                        'mtd_akuntansi' => $ltk->sum('mtd_akuntansi'),
-                        'verifikasi_akuntansi' => $ltk->sum('verifikasi_akuntansi'),
-                        'biaya_pso' => $ltk->sum('biaya_pso'),
-                        'verifikasi_pso' => $ltk->sum('verifikasi_pso'),
-                        'mtd_biaya_pos' => $ltk->sum('mtd_biaya_pos'),
-                        'mtd_biaya_hasil' => $ltk->sum('mtd_biaya_hasil'),
-                        'proporsi_rumus' => $ltk->sum('proporsi_rumus'),
-                        'verifikasi_proporsi' => $ltk->sum('verifikasi_proporsi'),
-                    ];
+                //     $ltkSums = [
+                //         'mtd_akuntansi' => $ltk->sum('mtd_akuntansi'),
+                //         'verifikasi_akuntansi' => $ltk->sum('verifikasi_akuntansi'),
+                //         'biaya_pso' => $ltk->sum('biaya_pso'),
+                //         'verifikasi_pso' => $ltk->sum('verifikasi_pso'),
+                //         'mtd_biaya_pos' => $ltk->sum('mtd_biaya_pos'),
+                //         'mtd_biaya_hasil' => $ltk->sum('mtd_biaya_hasil'),
+                //         'proporsi_rumus' => $ltk->sum('proporsi_rumus'),
+                //         'verifikasi_proporsi' => $ltk->sum('verifikasi_proporsi'),
+                //     ];
 
-                    $item->sums = $ltkSums;
+                //     $item->sums = $ltkSums;
 
-                    $kategoriCost = 'FULL';
-                    $mtdBiayaLtk = $ltkSums['mtd_akuntansi'];
-                    $biayaPso = $ltkSums['biaya_pso'];
+                //     $kategoriCost = 'FULL';
+                //     $mtdBiayaLtk = $ltkSums['mtd_akuntansi'];
+                //     $biayaPso = $ltkSums['biaya_pso'];
 
-                    $proporsiCalculation = $this->calculateProporsiByCategory(
-                        $mtdBiayaLtk,
-                        $kategoriCost,
-                        $biayaPso,
-                        $tahun,
-                        $bulan
-                    );
+                //     $proporsiCalculation = $this->calculateProporsiByCategory(
+                //         $mtdBiayaLtk,
+                //         $kategoriCost,
+                //         $biayaPso,
+                //         $tahun,
+                //         $bulan
+                //     );
 
-                    foreach ($proporsiCalculation as $key => $value) {
-                        $item->$key = $value;
-                    }
-                }
+                //     foreach ($proporsiCalculation as $key => $value) {
+                //         $item->$key = $value;
+                //     }
+                // }
 
                 $item->url_lampiran = config('app.env_config_path') . $item->nama_file;
 
@@ -1349,7 +1349,7 @@ class VerifikasiBiayaRutinController extends Controller
                 // Prevent division by zero
                 $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
                 $item->biaya_per_npp = "Rp " . number_format($biayaPerNpp, 0, '', '.');
-                
+
             }
 
             if ($isLockStatus) {
