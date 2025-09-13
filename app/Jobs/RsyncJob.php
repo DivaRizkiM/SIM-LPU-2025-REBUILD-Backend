@@ -226,8 +226,8 @@ class RsyncJob implements ShouldQueue
         }
 
         // Baca konfigurasi dari ENV agar fleksibel
-        $rsyncHost     = '103.123.39.227';
-        $rsyncPort     = 873;
+        $rsyncHost     = '147.139.133.1';
+        $rsyncPort     = 8732;
         $rsyncUser     = 'kominfo2';
         $rsyncPassword = 'k0minf0!';
         $rsyncModule   = 'lpu';
