@@ -21,20 +21,21 @@ class RsyncJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $list;
-    protected $endpoint;
-    protected $userAgent;
-    protected $totalData;
+    protected string $endpoint;
+    protected string $userAgent;
+    protected int $totalData;
 
-    /**
-     * @param \Illuminate\Support\Collection|array $list   daftar objek yang minimal punya properti id (id_biaya)
-     * @param string $endpoint                        endpoint API POS (tanpa query string)
-     * @param int $totalData                          total item sumber (untuk log progres)
-     * @param string $userAgent                       UA yang dipakai untuk pencatatan
-     */
+    // === Counters akurat ===
+    protected int $processedCount = 0;        // berapa ID diproses (loop)
+    protected int $downloadedCount = 0;       // berapa file benar-benar tersalin (>0 bytes)
+    protected int $apiEmptyCount = 0;         // API tidak mengembalikan dataLampiran / nama_file
+    protected int $remoteMissingCount = 0;    // file tidak ketemu di server rsync
+    protected int $errorCount = 0;            // error lain (rsync binary, exec, dll.)
+
     public function __construct($list, $endpoint, $totalData, $userAgent)
     {
         $this->list = $list;
-        $this->endpoint = $endpoint;
+        $this->endpoint = (string) $endpoint;
         $this->totalData = (int) $totalData;
         $this->userAgent = (string) $userAgent;
     }
@@ -46,69 +47,111 @@ class RsyncJob implements ShouldQueue
 
             if ($this->totalData === 0) {
                 Log::warning('RsyncJob stopped: totalData is zero.');
-                $this->createApiRequestLog($this->totalData);
+                $this->createApiRequestLog(0); // untuk visibilitas
                 return;
             }
 
-            $totalSumber = 0;
             $apiRequestLog = $this->createApiRequestLog($this->totalData);
             $payload = $this->initializePayload($apiRequestLog);
 
+            // Pastikan destinasi ada
+            Storage::makeDirectory('public/lampiran');
+
             foreach ($this->list as $ls) {
+                $this->processedCount++;
+
                 $url_request = $this->endpoint . '?id_biaya=' . $ls->id;
-                Log::info('Fetching data for URL: ' . $url_request);
+                Log::info('Fetching data for URL', ['url' => $url_request]);
 
                 $response = $this->fetchData($url_request);
-                Log::info('Raw API Response: ' . json_encode($response));
-
                 $dataLampiran = $response['data'] ?? [];
 
-                if (!empty($dataLampiran)) {
-                    Log::info('Data found, processing...', ['id_biaya' => $ls->id, 'lampiran_id' => $dataLampiran['id'] ?? null]);
-                    $this->processFetchedData($dataLampiran, $payload);
-                } else {
-                    Log::warning('Data not available from API for ID: ' . $ls->id);
-                    $this->updatePayload(['error' => 'data tidak tersedia', 'id_biaya' => $ls->id], $payload);
+                if (empty($dataLampiran) || empty($dataLampiran['nama_file'])) {
+                    $this->apiEmptyCount++;
+                    $this->updatePayload([
+                        'error'     => 'data tidak tersedia dari API',
+                        'id_biaya'  => $ls->id,
+                    ], $payload);
+                    $this->updateApiRequestLogProgress($apiRequestLog, $payload);
+                    continue;
                 }
 
-                $totalSumber++;
-                $this->updateApiRequestLogProgress($apiRequestLog, $totalSumber, $this->totalData, $payload);
+                // Simpan/Update meta lampiran
+                $verifikasi = VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
+                    ['id' => $dataLampiran['id']],
+                    [
+                        'nama_file' => $dataLampiran['nama_file'],
+                        // jika FK sebenarnya beda, sesuaikan:
+                        'verifikasi_biaya_rutin_detail' => $dataLampiran['id'],
+                    ]
+                );
+
+                // Sync file
+                $bytes = $this->syncFileSmart($dataLampiran['nama_file']);
+                if ($bytes > 0) {
+                    $this->downloadedCount++;
+                    $dataLampiran['size'] = $bytes;
+                    $this->updatePayload($dataLampiran, $payload);
+                } else {
+                    $this->remoteMissingCount++;
+                    $this->updatePayload([
+                        'error'     => 'file tidak ditemukan/0 bytes setelah rsync',
+                        'id'        => $dataLampiran['id'] ?? null,
+                        'id_biaya'  => $dataLampiran['id_biaya'] ?? null,
+                        'nama_file' => $dataLampiran['nama_file'],
+                    ], $payload);
+                }
+
+                // Jika ekstensi di DB tidak valid tapi file lokal ada dgn ekstensi lain → benarkan di DB
+                if ($bytes > 0) {
+                    $fixed = $this->fixDbFilenameIfNeeded($dataLampiran['nama_file']);
+                    if ($fixed && $fixed !== $dataLampiran['nama_file']) {
+                        $verifikasi->update(['nama_file' => $fixed]);
+                    }
+                }
+
+                $this->updateApiRequestLogProgress($apiRequestLog, $payload);
             }
 
-            Log::info('RsyncJob finished successfully.');
-        } catch (Exception $e) {
-            Log::error('An exception occurred in RsyncJob: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
+            // Finalize log
+            $this->finalizeApiRequestLog($apiRequestLog, $payload);
+
+            Log::info('RsyncJob finished.', [
+                'processed'  => $this->processedCount,
+                'downloaded' => $this->downloadedCount,
+                'api_empty'  => $this->apiEmptyCount,
+                'remote_missing' => $this->remoteMissingCount,
+                'errors'     => $this->errorCount,
             ]);
+        } catch (Exception $e) {
+            Log::error('RsyncJob exception: ' . $e->getMessage(), ['file' => $e->getFile(), 'line' => $e->getLine()]);
             throw $e;
         }
     }
 
-    /** =========================
-     *  Helpers: API Request Log
-     *  ========================= */
-    protected function createApiRequestLog($totalData)
+    /* =========================
+     *  API Request Log helpers
+     * ========================= */
+    protected function createApiRequestLog(int $totalData): ApiRequestLog
     {
         $serverIpAddress = gethostbyname(gethostname());
         $agent = new Agent();
         $agent->setUserAgent($this->userAgent);
         $platformRequest = $agent->platform() . '/' . $agent->browser();
-        $status = $totalData == 0 ? 'data tidak tersedia' : 'on progress';
 
         return ApiRequestLog::create([
-            'komponen' => 'Lampiran Biaya',
-            'tanggal' => now(),
-            'ip_address' => $serverIpAddress,
-            'platform_request' => $platformRequest,
-            'successful_records' => 0,
-            'available_records' => $totalData,
-            'total_records' => $totalData,
-            'status' => $status,
+            'komponen'           => 'Lampiran Biaya',
+            'tanggal'            => now(),
+            'ip_address'         => $serverIpAddress,
+            'platform_request'   => $platformRequest,
+            'successful_records' => 0,                  // diisi jumlah file sukses (bukan loop)
+            'available_records'  => $totalData,
+            'total_records'      => $totalData,
+            'status'             => 'on progress',
         ]);
     }
 
-    protected function initializePayload($apiRequestLog)
+    protected function initializePayload(ApiRequestLog $apiRequestLog): ApiRequestPayloadLog
     {
         return ApiRequestPayloadLog::create([
             'api_request_log_id' => $apiRequestLog->id,
@@ -116,225 +159,210 @@ class RsyncJob implements ShouldQueue
         ]);
     }
 
-    protected function updateApiRequestLog($apiRequestLog, $totalTarget, $dataLampiran)
+    protected function updateApiRequestLogProgress(ApiRequestLog $apiRequestLog, ApiRequestPayloadLog $payload): void
     {
-        $status = empty($dataLampiran) ? 'data tidak tersedia' : 'on progress';
+        $status = ($this->processedCount >= $this->totalData) ? 'success' : 'on progress';
 
         $apiRequestLog->update([
-            'total_records' => $totalTarget,
-            'available_records' => $totalTarget,
-            'status' => $status,
+            'successful_records' => $this->downloadedCount, // yang benar-benar masuk
+            'status'             => $status,
         ]);
     }
 
-    /** =====================
-     *  Helpers: Fetch Data
-     *  ===================== */
-    protected function fetchData($url_request)
+    protected function finalizeApiRequestLog(ApiRequestLog $apiRequestLog, ApiRequestPayloadLog $payload): void
+    {
+        $summary = [
+            'processed'       => $this->processedCount,
+            'downloaded'      => $this->downloadedCount,
+            'api_empty'       => $this->apiEmptyCount,
+            'remote_missing'  => $this->remoteMissingCount,
+            'errors'          => $this->errorCount,
+        ];
+        $this->updatePayload(['summary' => $summary], $payload);
+
+        $apiRequestLog->update([
+            'successful_records' => $this->downloadedCount,
+            'status'             => 'success',
+        ]);
+    }
+
+    /* =================
+     *  Fetch from API
+     * ================= */
+    protected function fetchData(string $url_request): array
     {
         $apiController = new ApiController();
         $request = request();
         $request->merge(['end_point' => $url_request]);
 
-        // makeRequest diharapkan mengembalikan array dengan key: success, message, total_data, data
-        return $apiController->makeRequest($request);
+        $res = $apiController->makeRequest($request);
+        return is_array($res) ? $res : [];
     }
 
-    /** =========================
-     *  Process & Sync Lampiran
-     *  ========================= */
-    protected function processFetchedData($dataLampiran, $payload)
+    /* =========================
+     *  Rsync helpers & logic
+     * ========================= */
+
+    /**
+     * Sync file dengan “ext-aware” + retry.
+     * Return ukuran file lokal (>0) jika sukses, 0 jika gagal.
+     */
+    protected function syncFileSmart(string $namaFile): int
     {
-        $fileSize = 0; // pastikan selalu terdefinisi
-
-        // Simpan/Update meta lampiran ke DB
-        $verifikasi = VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
-            [
-                'id' => $dataLampiran['id'],
-            ],
-            [
-                'nama_file' => $dataLampiran['nama_file'],
-                // Pastikan field ini memang FK ke detail; sesuaikan bila berbeda.
-                'verifikasi_biaya_rutin_detail' => $dataLampiran['id'],
-            ]
-        );
-
-        // Sync file jika ada nama_file
-        if (!empty($dataLampiran['nama_file'])) {
-            $fileSize = $this->syncFile($dataLampiran['nama_file']);
-
-            // Jika ekstensi awal tak valid, update nama_file ke ekstensi yang benar (hanya jika file lokalnya memang ada)
-            if ($fileSize > 0) {
-                $fileInfo = pathinfo($dataLampiran['nama_file']);
-                $currentExt = $fileInfo['extension'] ?? '';
-                $allowed = [
-                    "pdf",
-                    "PDF",
-                    "doc",
-                    "DOC",
-                    "xls",
-                    "XLS",
-                    "xlsx",
-                    "XLSX",
-                    "jpg",
-                    "JPG",
-                    "jpeg",
-                    "JPEG",
-                    "gif",
-                    "GIF",
-                    "png",
-                    "PNG",
-                    "rar",
-                    "zip",
-                    "ZIP"
-                ];
-
-                if (!in_array($currentExt, $allowed, true)) {
-                    foreach ($allowed as $ext) {
-                        $try = ($fileInfo['filename'] ?? $dataLampiran['nama_file']) . '.' . $ext;
-                        $local = storage_path('app/public/lampiran/' . $try);
-                        if (is_file($local) && filesize($local) > 0) {
-                            $verifikasi->update(['nama_file' => $try]);
-                            $dataLampiran['nama_file'] = $try;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            $dataLampiran['size'] = $fileSize;
-        }
-
-        if ($fileSize === 0) {
-            $this->updatePayload([
-                'error' => 'file tidak tersedia',
-                'nama_file' => $dataLampiran['nama_file'] ?? null,
-                'id' => $dataLampiran['id'] ?? null,
-                'id_biaya' => $dataLampiran['id_biaya'] ?? null,
-            ], $payload);
-        } else {
-            $this->updatePayload($dataLampiran, $payload);
-        }
-    }
-
-    protected function syncFile($namaFile)
-    {
-        // Pastikan folder tujuan ada
-        $destinationPath = storage_path('app/public/lampiran'); // tanpa leading slash
+        $destinationPath = storage_path('app/public/lampiran');
         if (!is_dir($destinationPath)) {
-            Storage::makeDirectory('public/lampiran'); // otomatis buat storage/app/public/lampiran
+            Storage::makeDirectory('public/lampiran');
         }
 
-        // Baca konfigurasi dari ENV agar fleksibel
+        // Konfigurasi rsync dari ENV
         $rsyncHost     = '147.139.133.1';
         $rsyncPort     = 8732;
         $rsyncUser     = 'kominfo2';
         $rsyncPassword = 'k0minf0!';
         $rsyncModule   = 'lpu';
+        $rsyncBasePath = '/'; // kosong = root modul
+        $timeout       = 12;
+        $maxRetry      = 3;
 
-        // Cek rsync binary tersedia
+        // Cek rsync tersedia
         $linesCheck = [];
-        $codeCheck = 0;
-        exec('command -v rsync || which rsync', $linesCheck, $codeCheck);
+        $codeCheck  = 0;
+        @exec('command -v rsync || which rsync', $linesCheck, $codeCheck);
         if ($codeCheck !== 0 || empty($linesCheck)) {
-            Log::error('Rsync binary not found. Install rsync terlebih dahulu.');
+            Log::error('Rsync binary not found.');
+            $this->errorCount++;
+            return 0;
+        }
+
+        // Sanitasi nama file untuk menghindari karakter berbahaya di shell (tetap pakai escapeshellarg, ini hanya sanity)
+        $namaFile = trim($namaFile);
+        if ($namaFile === '' || preg_match('/[^\w\.\-]/', $namaFile)) {
+            Log::warning('Invalid filename pattern', ['nama_file' => $namaFile]);
             return 0;
         }
 
         $fileInfo = pathinfo($namaFile);
         $filenameWithoutExt = $fileInfo['filename'] ?? $namaFile;
-        $currentExtension = $fileInfo['extension'] ?? '';
+        $currentExt = $fileInfo['extension'] ?? '';
 
-        $allowedExtensions = [
-            "pdf",
-            "PDF",
-            "doc",
-            "DOC",
-            "xls",
-            "XLS",
-            "xlsx",
-            "XLSX",
-            "jpg",
-            "JPG",
-            "jpeg",
-            "JPEG",
-            "gif",
-            "GIF",
-            "png",
-            "PNG",
-            "rar",
-            "zip",
-            "ZIP"
-        ];
+        // Urutan ekstensi yang dicoba — minimal dulu biar cepat
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar'];
+        $candidates = [];
 
-        if ($currentExtension && in_array($currentExtension, $allowedExtensions, true)) {
-            array_unshift($allowedExtensions, $currentExtension);
-            $allowedExtensions = array_values(array_unique($allowedExtensions));
+        if ($currentExt !== '') {
+            // coba yang sesuai dulu (case-insensitive)
+            $candidates[] = $filenameWithoutExt . '.' . $currentExt;
+            if (strtolower($currentExt) !== $currentExt) {
+                $candidates[] = $filenameWithoutExt . '.' . strtolower($currentExt);
+            }
+            if (strtoupper($currentExt) !== $currentExt) {
+                $candidates[] = $filenameWithoutExt . '.' . strtoupper($currentExt);
+            }
+        } else {
+            // tidak ada ext → coba beberapa favorit
+            foreach ($allowed as $ext) {
+                $candidates[] = $filenameWithoutExt . '.' . $ext;
+                $candidates[] = $filenameWithoutExt . '.' . strtoupper($ext);
+            }
         }
 
-        foreach ($allowedExtensions as $ext) {
-            $fileToSync = "{$filenameWithoutExt}.{$ext}";
-            $remote = "{$rsyncUser}@{$rsyncHost}::{$rsyncModule}/{$fileToSync}";
+        // Hilangkan duplikat
+        $candidates = array_values(array_unique($candidates));
 
-            // Gunakan exec agar dapat exit code
+        // Prefix path remote (modul + base path opsional)
+        $remotePrefix = $rsyncModule . '/';
+        if ($rsyncBasePath !== '') {
+            $remotePrefix .= $rsyncBasePath . '/';
+        }
+
+        foreach ($candidates as $fileToSync) {
+            $remote = "{$rsyncUser}@{$rsyncHost}::{$remotePrefix}{$fileToSync}";
+
             $cmd = 'RSYNC_PASSWORD=' . escapeshellarg($rsyncPassword)
-                . ' rsync -avz --port=' . (int) $rsyncPort . ' '
+                . ' rsync -avz'
+                . ' --timeout=' . (int) $timeout
+                . ' --port=' . (int) $rsyncPort . ' '
                 . escapeshellarg($remote) . ' '
                 . escapeshellarg($destinationPath . DIRECTORY_SEPARATOR) . ' 2>&1';
 
-            Log::info('Trying rsync', ['file' => $fileToSync, 'cmd' => $cmd]);
+            $attempt = 0;
+            $success = false;
+            $lines   = [];
+            $code    = 0;
 
-            $lines = [];
-            $code  = 0;
-            exec($cmd, $lines, $code);
+            while ($attempt < $maxRetry) {
+                $attempt++;
+                @exec($cmd, $lines, $code);
 
-            Log::info('Rsync result', ['file' => $fileToSync, 'exit_code' => $code, 'output' => $lines]);
+                if ($code === 0) {
+                    $success = true;
+                    break;
+                }
+
+                // backoff ringan
+                usleep(150000 * $attempt); // 150ms, 300ms, 450ms
+            }
 
             $local = $destinationPath . DIRECTORY_SEPARATOR . $fileToSync;
 
-            if (is_file($local) && filesize($local) > 0) {
+            if ($success && is_file($local) && filesize($local) > 0) {
                 @chmod($local, 0644);
-                Log::info('File synced successfully!', ['file' => $local, 'size' => filesize($local)]);
+                Log::info('Rsync OK', [
+                    'file' => $fileToSync,
+                    'size' => filesize($local),
+                    'attempts' => $attempt,
+                ]);
                 return filesize($local);
             }
 
-            if ($code === 0 && !is_file($local)) {
-                Log::warning('Rsync reported success but file not found locally.', ['expected' => $local]);
+            // kalau gagal, log ringkas (tanpa password/cmd)
+            if (!$success) {
+                Log::warning('Rsync failed', [
+                    'file' => $fileToSync,
+                    'attempts' => $attempt,
+                    'exit_code' => $code,
+                    'last_output' => end($lines),
+                ]);
+            } elseif ($success && !is_file($local)) {
+                Log::warning('Rsync reported success but file missing', ['expect' => $local]);
             }
         }
 
-        Log::warning('Rsync failed for all attempted extensions.', ['original_file' => $namaFile]);
         return 0;
     }
 
-    /** ======================
-     *  Payload Aggregation
-     *  ====================== */
-    protected function updatePayload($dataLampiran, $payload)
+    /**
+     * Jika nama_file di DB tidak sesuai ekstensi lokal yang ada, perbaiki.
+     * Return nama baru jika diperbaiki; null kalau tidak berubah.
+     */
+    protected function fixDbFilenameIfNeeded(string $original): ?string
     {
-        $updated_payload = $payload->payload ?? '';
+        $base = pathinfo($original, PATHINFO_FILENAME);
+        $dir  = storage_path('app/public/lampiran');
+        $candidates = glob($dir . DIRECTORY_SEPARATOR . $base . '.*');
+        if (!$candidates) return null;
 
-        if ($updated_payload !== '' && $payload->payload !== null) {
-            $existing_payload = json_decode($updated_payload, true);
-            $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
-            $existing_payload[] = (object) $dataLampiran;
-            $updated_payload = json_encode($existing_payload);
-        } else {
-            $updated_payload = json_encode([(object) $dataLampiran]);
+        // Ambil salah satu yang benar-benar ada > 0 bytes
+        foreach ($candidates as $fullpath) {
+            if (is_file($fullpath) && filesize($fullpath) > 0) {
+                return basename($fullpath);
+            }
         }
-
-        $payload->update(['payload' => $updated_payload]);
+        return null;
     }
 
-    /** ======================
-     *  Progress Logging
-     *  ====================== */
-    protected function updateApiRequestLogProgress($apiRequestLog, $totalSumber, $totalData, $payload)
+    /* ======================
+     *  Payload aggregation
+     * ====================== */
+    protected function updatePayload($dataLampiran, ApiRequestPayloadLog $payload): void
     {
-        $status = ($totalSumber == $totalData) ? 'success' : 'on progress';
-        $apiRequestLog->update([
-            'successful_records' => $totalSumber,
-            'status' => $status,
-        ]);
+        $current = $payload->payload;
+        $arr = [];
+        if ($current) {
+            $decoded = json_decode($current, true);
+            if (is_array($decoded)) $arr = $decoded;
+        }
+        $arr[] = $dataLampiran;
+        $payload->update(['payload' => json_encode($arr)]);
     }
 }
