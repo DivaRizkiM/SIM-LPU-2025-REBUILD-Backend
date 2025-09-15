@@ -295,7 +295,7 @@ class NppController extends Controller
                 $npp->periode = $bulanIndonesia[$npp->bulan - 1];
                 $npp->pelaporan = "Rp " . number_format(round($npp->pelaporan), 0, ',', '.');
                 $npp->verifikasi = "Rp " . number_format(round($npp->verifikasi), 0, ',', '.');
-                $npp->url_file = 'https://lpu.komdigi.go.id/backend/view_image/lampirannpp/' . $npp->nama_file;
+                $npp->url_file = 'https://verifikasilpu.komdigi.go.id/backend/storage/lampiran/' . $npp->nama_file;
 
                 // Cek jenis npp apakah produksi atau pendapatan
                 if (in_array($lastTwoDigits, $pendapatanRek)) {
