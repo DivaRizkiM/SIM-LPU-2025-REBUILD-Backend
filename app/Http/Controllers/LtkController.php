@@ -509,19 +509,7 @@ class LtkController extends Controller
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                 ]);
 
-                $verifikasiPerKcp = $this->calculateVerifikasiPerKcp($verifikasiAkuntansi);
-
-                $biayaRutins = VerifikasiBiayaRutinDetail::where('bulan', $ltk->bulan)
-                    ->where('id_rekening_biaya', $ltk->kode_rekening)
-                    ->whereHas('verifikasiBiayaRutin', function ($query) use ($tahun) {
-                        $query->where('tahun', $tahun);
-                    })->get();
-
-                foreach ($biayaRutins as $biayaRutin) {
-                    $biayaRutin->update([
-                        'verifikasi' => $verifikasiPerKcp
-                    ]);
-                }
+                // Bagian update VerifikasiBiayaRutinDetail dihapus untuk mematikan link
 
                 $updatedData[] = $ltk->fresh();
             }
