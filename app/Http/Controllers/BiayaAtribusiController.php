@@ -765,40 +765,25 @@ class BiayaAtribusiController extends Controller
                 $id_biaya_atribusi_detail = $data['id_biaya_atribusi_detail'];
 
                 $verifikasi = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
-                $verifikasiFloat = round((float) $verifikasi);
-                $verifikasiFormatted = (string) $verifikasiFloat;
+                $verifikasiFloat = round((float)$verifikasi);
+                $verifikasiFormatted = (string)$verifikasiFloat;
                 $catatan_pemeriksa = isset($data['catatan_pemeriksa']) ? $data['catatan_pemeriksa'] : '';
                 $id_validator = Auth::user()->id;
                 $tanggal_verifikasi = now();
                 $biaya_atribusi_detail = BiayaAtribusiDetail::with('biayaAtribusi')->find($id_biaya_atribusi_detail);
 
-                $totalKcp = Kprk::where('id', $biaya_atribusi_detail->biayaAtribusi->id_kprk)->sum('jumlah_kpc_lpu');
-                $pelaporanFormatted = str_replace(['Rp.', ',', '.'], '', $biaya_atribusi_detail->pelaporan);
-                $tahun = $biaya_atribusi_detail->biayaAtribusi->tahun_anggaran;
-                $verifikasiPerKcp = $verifikasi / $totalKcp;
                 if (!$biaya_atribusi_detail) {
                     DB::rollBack();
                     return response()->json(['status' => 'ERROR', 'message' => 'Detail biaya atribusi tidak ditemukan'], 404);
                 }
 
+                // Hanya update biaya atribusi detail, tidak update rutin detail
                 $biaya_atribusi_detail->update([
                     'verifikasi' => $verifikasiFormatted,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                     'id_validator' => $id_validator,
                     'tgl_verifikasi' => $tanggal_verifikasi,
                 ]);
-
-                $biayaRutins = VerifikasiBiayaRutinDetail::where('bulan', $biaya_atribusi_detail->bulan)
-                    ->where('id_rekening_biaya', $biaya_atribusi_detail->id_rekening_biaya)
-                    ->whereHas('verifikasiBiayaRutin', function ($query) use ($tahun) {
-                        $query->where('tahun', $tahun);
-                    })->get();
-
-                foreach ($biayaRutins as $biayaRutin) {
-                    $biayaRutin->update([
-                        'verifikasi' => $verifikasiPerKcp
-                    ]);
-                }
 
                 $updatedData[] = $biaya_atribusi_detail;
             }
