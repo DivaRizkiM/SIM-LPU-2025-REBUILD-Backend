@@ -324,7 +324,8 @@ class NppController extends Controller
 
                     if ($nasionalTotal > 0) {
                         $proporsi = ($kcpNasionalTotal / $nasionalTotal) * 100;
-                        $npp->proporsi = number_format($proporsi, 2, ',', '.') . '%';
+                        $roundProporsi = round($proporsi, 2);
+                        $npp->proporsi = number_format($roundProporsi, 2, ',', '.') . '%';
                     }
                 }
                 if ($isLock) {

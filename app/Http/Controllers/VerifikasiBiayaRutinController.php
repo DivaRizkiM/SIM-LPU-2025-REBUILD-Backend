@@ -1244,7 +1244,7 @@ class VerifikasiBiayaRutinController extends Controller
             $npp = null;
             $produksi = 0;
             $produksi_nasional = 0;
-            $kpcTotal = Kpc::count(); // Move this outside the if block
+            $kpcTotal = 2460;
             $tahun = null;
             $kodeRekening = null;
 
@@ -1339,9 +1339,10 @@ class VerifikasiBiayaRutinController extends Controller
 
                 $proporsi = 0;
                 if (($produksi ?? 0) != 0 && ($produksi_nasional ?? 0) != 0 && ($npp->bsu ?? 0) != 0) {
-                    $persentaseProporsiProduksi = ($produksi / $produksi_nasional);
-                    $proporsi = $npp->bsu * $persentaseProporsiProduksi;
-                }
+                    $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
+                    $roundProporsi = round($persentaseProporsiProduksi, 2);
+                    $proporsi = $npp->bsu * $roundProporsi / 100;
+                }   
 
                 $item->npp = "Rp " . number_format(($npp->bsu ?? 0), 0, '', '.');
                 $item->proporsi = "Rp " . number_format(($proporsi), 0, '', '.');
