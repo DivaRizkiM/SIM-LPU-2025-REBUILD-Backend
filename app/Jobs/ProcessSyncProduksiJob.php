@@ -205,6 +205,8 @@ class ProcessSyncProduksiJob implements ShouldQueue
                         'rtarif'         => $data['rtarif'] ?? null,
                         'tpkirim'        => $data['tpkirim'] ?? null,
                         'pelaporan'      => $data['bsu_pso'] ?? 0,
+                        'bsu_bruto'      => $data['bsu_bruto'] ?? null,
+                        'bilangan'      => $data['bilangan'] ?? null,
                         'jenis_produksi' => $data['jenis'] ?? null,
                         'kategori_produksi' => $data['kategori_produksi'] ?? null,
                         'keterangan'     => $data['keterangan'] ?? null,
@@ -355,6 +357,8 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 'rtarif' => $data['rtarif'] ?? null,
                 'tpkirim' => $data['tpkirim'] ?? null,
                 'pelaporan' => $data['bsu_pso'] ?? 0,
+                'bsu_bruto' => $data['bsu_bruto'] ?? null,
+                'bilangan' => $data['bilangan'] ?? null,
                 'lampiran' => $data['lampiran'] ?? null,
             ]
         );
