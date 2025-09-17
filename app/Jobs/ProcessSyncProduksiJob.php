@@ -359,6 +359,7 @@ class ProcessSyncProduksiJob implements ShouldQueue
                 'pelaporan' => $data['bsu_pso'] ?? 0,
                 'bsu_bruto' => $data['bsu_bruto'] ?? null,
                 'bilangan' => $data['bilangan'] ?? null,
+                'bilangan' => $data['bilangan'] ?? null,
                 'lampiran' => $data['lampiran'] ?? null,
             ]
         );
