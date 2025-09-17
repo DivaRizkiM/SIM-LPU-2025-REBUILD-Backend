@@ -300,9 +300,11 @@ class NppController extends Controller
                 // Cek jenis npp apakah produksi atau pendapatan
                 if (in_array($lastTwoDigits, $pendapatanRek)) {
                     $sumField = 'jml_pendapatan';
+                    $sumFieldKCP = 'bsu_bruto';
                     $dataType = 'pendapatan';
                 } elseif (in_array($lastTwoDigits, $produksiRek)) {
                     $sumField = 'jml_produksi';
+                    $sumFieldKCP = 'bilangan';
                     $dataType = 'produksi';
                 }
 
@@ -316,7 +318,7 @@ class NppController extends Controller
                         ->where('produksi_detail.nama_bulan', $npp->bulan)
                         ->where('produksi_detail.jenis_produksi', 'PENERIMAAN/OUTGOING')
                         ->where('produksi.tahun_anggaran', $npp->tahun)
-                        ->sum('produksi_detail.pelaporan');
+                        ->sum('produksi_detail.' . $sumFieldKCP);
 
                     // Mengisi properti secara dinamis
                     $npp->{$dataType . '_nasional'} = "Rp " . number_format(round($nasionalTotal), 0, ',', '.');
