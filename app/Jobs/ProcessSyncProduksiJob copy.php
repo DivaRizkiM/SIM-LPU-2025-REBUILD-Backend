@@ -145,6 +145,8 @@ class ProcessSyncProduksiJob implements ShouldQueue
                         'rtarif' => $data['rtarif'],
                         'tpkirim' => $data['tpkirim'],
                         'pelaporan' => $data['bsu_pso'],
+                        'bsu_bruto' => $data['bsu_bruto'] ?? null,
+                        'bilangan' => $data['bilangan'] ?? null,
                         'jenis_produksi' => $data['jenis'],
                         'kategori_produksi' => $data['kategori_produksi'],
                         'keterangan' => $data['keterangan'],
