@@ -32,4 +32,4 @@
         </div>
     </body>
 </html>
-<?php /**PATH /var/www/backend/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/minimal.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\Code\Office\verifikasilpu-be\vendor\laravel\framework\src\Illuminate\Foundation\Exceptions/views/minimal.blade.php ENDPATH**/ ?>
