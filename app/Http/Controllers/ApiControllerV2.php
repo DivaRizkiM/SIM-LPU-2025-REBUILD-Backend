@@ -22,8 +22,7 @@ class ApiControllerV2 extends Controller
         $tahun     = $request->get('tahun', date('Y'));  // default tahun sekarang
         $kd_bisnis = $request->get('kd_bisnis', '03');   // default '03'
         $nopend    = $request->get('nopend', '31400');   // default '31400'
-
-        $endpoint = "produksi_bulanan?bulan={$bulan}&kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}";
+        $endpoint = "biaya_nasional?tahunbulan=20256";
 
         $request->merge(['end_point' => $endpoint]);
 
