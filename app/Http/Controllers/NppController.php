@@ -542,14 +542,12 @@ class NppController extends Controller
     {
         DB::beginTransaction();
         try {
-            // Validasi input dari request
             $validator = Validator::make($request->all(), [
                 'data.*.id_npp' => 'required|string|exists:npp,id',
                 'data.*.verifikasi' => 'required|string',
                 'data.*.catatan_pemeriksa' => 'nullable|string',
             ]);
 
-            // Cek jika validasi gagal
             if ($validator->fails()) {
                 return response()->json(['status' => 'ERROR', 'message' => $validator->errors()], 422);
             }
@@ -561,7 +559,6 @@ class NppController extends Controller
             }
 
             $updatedData = [];
-
             $totalKcp = Kprk::sum('jumlah_kpc_lpu');
             foreach ($verifikasiData as $data) {
                 if (!isset($data['id_npp']) || !isset($data['verifikasi'])) {
@@ -572,7 +569,6 @@ class NppController extends Controller
                 $id_npp = $data['id_npp'];
                 $verifikasi = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
                 $verifikasiFloat = round((float) $verifikasi);
-                $verifikasiPerKcp = $verifikasiFloat / $totalKcp;
                 $verifikasiFormatted = (string) $verifikasiFloat;
                 $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
                 $id_validator = Auth::user()->id;
@@ -593,36 +589,17 @@ class NppController extends Controller
                     'id_status' => 9,
                 ]);
 
-                $biayaRutins = VerifikasiBiayaRutinDetail::where('bulan', $npp->bulan)->where('id_rekening_biaya', $npp->id_rekening_biaya)->whereHas('verifikasiBiayaRutin', function ($query) use ($npp) {
-                    $query->where('tahun', $npp->tahun);
-                })->get();
+                // Tidak ada update ke biayaRutins
 
-                foreach ($biayaRutins as $biayaRutin) {
-                    $biayaRutin->update([
-                        'verifikasi' => $verifikasiPerKcp
-                    ]);
-                }
-
-
-                // Tambahkan entri yang diperbarui ke array hasil
                 $updatedData[] = $npp;
             }
-            $userLog = [
-                'timestamp' => now(),
-                'aktifitas' => 'Verifikasi NPP',
-                'modul' => 'NPP',
-                'id_user' => Auth::user(),
-            ];
 
-            $userLog = UserLog::create($userLog);
+            // Tidak ada create UserLog dan cache clear
 
             DB::commit();
-            Artisan::call('cache:clear');
 
-            // Kembalikan respon sukses
             return response()->json(['status' => 'SUCCESS', 'data' => $updatedData]);
         } catch (\Exception $e) {
-            // Kembalikan respon error
             DB::rollBack();
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
