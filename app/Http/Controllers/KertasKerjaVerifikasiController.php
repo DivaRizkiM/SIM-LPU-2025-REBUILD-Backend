@@ -48,7 +48,7 @@ class KertasKerjaVerifikasiController extends Controller
                 'namaDESC'    => ['kprk.nama', 'DESC'],
                 // kolom triwulan/tahun tidak ada di select utama, jadi fallback ke id
                 'triwulanASC' => ['kprk.id', 'ASC'],
-                'triwulanDESC' => ['kprk.id', 'DESC'],
+                'triwulanDESC'=> ['kprk.id', 'DESC'],
                 'tahunASC'    => ['kprk.id', 'ASC'],
                 'tahunDESC'   => ['kprk.id', 'DESC'],
             ];
@@ -114,7 +114,7 @@ class KertasKerjaVerifikasiController extends Controller
                 'hasil_pelaporan_biaya'      => round($item->hasil_pelaporan_biaya),
                 'hasil_pelaporan_pendapatan' => round($item->hasil_pelaporan_pendapatan),
                 'hasil_verifikasi_biaya'     => round($item->hasil_verifikasi_biaya),
-                'hasil_verifikasi_pendapatan' => round($item->hasil_verifikasi_pendapatan),
+                'hasil_verifikasi_pendapatan'=> round($item->hasil_verifikasi_pendapatan),
                 'deviasi_biaya'              => round($item->hasil_pelaporan_biaya - $item->hasil_verifikasi_biaya),
                 'deviasi_produksi'           => round($item->hasil_pelaporan_pendapatan - $item->hasil_verifikasi_pendapatan),
                 'deviasi_akhir'              => round($item->hasil_verifikasi_biaya - $item->hasil_verifikasi_pendapatan),
@@ -455,7 +455,7 @@ class KertasKerjaVerifikasiController extends Controller
                 ->leftJoinSub($qAlokasi,      'alokasi_dana',   'alokasi_dana.id_kpc', '=', 'kpc.id')
                 ->leftJoinSub($qAtribusi,     'atribusi',       'atribusi.id_kprk',    '=', 'kpc.id_kprk')
                 ->leftJoinSub($qBiayaRutin,   'biaya',          'biaya.id_kpc',        '=', 'kpc.id')
-                ->leftJoinSub($qVerifikasiLPU, 'verifikasi_lpu', 'verifikasi_lpu.id_kpc', '=', 'kpc.id')
+                ->leftJoinSub($qVerifikasiLPU,'verifikasi_lpu', 'verifikasi_lpu.id_kpc','=', 'kpc.id')
                 ->leftJoinSub($qVerifikasi,   'verifikasi',     'verifikasi.id_kpc',   '=', 'kpc.id')
                 ->groupBy('kpc.id');
 
@@ -464,7 +464,7 @@ class KertasKerjaVerifikasiController extends Controller
             $data = [];
             foreach ($result as $item) {
                 $pelaporan_kprk_biaya      = ($item->pelaporan_atribusi ?? 0) + ($item->pelaporan_rutin ?? 0);
-                $pelaporan_transfer_pricing = ($item->pelaporan_outgoing_lpu ?? 0) + ($item->pelaporan_incoming_lpu ?? 0);
+                $pelaporan_transfer_pricing= ($item->pelaporan_outgoing_lpu ?? 0) + ($item->pelaporan_incoming_lpu ?? 0);
                 $total_laporan_kprk        = ($item->pelaporan_sisa_layanan_lpu ?? 0) + $pelaporan_transfer_pricing;
 
                 $hasil_biaya               = ($item->verifikasi_atribusi ?? 0) + ($item->verifikasi_rutin ?? 0);
