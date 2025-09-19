@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 use Exception;
+use Carbon\Carbon;
+use App\Models\Kpc;
+use Illuminate\Http\Request;
+use App\Models\KategoriPendapatan;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class ApiControllerV2 extends Controller
 {
@@ -23,7 +25,11 @@ class ApiControllerV2 extends Controller
         $kd_bisnis = $request->get('kd_bisnis', '03');   // default '03'
         $nopend    = $request->get('nopend', '31400');
         $tahunbulan = $request->get('tahunbulan');
-        $endpoint = "biaya_nasional?tahunbulan=".$tahunbulan;
+        $nopends = Kpc::where('id_regional', '10004')->pluck('nomor_dirian')->toArray();
+        $kategori_pendapatan = KategoriPendapatan::get();
+        $kpid = str_pad($kategori_pendapatan->id, 2, '0', STR_PAD_LEFT);
+        // $id_regional = 10004, hasil: array berisi semua nopend di regional tersebut
+        $endpoint = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
 
         $request->merge(['end_point' => $endpoint]);
 
