@@ -27,11 +27,18 @@ class ApiControllerV2 extends Controller
         $tahunbulan = $request->get('tahunbulan');
         $nopends = Kpc::where('id_regional', '10004')->pluck('nomor_dirian')->toArray();
         $kategori_pendapatan = KategoriPendapatan::get();
-        $kpid = str_pad($kategori_pendapatan->id, 2, '0', STR_PAD_LEFT);
-        // $id_regional = 10004, hasil: array berisi semua nopend di regional tersebut
-        $endpoint = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
+        $endpoints = [];
+        foreach ($kategori_pendapatan as $kp) {
+            $kpid = str_pad($kp->id, 2, '0', STR_PAD_LEFT);
+            $endpoints[] = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
+        }
+        // Jika hanya ingin satu kategori, bisa pakai first()
+        // $kp = $kategori_pendapatan->first();
+        // $kpid = str_pad($kp->id, 2, '0', STR_PAD_LEFT);
+        // $endpoint = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
 
-        $request->merge(['end_point' => $endpoint]);
+        // Untuk contoh, ambil endpoint pertama
+        $request->merge(['end_point' => $endpoints[0]]);
 
         return $this->makeRequest($request);
     }
