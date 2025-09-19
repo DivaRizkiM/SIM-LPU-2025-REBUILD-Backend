@@ -159,7 +159,7 @@ class ProcessSyncPendapatanJob implements ShouldQueue
                 'triwulan' => $data['triwulan'],
                 'tgl_sinkronisasi' => now(),
                 'kategori_pendapatan' => $data['kategori_pendapatan'],
-                'id_rekening' => $data['kode_rekening'] ?? null,
+                'id_rekening' => $data['koderekening'] ?? null,
                 'bulan' => $data['bulan'],
                 'rtarif' => $data['rtarif'],
                 'tpkirim' => $data['tpkirim'],
