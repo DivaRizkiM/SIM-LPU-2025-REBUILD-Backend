@@ -133,8 +133,8 @@ class KelurahanController extends Controller
             $perPage = $request->get('per-page', 10); // Default per-page to 10
             $search = $request->get('search', '');
             $getOrder = $request->get('order', '');
-            $offset = $request->get('offset');
-            $limit = $request->get('limit');
+            $offset = $request->get('offset', 0);
+            $limit = $request->get('limit', 10);
             $loopCount = $request->get('loopCount', 1);
             $idProvinsi = $request->get('id_provinsi', '');
             $idKab = $request->get('id_kabupaten_kota', '');
