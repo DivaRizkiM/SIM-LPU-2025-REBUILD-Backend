@@ -1260,16 +1260,37 @@ class VerifikasiBiayaRutinController extends Controller
                     ->where('bulan', $bulan)
                     ->first();
 
-                $produksi = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
-                    ->where('produksi.tahun_anggaran', $tahun)
-                    ->where('produksi_detail.nama_bulan', $bulan)
-                    ->where('jenis_produksi', 'PENERIMAAN/OUTGOING')
-                    ->sum('produksi_detail.pelaporan');
+                $lastTwoDigits = substr($kodeRekening, -2);
+                $produksiRek = ["06", "07", "08", "09"];
+                $pendapatanRek = ["10", "11"];
+                $sumField = null;
+                $sumFieldKCP = null;
+                $dataType = null;
 
-                $produksi_nasional = ProduksiNasional::where('tahun', $tahun)
-                    ->where('bulan', $bulan)
-                    ->where('status', 'OUTGOING')
-                    ->sum('jml_pendapatan');
+                if (in_array($lastTwoDigits, $pendapatanRek)) {
+                    $sumField = 'jml_pendapatan';
+                    $sumFieldKCP = 'bsu_bruto';
+                    $dataType = 'pendapatan';
+                } elseif (in_array($lastTwoDigits, $produksiRek)) {
+                    $sumField = 'jml_produksi';
+                    $sumFieldKCP = 'bilangan';
+                    $dataType = 'produksi';
+                }
+
+                $produksi_nasional = 0;
+                $produksi = 0;
+                if ($sumField && $dataType) {
+                    $produksi_nasional = ProduksiNasional::where('tahun', $tahun)
+                        ->where('bulan', $bulan)
+                        ->where('status', 'OUTGOING')
+                        ->sum($sumField);
+
+                    $produksi = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                        ->where('produksi.tahun_anggaran', $tahun)
+                        ->where('produksi_detail.nama_bulan', $bulan)
+                        ->where('jenis_produksi', 'PENERIMAAN/OUTGOING')
+                        ->sum('produksi_detail.' . $sumFieldKCP);
+                }
             }
 
             foreach ($rutin as $item) {
