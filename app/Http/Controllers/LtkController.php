@@ -308,6 +308,8 @@ class LtkController extends Controller
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
                         'rumus_fase_1' => 'Biaya Pso * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
+                        'total_produksi_jaskug_nasional' => number_format($produksiJaskug, 0, ',', '.'),
+                        'total_produksi' => number_format($totalProduksi, 0, ',', '.'),
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
                     ];
                     break;
@@ -327,6 +329,8 @@ class LtkController extends Controller
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
                         'rumus_fase_1' => 'Biaya Pso * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
+                        'total_pendapatan_jaskug_nasional' => number_format($pendapatanJaskug, 0, ',', '.'),
+                        'total_pendapatan' => number_format($totalPendapatan, 0, ',', '.'),
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
                     ];
                     break;
