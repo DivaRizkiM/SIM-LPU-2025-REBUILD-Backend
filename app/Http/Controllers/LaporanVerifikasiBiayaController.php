@@ -63,7 +63,7 @@ class LaporanVerifikasiBiayaController extends Controller
             ])
                 ->leftJoin('kprk', 'kprk.id', '=', 'kpc.id_kprk')
                 ->leftJoin('regional', 'regional.id', '=', 'kpc.id_regional');
-                $total_data = $query->count();
+
             if ($search !== '') {
                 $query->where('kpc.nama', 'like', "%$search%");
             }
@@ -76,6 +76,7 @@ class LaporanVerifikasiBiayaController extends Controller
                 $query->where('kpc.id_kprk', $id_kprk);
             }
 
+            $total_data = $query->count();
 
             $result = $query->orderByRaw($order)
             ->offset($offset)
