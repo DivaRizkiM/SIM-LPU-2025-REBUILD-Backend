@@ -473,13 +473,13 @@ class LtkController extends Controller
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
             $ltk->mtd_biaya_pos = "Rp " . number_format(round($ltk->mtd_biaya_pos ?? 0), 0, ',', '.');
             $ltk->mtd_biaya_hasil = "Rp " . number_format(round($mtd_biaya_hasil ?? 0), 0, ',', '.');
-            $ltk->verifikasi_proporsi = number_format($ltk->verifikasi_proporsi ?? 0, 2, ',', '.') . '%';
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
             // Merge calculation results
             foreach ($proporsiCalculation as $key => $value) {
                 $ltk->$key = $value;
             }
+            $ltk->proporsi_rumus_fase_1 = $ltk->verifikasi_proporsi > 0 ? $ltk->verifikasi_proporsi : $proporsiCalculation['proporsi_rumus_fase_1'] ?? null;
 
             return response()->json([
                 'status' => 'SUCCESS',
