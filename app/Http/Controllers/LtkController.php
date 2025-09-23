@@ -201,13 +201,7 @@ class LtkController extends Controller
     private function calculateCommonCost($periode, $tahun, $bulan)
     {
         try {
-            $produksiKurir = ProduksiNasional::whereIn('produk', $this->getLayananKurir())
-                ->where('status', 'OUTGOING')
-                ->where('tahun', $tahun)
-                ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
-                ->sum('jml_produksi') ?? 0;
-
-            $kodeRekeningJaskug = [
+            $kodeRekeningPendapatanLTK = [
                 '4102010001',
                 '4102010002',
                 '4102010003',
@@ -220,16 +214,44 @@ class LtkController extends Controller
                 '4103010002'
             ];
 
-            $pendapatanJaskug = DB::table('verifikasi_ltk')
-                ->whereIn('kode_rekening', $kodeRekeningJaskug)
+            $kodeRekeningPendapatanKurir = [
+                '4101010001',
+                '4101010002',
+                '4101010003',
+                '4201000001',
+                '4201000002',
+                '4101020001',
+                '4101020002',
+                '4101020003',
+                '4101020004',
+                '4101020005',
+                '4101020006',
+                '4101030001',
+                '4101030002',
+                '4101030003',
+                '4101030004',
+                '4101030005'
+
+            ];
+
+            $pendapatanKurir = DB::table('verifikasi_ltk')
+                ->whereIn('kode_rekening', $kodeRekeningPendapatanKurir)
+                ->where('kategori_cost', 'PENDAPATAN')
+                ->where('tahun', $tahun)
+                ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+                ->sum('mtd_akuntansi') ?? 0;
+
+            $pendapatanLTK = DB::table('verifikasi_ltk')
+                ->whereIn('kode_rekening', $kodeRekeningPendapatanLTK)
+                ->where('kategori_cost', 'PENDAPATAN')
                 ->where('tahun', $tahun)
                 ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
                 ->sum('mtd_akuntansi') ?? 0;
 
             return [
-                'produksi_kurir' => $produksiKurir,
-                'pendapatan_jaskug' => $pendapatanJaskug,
-                'total_pendapatan' => $produksiKurir + $pendapatanJaskug,
+                'pendapatan_kurir' => $pendapatanKurir,
+                'pendapatan_ltk' => $pendapatanLTK,
+                'total_pendapatan' => $pendapatanKurir + $pendapatanLTK,
             ];
         } catch (\Exception $e) {
             return [
@@ -289,6 +311,7 @@ class LtkController extends Controller
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
                         'rumus_fase_1' => '100% (Proporsi Tetap)',
+                        'proporsi_rumus_fase_1' => '100',
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
                     ];
                     break;
@@ -308,6 +331,7 @@ class LtkController extends Controller
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
                         'rumus_fase_1' => 'Biaya Pso * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
+                        'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
                         'total_produksi_jaskug_nasional' => number_format($produksiJaskug, 0, ',', '.'),
                         'total_produksi' => number_format($totalProduksi, 0, ',', '.'),
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
@@ -318,18 +342,20 @@ class LtkController extends Controller
                 case 'COMMON':
                 case 'COMMON COST':
                     $commonCost = $this->calculateCommonCost('', $tahun, $bulan);
-                    $pendapatanJaskug = $commonCost['pendapatan_jaskug'] ?? 0;
-                    $produksiKurir = $commonCost['produksi_kurir'] ?? 0;
-                    $totalPendapatan = $pendapatanJaskug + $produksiKurir;
+                    $pendapatanLTK = $commonCost['pendapatan_ltk'] ?? 0;
+                    $pendapatanKurir = $commonCost['pendapatan_kurir'] ?? 0;
+                    $totalPendapatan = $pendapatanLTK + $pendapatanKurir;
 
                     // FASE 1: Common Cost allocation based on revenue ratio
-                    $rumusFase1 = $totalPendapatan > 0 ? ($pendapatanJaskug / $totalPendapatan) : 0;
+                    $rumusFase1 = $totalPendapatan > 0 ? ($pendapatanLTK / $totalPendapatan) : 0;
                     $proporsiBiayaJaskugNasional = $biayaPso * $rumusFase1;
 
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
                         'rumus_fase_1' => 'Biaya Pso * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
-                        'total_pendapatan_jaskug_nasional' => number_format($pendapatanJaskug, 0, ',', '.'),
+                        'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
+                        'pendapatan_ltk' => number_format($pendapatanLTK, 0, ',', '.'),
+                        'pendapatan_kurir' => number_format($pendapatanKurir, 0, ',', '.'),
                         'total_pendapatan' => number_format($totalPendapatan, 0, ',', '.'),
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
                     ];
@@ -406,6 +432,7 @@ class LtkController extends Controller
                 'verifikasi_ltk.kategori_cost',
             )->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')
                 ->where('verifikasi_ltk.id', $request->id_ltk)
+                ->where('verifikasi_ltk.keterangan', $request->proporsi_rumus ?? '!=', '0%')
                 ->first();
 
             if (!$ltk) {
@@ -447,6 +474,7 @@ class LtkController extends Controller
             $ltk->mtd_biaya_pos = "Rp " . number_format(round($ltk->mtd_biaya_pos ?? 0), 0, ',', '.');
             $ltk->mtd_biaya_hasil = "Rp " . number_format(round($mtd_biaya_hasil ?? 0), 0, ',', '.');
             $ltk->verifikasi_proporsi = number_format($ltk->verifikasi_proporsi ?? 0, 2, ',', '.') . '%';
+            $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
             // Merge calculation results
             foreach ($proporsiCalculation as $key => $value) {
