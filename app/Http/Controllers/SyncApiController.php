@@ -2037,35 +2037,64 @@ class SyncApiController extends Controller
         }
     }
 
+    private function gajiSuffix(?string $nama): string
+    {
+        $nama = mb_strtolower(trim((string) $nama));
+
+        switch (true) {
+            case $nama === '':
+                return '00';
+
+            case str_contains($nama, 'bisnis jasa keuangan'):
+                return '01';
+
+            case str_contains($nama, 'keuangan dan managemen risiko'):
+                return '02';
+
+            case str_contains($nama, 'human capital'):
+                return '03';
+
+            case str_contains($nama, 'operasi dan digital'):
+                return '04';
+
+            case str_contains($nama, 'business development'):
+                return '05';
+
+            case str_contains($nama, 'direktur utama'):
+                return '06';
+
+            default:
+                return sprintf('%03d', crc32($nama) % 1000);
+        }
+    }
+
     public function syncMtdLtk(Request $request)
     {
         try {
-            $endpoint = 'mtd_ltk';
-            $tahun = $request->tahun;
-            $bulan = $request->bulan;
-            $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-            $tahunbulan = $tahun . $bulan;
+            $endpoint    = 'mtd_ltk';
+            $tahun       = $request->tahun;
+            $bulan       = str_pad($request->bulan, 2, '0', STR_PAD_LEFT);
+            $tahunbulan  = $tahun . $bulan;
 
             $serverIpAddress = gethostbyname(gethostname());
-            $agent = new Agent();
-            $userAgent = $request->header('User-Agent');
+            $agent           = new Agent();
+            $userAgent       = $request->header('User-Agent');
             $agent->setUserAgent($userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
+            $platform        = $agent->platform();
+            $browser         = $agent->browser();
             $platform_request = $platform . '/' . $browser;
 
             $allFetchedData = [];
             $available = 0;
             $successful = 0;
 
-            // Make API request
             $apiController = new ApiController();
-            $url_request = $endpoint . '?tahunbulan=' . $tahunbulan;
+            $url_request   = $endpoint . '?tahunbulan=' . $tahunbulan;
             $request->merge(['end_point' => $url_request]);
-            $response = $apiController->makeRequest($request);
+            $response      = $apiController->makeRequest($request);
 
             $access_token = $response['access_token'] ?? null;
-            $dataMtdLtk = $response['data'] ?? [];
+            $dataMtdLtk   = $response['data'] ?? [];
 
             if (!$dataMtdLtk) {
                 return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
@@ -2075,21 +2104,20 @@ class SyncApiController extends Controller
 
             DB::beginTransaction();
 
-            // Create API request log
             $apiRequestLog = ApiRequestLog::create([
-                'komponen' => 'MTD LTK',
-                'tanggal' => now(),
-                'ip_address' => $serverIpAddress,
-                'platform_request' => $platform_request,
+                'komponen'           => 'MTD LTK',
+                'tanggal'            => now(),
+                'ip_address'         => $serverIpAddress,
+                'platform_request'   => $platform_request,
                 'successful_records' => 0,
-                'available_records' => $response['total_data'] ?? $available,
-                'total_records' => 0,
-                'status' => 'Memuat Data',
+                'available_records'  => $response['total_data'] ?? $available,
+                'total_records'      => 0,
+                'status'             => 'Memuat Data',
             ]);
 
             $payload = ApiRequestPayloadLog::create([
                 'api_request_log_id' => $apiRequestLog->id,
-                'payload' => null,
+                'payload'            => null,
             ]);
 
             foreach ($dataMtdLtk as $data) {
@@ -2099,48 +2127,51 @@ class SyncApiController extends Controller
                     $allFetchedData[] = $data;
                 }
 
-                $periode = $data['periode'];
+                $periode   = $data['periode'];
                 $tahunData = substr($periode, 0, 4);
                 $bulanData = substr($periode, 4, 2);
 
-                $verifikasiId = $tahunData . $bulanData . $data['kode_rekening'];
+                $suffix = '';
+                if (!empty($data['nama_rekening']) && preg_match('/^\s*gaji/i', $data['nama_rekening'])) {
+                    $suffix = $this->gajiSuffix($data['nama_rekening']);
+                }
+                $verifikasiId = $tahunData . $bulanData . $data['kode_rekening'] . $suffix;
 
                 $verifikasiLtk = VerifikasiLtk::find($verifikasiId);
 
                 if ($verifikasiLtk) {
                     $verifikasiLtk->update([
-                        'mtd_akuntansi' => $data['bsu_mtd_akuntansi'] ?? 0,
-                        'mtd_biaya_hasil' => $data['bsu_mtd_ltk'] ?? 0,
-                        'proporsi_rumus' => $data['keterangan'] ?? null,
-                        'jenis' => $data['jenis'] ?? null,
-                        'id_status' => 7,
+                        'mtd_akuntansi'     => $data['bsu_mtd_akuntansi'] ?? 0,
+                        'mtd_biaya_hasil'   => $data['bsu_mtd_ltk'] ?? 0,
+                        'proporsi_rumus'    => $data['keterangan'] ?? null,
+                        'jenis'             => $data['jenis'] ?? null,
+                        'id_status'         => 7,
                     ]);
                     $successful++;
                 } else {
                     VerifikasiLtk::create([
-                        'id' => $verifikasiId,
-                        'tahun' => (int)$tahunData,
-                        'bulan' => (int)$bulanData,
-                        'kode_rekening' => $data['kode_rekening'],
-                        'nama_rekening' => $data['nama_rekening'],
-                        'mtd_akuntansi' => $data['bsu_mtd_akuntansi'] ?? 0,
+                        'id'                   => $verifikasiId,
+                        'tahun'                => (int) $tahunData,
+                        'bulan'                => (int) $bulanData,
+                        'kode_rekening'        => $data['kode_rekening'],
+                        'nama_rekening'        => $data['nama_rekening'],
+                        'mtd_akuntansi'        => $data['bsu_mtd_akuntansi'] ?? 0,
                         'verifikasi_akuntansi' => null,
-                        'biaya_pso' => $data['biaya_pso'],
-                        'verifikasi_pso' => null,
-                        'mtd_biaya_pos' => null,
-                        'mtd_biaya_hasil' => $data['bsu_mtd_ltk'] ?? 0,
-                        'proporsi_rumus' => null,
-                        'verifikasi_proporsi' => null,
-                        'id_status' => 7,
-                        'nama_file' => null,
-                        'catatan_pemeriksa' => null,
-                        'kategori_cost' => $data['jenis'] ?? null,
-                        'keterangan' => $data['keterangan'] ?? null,
+                        'biaya_pso'            => $data['biaya_pso'],
+                        'verifikasi_pso'       => null,
+                        'mtd_biaya_pos'        => null,
+                        'mtd_biaya_hasil'      => $data['bsu_mtd_ltk'] ?? 0,
+                        'proporsi_rumus'       => $data['keterangan'] ?? null,
+                        'verifikasi_proporsi'  => null,
+                        'id_status'            => 7,
+                        'nama_file'            => null,
+                        'catatan_pemeriksa'    => null,
+                        'kategori_cost'        => $data['jenis'] ?? null,
+                        'keterangan'           => $data['keterangan'] ?? null,
                     ]);
                     $successful++;
                 }
 
-                // Update payload log
                 $status = ($successful == $available) ? 'success' : 'on progress';
                 $updated_payload = $payload->payload ?? '';
                 $jsonData = json_encode($data);
@@ -2148,17 +2179,9 @@ class SyncApiController extends Controller
                 $data['size'] = $fileSize;
 
                 if ($updated_payload !== '' || $payload->payload !== null) {
-                    // Decode existing payload from JSON string to PHP array
                     $existing_payload = json_decode($updated_payload, true);
                     $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
-
-                    // Convert new data to object if it's not already an object
-                    $new_payload = (object) $data;
-
-                    // Add new payload object to existing_payload array
-                    $existing_payload[] = $new_payload;
-
-                    // Encode updated payload array back to JSON
+                    $existing_payload[] = (object) $data;
                     $updated_payload = json_encode($existing_payload);
                 } else {
                     $updated_payload = json_encode([(object) $data]);
@@ -2171,37 +2194,35 @@ class SyncApiController extends Controller
 
                 $apiRequestLog->update([
                     'successful_records' => $successful,
-                    'status' => $status,
+                    'status'             => $status,
                 ]);
             }
 
-            // Create user log
-            $userLog = UserLog::create([
+            // Log user
+            UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi MTD LTK',
-                'modul' => 'verifikasi ltk',
-                'id_user' => $this->auth(),
+                'modul'     => 'verifikasi ltk',
+                'id_user'   => $this->auth(),
             ]);
 
             DB::commit();
 
             return response()->json([
-                'status' => 'SUCCESS',
+                'status'  => 'SUCCESS',
                 'message' => 'Sinkronisasi MTD LTK berhasil',
-                'data' => [
-                    'available_records' => $available,
+                'data'    => [
+                    'available_records'  => $available,
                     'successful_records' => $successful,
-                    'failed_records' => $available - $successful
+                    'failed_records'     => $available - $successful,
                 ]
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'status' => 'ERROR',
+                'status'  => 'ERROR',
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
         }
     }
 }
-
-
