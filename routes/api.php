@@ -324,6 +324,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('map-monitoring', [KpcController::class, 'map'])->name('map-monitoring');
         
         Route::get('/export-biaya', [ExportController::class, 'exportBiaya']);
+        Route::get('/export-pendapatan', [ExportController::class, 'exportPendapatan']);
     });
 });
 // });
