@@ -442,12 +442,9 @@ class LtkController extends Controller
                 ], 404);
             }
 
-            $verifikasiPso = VerifikasiBiayaRutinDetail::where('id_rekening_biaya', '5000000010')
-                ->sum('verifikasi');
-
             $kategoriCost = $ltk->keterangan;
             $mtdBiayaLtk = $ltk->mtd_akuntansi;
-            $biayaPso = $ltk->biaya_pso;
+            $biayaPso = $ltk->verifikasi_pso ?? $ltk->biaya_pso;
 
             $proporsiCalculation = $this->calculateProporsiByCategory(
                 $mtdBiayaLtk,
@@ -461,13 +458,12 @@ class LtkController extends Controller
             $isLockStatus = $isLock->status ?? false;
 
             $lastTwoDigits = substr($ltk->kode_rekening, -2);
-            $mtd_biaya_hasil = $ltk->verifikasi_akuntansi - $verifikasiPso;
+            $mtd_biaya_hasil = $ltk->verifikasi_akuntansi - $ltk->verifikasi_pso;
 
             $ltk->last_two_digits = $lastTwoDigits;
             $ltk->periode = $bulanIndonesia[$ltk->bulan - 1];
             $ltk->url_file = 'https://lpu.komdigi.go.id/backend/view_image/lampiranltk/' . $ltk->nama_file;
-
-            $ltk->verifikasi_pso = "Rp " . number_format(round($verifikasiPso ?? 0), 0, ',', '.');
+            $ltk->verifikasi_pso = "Rp " . number_format(round($ltk->verifikasi_pso ?? 0), 0, ',', '.');
             $ltk->mtd_akuntansi = "Rp " . number_format(round($ltk->mtd_akuntansi ?? 0), 0, ',', '.');
             $ltk->verifikasi_akuntansi = "Rp " . number_format(round($ltk->verifikasi_akuntansi ?? 0), 0, ',', '.');
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
