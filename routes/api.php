@@ -326,6 +326,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/export-biaya', [ExportController::class, 'exportBiaya']);
         Route::get('/export-rekap-biaya', [ExportController::class, 'exportRekapBiaya']);
         Route::get('/export-pendapatan', [ExportController::class, 'exportPendapatan']);
+        Route::get('/export-rekap-pendapatan', [ExportController::class, 'exportRekapPendapatan']);
     });
 });
 // });
