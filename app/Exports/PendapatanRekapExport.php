@@ -26,11 +26,11 @@ class PendapatanRekapExport implements FromCollection, WithHeadings
             ->where('nama_bulan', $this->bulan)
             ->get()
             ->groupBy(function ($item) {
-                return $item->nama_rekening ?? 'Tanpa Nama Rekening';
+                return $item->keterangan ?? 'Keterangan Kosong';
             })
-            ->map(function ($group, $namaRekening) {
+            ->map(function ($group, $keterangan) {
                 return [
-                    'Nama Rekening' => $namaRekening,
+                    'Keterangan' => $keterangan,
                     'Total Nilai Pelaporan' => $group->sum('bsu_bruto'),
                 ];
             })
@@ -40,7 +40,7 @@ class PendapatanRekapExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return [
-            'Nama Rekening',
+            'Keterangan',
             'Total Nilai Pelaporan',
         ];
     }
