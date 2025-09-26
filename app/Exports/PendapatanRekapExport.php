@@ -31,7 +31,7 @@ class PendapatanRekapExport implements FromCollection, WithHeadings
             ->map(function ($group, $keterangan) {
                 return [
                     'Keterangan' => $keterangan,
-                    'Total Nilai Pelaporan' => $group->sum('bsu_bruto'),
+                    'Total Nilai Pelaporan' => $group->sum('pelaporan'),
                 ];
             })
             ->values();

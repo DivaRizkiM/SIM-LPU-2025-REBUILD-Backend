@@ -2,39 +2,46 @@
 
 namespace App\Http\Controllers;
 
+use ZipArchive;
 use App\Models\Kpc;
+use App\Models\Npp;
 use App\Models\Kprk;
-use App\Models\LayananJasaKeuangan;
-use App\Models\LayananKurir;
 use App\Models\Status;
 use App\Models\UserLog;
-use App\Models\Npp;
-use App\Models\ProduksiNasional;
-use App\Models\ProduksiDetail;
-use App\Models\VerifikasiBiayaRutin;
-use App\Models\VerifikasiBiayaRutinDetail;
-use App\Models\VerifikasiBiayaRutinDetailLampiran;
+use ZipStream\ZipStream;
+use App\Helpers\LtkHelper;
+use App\Models\LayananKurir;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Symfony\Component\HttpFoundation\Response;
-use App\Models\LockVerifikasi;
 use App\Models\VerifikasiLtk;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Artisan;
-use ZipArchive;
-use Illuminate\Support\Facades\Storage;
+use App\Models\LockVerifikasi;
+use App\Models\ProduksiDetail;
+use App\Models\ProduksiNasional;
+use Illuminate\Support\Facades\DB;
+use App\Models\LayananJasaKeuangan;
+use Illuminate\Support\Facades\Log;
+use App\Models\VerifikasiBiayaRutin;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use ZipStream\ZipStream;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use App\Models\VerifikasiBiayaRutinDetail;
+use Symfony\Component\HttpFoundation\Response;
+use App\Models\VerifikasiBiayaRutinDetailLampiran;
 // use ZipStream\Option\Archive as ArchiveOptions;
 
 
 
 class VerifikasiBiayaRutinController extends Controller
 {
+    protected $ltkHelper;
+    public function __construct(LtkHelper $ltkHelper)
+    {
+        $this->ltkHelper = $ltkHelper;
+    }
+
     public function getPerTahun(Request $request)
     {
         try {
@@ -1376,6 +1383,58 @@ class VerifikasiBiayaRutinController extends Controller
 
             if ($isLockStatus) {
                 $rutin = [];
+            }
+            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'rekening_biaya.nama as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi')
+                ->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')->whereNot('kategori_cost', 'PENDAPATAN');
+
+            if ($tahun !== '') {
+                $verifikasiLtkQuery->where('verifikasi_ltk.tahun', $tahun);
+            }
+
+            if ($bulan !== '') {
+                $verifikasiLtkQuery->where('verifikasi_ltk.bulan', $bulan);
+            }
+
+            $verifikasiLtk = $verifikasiLtkQuery->get();
+            $verifikasiLtk = $verifikasiLtk->map(function ($verifikasiLtk) {
+                $verifikasiLtk->nominal = (int) $verifikasiLtk->nominal;
+                $verifikasiLtk->proporsi_rumus = (float) $verifikasiLtk->proporsi_rumus ?? "0.00";
+                $verifikasiLtk->verifikasi_pso = (float) $verifikasiLtk->verifikasi_pso ?? "0.00";
+                $verifikasiLtk->verifikasi_akuntansi = (float) $verifikasiLtk->verifikasi_akuntansi ?? "0.00";
+                $verifikasiLtk->verifikasi_proporsi = (float) $verifikasiLtk->verifikasi_proporsi ?? "0.00";
+                $verifikasiLtk->mtd_biaya = (float) $verifikasiLtk->mtd_biaya ?? "0.00";
+                $verifikasiLtk->proporsi_rumus = $verifikasiLtk->keterangan;
+                return $verifikasiLtk;
+            });
+            $grand_total_fase_1 = 0;
+            foreach ($verifikasiLtk as $item) {
+                $kategoriCost = $item->keterangan;
+                $mtdBiayaLtk = $item->mtd_akuntansi;
+                $biayaPso = $item->verifikasi_pso ?? 0;
+                $fase1 = $this->ltkHelper->calculateProporsiByCategory(
+                    $mtdBiayaLtk,
+                    $kategoriCost,
+                    $biayaPso,
+                    $item->tahun,
+                    $item->bulan
+                );
+                // Ambil hasil_perhitungan_fase_1, hilangkan format ribuan
+                $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1']) ? str_replace(['.', ','], ['', ''], $fase1['hasil_perhitungan_fase_1']) : 0;
+                $grand_total_fase_1 += (float) $hasilFase1;
+            }
+            $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
+
+            $hasilFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
+            $hasilFase3 = $this->ltkHelper->calculateFase3($hasilFase2, $tahun, $bulan, $id_kpc);
+            $hasilFase2 = "Rp " . number_format(round($hasilFase2), 0, '', '.');
+            $hasilFase3 = "Rp " . number_format(round($hasilFase3), 0, '', '.');
+            // Masukkan hasil perhitungan fase ke dalam setiap item rutin
+            foreach ($rutin as $item) {
+                $item->hasil_perhitungan_fase_1 = $hasilFase1PerBulan;
+                $item->rumus_fase_2 = '(Total Produksi LTK Kantor LPU(prod meterai dibagi 10) / Total Produksi Jaskug Nasional(prod meterai dibagi 10)) x Hasil Perhitungan Fase 1';
+                $item->hasil_perhitungan_fase_2 = $hasilFase2;
+                $item->rumus_fase_3 = '(Produksi KCP LPU A / Total Produksi LTK Kantor LPU) x Hasil Perhitungan Fase 2';
+                $item->hasil_perhitungan_fase_3 = $hasilFase3;
             }
 
             return response()->json([
