@@ -47,7 +47,7 @@ class PendapatanExport implements FromQuery, WithHeadings, WithMapping, WithChun
             $item->kategori_produksi ?? '',
             $item->jenis_produksi ?? '',
             $item->nama_bulan ?? '',
-            $item->bsu_bruto ?? '',
+            $item->pelaporan ?? '',
             $item->verifikasi ?? '',
             $item->catatan_pemeriksa ?? '',
         ];
