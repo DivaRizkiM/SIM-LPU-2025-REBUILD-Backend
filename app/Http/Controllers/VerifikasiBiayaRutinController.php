@@ -69,7 +69,7 @@ class VerifikasiBiayaRutinController extends Controller
                 ]);
             }
 
-            // Parameter
+            // Param
             $offset = $request->get('offset', 0);
             $limit = $request->get('limit', 100);
             $search = $request->get('search', '');
@@ -78,125 +78,95 @@ class VerifikasiBiayaRutinController extends Controller
             $triwulan = $request->get('triwulan', '');
             $statusFilter = $request->get('status', '');
 
-            // Buat cache key berdasarkan parameter
-            $cacheKey = 'getPerTahun_' . md5(json_encode(compact(
-                'offset',
-                'limit',
-                'search',
-                'getOrder',
-                'tahun',
-                'triwulan',
-                'statusFilter'
-            )));
-            $cacheDuration = 86400; // 1 hari
+            $orderMappings = [
+                'namaASC' => 'regional.nama ASC',
+                'namaDESC' => 'regional.nama DESC',
+                'triwulanASC' => 'verifikasi_biaya_rutin.triwulan ASC',
+                'triwulanDESC' => 'verifikasi_biaya_rutin.triwulan DESC',
+                'tahunASC' => 'verifikasi_biaya_rutin.tahun ASC',
+                'tahunDESC' => 'verifikasi_biaya_rutin.tahun DESC',
+            ];
+            $order = $orderMappings[$getOrder] ?? 'regional.nama ASC';
 
-            return Cache::remember($cacheKey, $cacheDuration, function () use (
-                $offset,
-                $limit,
-                $search,
-                $getOrder,
-                $tahun,
-                $triwulan,
-                $statusFilter
-            ) {
-                $orderMappings = [
-                    'namaASC' => 'regional.nama ASC',
-                    'namaDESC' => 'regional.nama DESC',
-                    'triwulanASC' => 'verifikasi_biaya_rutin.triwulan ASC',
-                    'triwulanDESC' => 'verifikasi_biaya_rutin.triwulan DESC',
-                    'tahunASC' => 'verifikasi_biaya_rutin.tahun ASC',
-                    'tahunDESC' => 'verifikasi_biaya_rutin.tahun DESC',
-                ];
-                $order = $orderMappings[$getOrder] ?? 'regional.nama ASC';
+            // Query utama
+            $rutinQuery = VerifikasiBiayaRutinDetail::select(
+                'verifikasi_biaya_rutin.triwulan',
+                'verifikasi_biaya_rutin.tahun',
+                'regional.nama as nama_regional',
+                'regional.id as id_regional',
+                DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_biaya')
+            )
+                ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+                ->join('regional', 'verifikasi_biaya_rutin.id_regional', '=', 'regional.id')
+                ->groupBy('verifikasi_biaya_rutin.id_regional', 'verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun')
+                ->orderByRaw($order);
 
-                // Query utama
-                $rutinQuery = VerifikasiBiayaRutinDetail::select(
-                    'verifikasi_biaya_rutin.triwulan',
-                    'verifikasi_biaya_rutin.tahun',
-                    'regional.nama as nama_regional',
-                    'regional.id as id_regional',
-                    DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_biaya')
-                )
-                    ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
-                    ->join('regional', 'verifikasi_biaya_rutin.id_regional', '=', 'regional.id')
-                    ->groupBy('verifikasi_biaya_rutin.id_regional', 'verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun')
-                    ->orderByRaw($order);
+            if ($search !== '') {
+                $rutinQuery->where(function ($query) use ($search) {
+                    $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
+                        ->orWhere('regional.nama', 'like', "%$search%");
+                });
+            }
 
-                if ($search !== '') {
-                    $rutinQuery->where(function ($query) use ($search) {
-                        $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
-                            ->orWhere('regional.nama', 'like', "%$search%");
-                    });
-                }
+            if ($tahun !== '') {
+                $rutinQuery->where('verifikasi_biaya_rutin.tahun', $tahun);
+            }
+            if ($triwulan !== '') {
+                $rutinQuery->where('verifikasi_biaya_rutin.triwulan', $triwulan);
+            }
+            if ($statusFilter !== '') {
+                $rutinQuery->where('verifikasi_biaya_rutin.id_status', $statusFilter);
+            }
 
-                if ($tahun !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.tahun', $tahun);
-                }
+            $total_data = DB::table('verifikasi_biaya_rutin')
+                ->join('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin.id', '=', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin')
+                ->when($tahun, fn($q) => $q->where('tahun', $tahun))
+                ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+                ->when($statusFilter, fn($q) => $q->where('id_status', $statusFilter))
+                ->select(DB::raw('COUNT(DISTINCT CONCAT(verifikasi_biaya_rutin.id_regional, "-", verifikasi_biaya_rutin.triwulan, "-", verifikasi_biaya_rutin.tahun)) as total'))
+                ->value('total');
 
-                if ($triwulan !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.triwulan', $triwulan);
-                }
+            $rutin = $rutinQuery->offset($offset)->limit($limit)->get();
+            $grand_total_raw = $rutin->sum('total_biaya');
+            $grand_total = "Rp " . number_format($grand_total_raw, 2, ',', '.');
 
-                if ($statusFilter !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.id_status', $statusFilter);
-                }
+            $groupKeys = $rutin->map(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun)->unique();
 
-                $total_data = DB::table('verifikasi_biaya_rutin')
-                    ->join('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin.id', '=', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin')
-                    ->when($tahun, fn($q) => $q->where('tahun', $tahun))
-                    ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
-                    ->when($statusFilter, fn($q) => $q->where('id_status', $statusFilter))
-                    ->select(DB::raw('COUNT(DISTINCT CONCAT(verifikasi_biaya_rutin.id_regional, "-", verifikasi_biaya_rutin.triwulan, "-", verifikasi_biaya_rutin.tahun)) as total'))
-                    ->value('total');
+            $statuses = VerifikasiBiayaRutin::where('tahun', $tahun)
+                ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+                ->whereIn(DB::raw("CONCAT(id_regional, '-', triwulan, '-', tahun)"), $groupKeys)
+                ->select('id_regional', 'triwulan', 'tahun', 'id_status')
+                ->get()
+                ->groupBy(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun);
 
-                $rutin = $rutinQuery->offset($offset)->limit($limit)->get();
-                $grand_total_raw = $rutin->sum('total_biaya');
-                $grand_total = "Rp " . number_format($grand_total_raw, 2, ',', '.');
+            $statusNames = Status::whereIn('id', [7, 9])->pluck('nama', 'id');
 
-                // Ambil status hanya sekali (hindari duplicate query)
-                $groupKeys = $rutin->map(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun)->unique();
+            foreach ($rutin as $item) {
+                $item->total_biaya = "Rp " . number_format(round($item->total_biaya), 0, '', '.');
+                $key = $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun;
+                $statusList = $statuses[$key] ?? collect();
+                $semuaStatusSembilan = $statusList->pluck('id_status')->every(fn($id_status) => $id_status == 9);
+                $status_id = $semuaStatusSembilan ? 9 : 7;
+                $item->status = $statusNames[$status_id] ?? '-';
+            }
 
-                $statuses = VerifikasiBiayaRutin::where('tahun', $tahun)
-                    ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
-                    ->whereIn(DB::raw("CONCAT(id_regional, '-', triwulan, '-', tahun)"), $groupKeys)
-                    ->select('id_regional', 'triwulan', 'tahun', 'id_status')
-                    ->get()
-                    ->groupBy(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun);
-
-                $statusNames = Status::whereIn('id', [7, 9])->pluck('nama', 'id');
-
-                foreach ($rutin as $item) {
-                    $item->total_biaya = "Rp " . number_format(round($item->total_biaya), 0, '', '.');
-
-                    $key = $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun;
-                    $statusList = $statuses[$key] ?? collect();
-
-                    $semuaStatusSembilan = $statusList->pluck('id_status')->every(fn($id_status) => $id_status == 9);
-                    $status_id = $semuaStatusSembilan ? 9 : 7;
-                    $item->status = $statusNames[$status_id] ?? '-';
-                }
-
-                return response()->json([
-                    'status' => 'SUCCESS',
-                    'offset' => $offset,
-                    'limit' => $limit,
-                    'order' => $getOrder,
-                    'search' => $search,
-                    'total_data' => $total_data,
-                    'grand_total' => $grand_total,
-                    'data' => $rutin,
-                ]);
-            });
+            return response()->json([
+                'status' => 'SUCCESS',
+                'offset' => $offset,
+                'limit' => $limit,
+                'order' => $getOrder,
+                'search' => $search,
+                'total_data' => $total_data,
+                'grand_total' => $grand_total,
+                'data' => $rutin,
+            ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
-
-
-
 
     public function getPerRegional(Request $request)
     {
@@ -253,81 +223,66 @@ class VerifikasiBiayaRutinController extends Controller
                 ], 400);
             }
 
-            $cacheKey = "per_regional_{$id_regional}_{$tahun}_{$triwulan}_{$status}_{$offset}_{$limit}_" . md5($order . $search);
-            $cacheDuration = 86400;
+            $rutinQuery = VerifikasiBiayaRutinDetail::orderByRaw($order)
+                ->select(
+                    'kprk.jumlah_kpc_lpu',
+                    'verifikasi_biaya_rutin.id',
+                    'verifikasi_biaya_rutin.triwulan',
+                    'verifikasi_biaya_rutin.tahun',
+                    'regional.nama as nama_regional',
+                    'regional.id as id_regional',
+                    'kprk.id as id_kcu',
+                    'kprk.nama as nama_kcu',
+                    DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_biaya')
+                )
+                ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+                ->join('kprk', 'verifikasi_biaya_rutin.id_kprk', '=', 'kprk.id')
+                ->join('regional', 'verifikasi_biaya_rutin.id_regional', '=', 'regional.id')
+                ->groupBy('kprk.id', 'verifikasi_biaya_rutin.id_regional', 'verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun', 'regional.nama');
 
-            $result = Cache::remember($cacheKey, $cacheDuration, function () use ($order, $id_regional, $tahun, $triwulan, $status, $offset, $limit, $search) {
-                $rutinQuery = VerifikasiBiayaRutinDetail::orderByRaw($order)
-                    ->select('kprk.jumlah_kpc_lpu', 'verifikasi_biaya_rutin.id', 'verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun', 'regional.nama as nama_regional', 'regional.id as id_regional', 'kprk.id as id_kcu', 'kprk.nama as nama_kcu', DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_biaya'))
-                    ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
-                    ->join('kprk', 'verifikasi_biaya_rutin.id_kprk', '=', 'kprk.id')
-                    ->join('regional', 'verifikasi_biaya_rutin.id_regional', '=', 'regional.id')
-                    ->groupBy('kprk.id', 'verifikasi_biaya_rutin.id_regional', 'verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun', 'regional.nama');
+            if ($search !== '') {
+                $rutinQuery->where(function ($query) use ($search) {
+                    $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.total_biaya', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.id_status', 'like', "%$search%")
+                        ->orWhere('regional.nama', 'like', "%$search%")
+                        ->orWhere('kprk.nama', 'like', "%$search%");
+                });
+            }
 
-                if ($search !== '') {
-                    $rutinQuery->where(function ($query) use ($search) {
-                        $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.total_biaya', 'like', "%$search%")
-                            ->orWhere('verifikasi_biaya_rutin.id_status', 'like', "%$search%")
-                            ->orWhere('regional.nama', 'like', "%$search%")
-                            ->orWhere('kprk.nama', 'like', "%$search%");
-                    });
-                }
+            if ($id_regional !== '') $rutinQuery->where('verifikasi_biaya_rutin.id_regional', $id_regional);
+            if ($tahun !== '') $rutinQuery->where('verifikasi_biaya_rutin.tahun', $tahun);
+            if ($triwulan !== '') $rutinQuery->where('verifikasi_biaya_rutin.triwulan', $triwulan);
+            if ($status !== '') $rutinQuery->where('verifikasi_biaya_rutin.id_status', $status);
 
-                if ($id_regional !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.id_regional', $id_regional);
-                }
-                if ($tahun !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.tahun', $tahun);
-                }
-                if ($triwulan !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.triwulan', $triwulan);
-                }
-                if ($status !== '') {
-                    $rutinQuery->where('verifikasi_biaya_rutin.id_status', $status);
-                }
+            $total = $rutinQuery->count();
+            $data = $rutinQuery->offset($offset)->limit($limit)->get();
 
-                $total = $rutinQuery->count(); // Total data
-                $data = $rutinQuery->offset($offset)->limit($limit)->get();
+            foreach ($data as $item) {
+                $jumlah_lpu = $item->jumlah_kpc_lpu;
+                $jumlah_pengawas = 0;
+                if ($jumlah_lpu <= 10) $jumlah_pengawas = 1;
+                elseif ($jumlah_lpu <= 20) $jumlah_pengawas = 2;
+                elseif ($jumlah_lpu <= 30) $jumlah_pengawas = 3;
+                elseif ($jumlah_lpu <= 40) $jumlah_pengawas = 4;
+                else $jumlah_pengawas = 5;
 
-                foreach ($data as $item) {
-                    $jumlah_lpu = $item->jumlah_kpc_lpu;
-                    $jumlah_pengawas = 0;
+                $item->total_biaya = "Rp " . number_format(round($item->total_biaya), 0, '', '.');
+                $item->jumlah_pengawas = $jumlah_pengawas;
 
-                    if ($jumlah_lpu <= 10) {
-                        $jumlah_pengawas = 1;
-                    } elseif ($jumlah_lpu <= 20) {
-                        $jumlah_pengawas = 2;
-                    } elseif ($jumlah_lpu <= 30) {
-                        $jumlah_pengawas = 3;
-                    } elseif ($jumlah_lpu <= 40) {
-                        $jumlah_pengawas = 4;
-                    } else {
-                        $jumlah_pengawas = 5;
-                    }
+                $getBiayaRutin = VerifikasiBiayaRutin::where('tahun', $item->tahun)
+                    ->where('id_regional', $item->id_regional)
+                    ->where('id_kprk', $item->id_kcu)
+                    ->where('triwulan', $item->triwulan)
+                    ->get();
 
-                    $item->total_biaya = "Rp " . number_format(round($item->total_biaya), 0, '', '.');
-                    $item->jumlah_pengawas = $jumlah_pengawas;
-
-                    $getBiayaRutin = VerifikasiBiayaRutin::where('tahun', $item->tahun)
-                        ->where('id_regional', $item->id_regional)
-                        ->where('id_kprk', $item->id_kcu)
-                        ->where('triwulan', $item->triwulan)
-                        ->get();
-
-                    $semuaStatusSembilan = $getBiayaRutin->every(fn($biayaRutin) => $biayaRutin->id_status == 9);
-                    $statusModel = Status::find($semuaStatusSembilan ? 9 : 7);
-                    $item->status = $statusModel ? $statusModel->nama : null;
-                }
-
-                return [
-                    'total_data' => $total,
-                    'data' => $data
-                ];
-            });
+                $semuaStatusSembilan = $getBiayaRutin->every(fn($biayaRutin) => $biayaRutin->id_status == 9);
+                $statusModel = Status::find($semuaStatusSembilan ? 9 : 7);
+                $item->status = $statusModel ? $statusModel->nama : null;
+            }
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -335,13 +290,14 @@ class VerifikasiBiayaRutinController extends Controller
                 'limit' => $limit,
                 'order' => $getOrder,
                 'search' => $search,
-                'total_data' => $result['total_data'],
-                'data' => $result['data'],
+                'total_data' => $total,
+                'data' => $data,
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+
 
     public function getPerKCU(Request $request)
     {
@@ -1142,8 +1098,6 @@ class VerifikasiBiayaRutinController extends Controller
                 default:
                     throw new \Exception("Invalid kategori_cost: {$kategoriCost}");
             }
-
-
         } catch (\Exception $e) {
             Log::error("Error in calculateProporsiByCategory: " . $e->getMessage(), [
                 'kategori_cost' => $kategoriCost,
@@ -1363,7 +1317,7 @@ class VerifikasiBiayaRutinController extends Controller
                     $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
                     $roundProporsi = round($persentaseProporsiProduksi, 2);
                     $proporsi = $npp->bsu * $roundProporsi / 100;
-                }   
+                }
 
                 $item->npp = "Rp " . number_format(($npp->bsu ?? 0), 0, '', '.');
                 $item->proporsi = "Rp " . number_format(($proporsi), 0, '', '.');
@@ -1371,7 +1325,6 @@ class VerifikasiBiayaRutinController extends Controller
                 // Prevent division by zero
                 $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
                 $item->biaya_per_npp = "Rp " . number_format($biayaPerNpp, 0, '', '.');
-
             }
 
             if ($isLockStatus) {
