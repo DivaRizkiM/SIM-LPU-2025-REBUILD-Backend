@@ -170,7 +170,7 @@ class BeritaAcaraVerifikasiBulananController extends Controller
 
             $verifikasi_biaya_rutin = $this->getVerifikasiBulanan($where_user_identity, $tahun_anggaran, $bulanconvert)->sum('verifikasi_biaya_rutin_detail.verifikasi');
 
-            $pelaporan_biaya_atribusi = $this->getVerifikasiBulanan($where_user_identity, $tahun_anggaran, $bulanconvert, ['BIAYA OPERASI'], 'Y')->whereIn('verifikasi_biaya_rutin_detail.id_rekening_biaya', [5102060006, 5102060008, 5102060009, 5102060010, 5102060011])->sum('verifikasi_biaya_rutin_detail.pelaporan');
+            $pelaporan_biaya_atribusi = $this->getVerifikasiBulanan($where_user_identity, $tahun_anggaran, $bulanconvert, ['BIAYA OPERASI'])->whereIn('verifikasi_biaya_rutin_detail.id_rekening_biaya', [5102060006, 5102060008, 5102060009, 5102060010, 5102060011])->sum('verifikasi_biaya_rutin_detail.pelaporan');
 
             $verifikasi_biaya_atribusi = $this->getVerifikasiBulanan($where_user_identity, $tahun_anggaran, $bulanconvert, ['BIAYA OPERASI'], 'N')->sum('verifikasi_biaya_rutin_detail.verifikasi');
 
