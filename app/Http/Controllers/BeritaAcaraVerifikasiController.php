@@ -224,19 +224,18 @@ class BeritaAcaraVerifikasiController extends Controller
             $total = $total_bo_lpu - $total_faktor;
 
             $total_pelaporan_biaya_bulan_pertama = 0;
-            $total_verifikasi_biaya_bulan_pertama = 0;
             $total_pelaporan_pendapatan_bulan_pertama = 0;
             $total_verifikasi_pendapatan_bulan_pertama = 0;
 
             $total_pelaporan_biaya_bulan_kedua = 0;
-            $total_verifikasi_biaya_bulan_kedua = 0;
             $total_pelaporan_pendapatan_bulan_kedua = 0;
             $total_verifikasi_pendapatan_bulan_kedua = 0;
 
             $total_pelaporan_biaya_bulan_ketiga = 0;
-            $total_verifikasi_biaya_bulan_ketiga = 0;
             $total_pelaporan_pendapatan_bulan_ketiga = 0;
             $total_verifikasi_pendapatan_bulan_ketiga = 0;
+
+            $biaya_langsung = $total_biaya_pelaporan - $total_pelaporan_biaya_atribusi;
 
             for ($i = $bulan_pertama; $i <= $bulan_terakhir; $i++) {
                 $bulanconvert = str_pad($i, 2, '0', STR_PAD_LEFT);
@@ -260,15 +259,14 @@ class BeritaAcaraVerifikasiController extends Controller
 
                     $total_pelaporan_pendapatan_bulan_pertama += $angka_pendapatan + $angka_pendapatan_prognosa;
 
-                    $total_verifikasi_pendapatan_bulan_pertama += $angka_pendapatan_verifikasi + $angka_pendapatan_verifikasi_prognosa;
-
+                    $total_verifikasi_pendapatan_bulan_pertama += $angka_pendapatan_verifikasi;
                 } elseif ($i == $bulan_terakhir) {
 
                     $total_pelaporan_biaya_bulan_ketiga += $angka_biaya_rutin + $angka_biaya_operasi + $angka_biaya_atribusi;
 
                     $total_pelaporan_pendapatan_bulan_ketiga += $angka_pendapatan + $angka_pendapatan_prognosa;
 
-                    $total_verifikasi_pendapatan_bulan_ketiga += $angka_pendapatan_verifikasi + $angka_pendapatan_verifikasi_prognosa;
+                    $total_verifikasi_pendapatan_bulan_ketiga += $angka_pendapatan_verifikasi;
 
                 } else {
 
@@ -276,44 +274,17 @@ class BeritaAcaraVerifikasiController extends Controller
 
                     $total_pelaporan_pendapatan_bulan_kedua += $angka_pendapatan + $angka_pendapatan_prognosa;
 
-                    $total_verifikasi_pendapatan_bulan_kedua += $angka_pendapatan_verifikasi + $angka_pendapatan_verifikasi_prognosa;
+                    $total_verifikasi_pendapatan_bulan_kedua += $angka_pendapatan_verifikasi;
                 }
             }
 
-            $total_n_bulan_pertama = $total_pelaporan_biaya_bulan_pertama - $total_pelaporan_pendapatan_bulan_pertama;
-
             $total_pembayaran_bulan_pertama = $pembayaran_bulan_1;
-
-            $total_bulan_kedua = $total_pelaporan_biaya_bulan_kedua - $total_pelaporan_pendapatan_bulan_kedua;
 
             $total_pembayaran_bulan_kedua = $pembayaran_bulan_2;
 
-            $total_n_bulan_ketiga = $total_pelaporan_biaya_bulan_ketiga - $total_pelaporan_pendapatan_bulan_ketiga;
-
-            $total_pembayaran_bulan_ketiga = number_format(round($total_n_bulan_pertama * 0.2 + $total_bulan_kedua * 0.2 + $total_n_bulan_ketiga), 0, ',', '.');
-
             $total_pelaporan_pendapatan = round($total_pelaporan_pendapatan_bulan_pertama + $total_pelaporan_pendapatan_bulan_kedua + $total_pelaporan_pendapatan_bulan_ketiga);
-
             $total_verifikasi_pendapatan = round($total_verifikasi_pendapatan_bulan_pertama + $total_verifikasi_pendapatan_bulan_kedua + $total_verifikasi_pendapatan_bulan_ketiga);
-
-            $total_berdasarkan_pelaporan = $total_pelaporan;
-
-            $total_berdasarkan_pelaporan_pendapatan = $total_pelaporan_pendapatan;
-
-            $total_berdasarkan_verifikasi_pendapatan = $total_verifikasi_pendapatan;
-
-            $total_deviasi_pendapatan = $total_berdasarkan_pelaporan_pendapatan - $total_berdasarkan_verifikasi_pendapatan;
-
-            $total_berdasarkan_verifikasi = ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_operasi) + $verifikasi_biaya_atribusi;
-
-            $total_deviasi_biaya_langsung = $total_berdasarkan_pelaporan - $total_berdasarkan_verifikasi;
-
-            $total_angka_deviasi = ($total_biaya_pelaporan - $pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin - $verifikasi_biaya_atribusi) + ($pelaporan_biaya_atribusi - $verifikasi_biaya_atribusi) - ($total_pelaporan_pendapatan - $total_verifikasi_pendapatan);
-
-            $total_angka_pelaporan = $total_biaya_pelaporan - $total_pelaporan_pendapatan;
-
             $final_total_terbilang = $this->convertToRupiahTerbilang(round((($total_biaya_pelaporan - $total_pelaporan_pendapatan)) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($total_pelaporan_pendapatan - $total_verifikasi_pendapatan)) - ($total_faktor + $total_pembayaran_bulan_pertama + $total_pembayaran_bulan_kedua)));
-            // dd($final_total_terbilang);
             $tanggal_perjanjian_terbilang = $this->formatTanggal($tanggal_perjanjian);
             $tanggal_perjanjian_2_terbilang = $this->formatTanggal($tanggal_perjanjian_2);
             $bulan_kuasa_terbilang = explode(' ', $tanggal_kuasa_terbilang)[4];
@@ -353,6 +324,7 @@ class BeritaAcaraVerifikasiController extends Controller
                 'total_pelaporan_biaya_atribusi' => $total_pelaporan_biaya_atribusi,
                 'total_verifikasi_biaya_atribusi' => $total_verifikasi_biaya_atribusi,
                 'total_biaya_pelaporan' => $total_biaya_pelaporan,
+                'biaya_langsung' => $biaya_langsung,
                 'total_biaya_verifikasi' => $total_biaya_verifikasi,
                 'total_pelaporan' => $total_pelaporan,
                 'total_verifikasi' => $total_verifikasi,
@@ -362,22 +334,10 @@ class BeritaAcaraVerifikasiController extends Controller
                 'total' => $total,
                 'bulan_terakhir' => $bulan_terakhir,
                 'bulan_pertama' => $bulan_pertama,
-                'totalnbulanpertama' => $total_n_bulan_pertama,
                 'totalpembayaranbulanpertama' => $total_pembayaran_bulan_pertama,
-                'totalbulankedua' => $total_pembayaran_bulan_kedua,
                 'totalpembayaranbulankedua' => $total_pembayaran_bulan_kedua,
-                'totalnbulanketiga' => $total_n_bulan_ketiga,
-                'totalpembayaranbulanketiga' => $total_pembayaran_bulan_ketiga,
                 'totalpelaporanpendapatan' => $total_pelaporan_pendapatan,
                 'totalverifikasipendapatan' => $total_verifikasi_pendapatan,
-                'totalberdasarkanpelaporan' => $total_berdasarkan_pelaporan,
-                'totalberdasarkanpelaporanpendapatan' => $total_berdasarkan_pelaporan_pendapatan,
-                'totalberdasarkanverifikasipendapatan' => $total_berdasarkan_verifikasi_pendapatan,
-                'totaldeviasipendapatan' => $total_deviasi_pendapatan,
-                'totalberdasarkanverifikasi' => $total_berdasarkan_verifikasi,
-                'totaldeviasibiayalangsung' => $total_deviasi_biaya_langsung,
-                'totalangkadeviasi' => $total_angka_deviasi,
-                'totalangkapelaporan' => $total_angka_pelaporan,
                 'final_total_terbilang' => $final_total_terbilang,
                 'pelaporan_biaya_rutin' => $pelaporan_biaya_rutin,
                 'pelaporan_biaya_rutin_prognosa' => $pelaporan_biaya_rutin_prognosa,
