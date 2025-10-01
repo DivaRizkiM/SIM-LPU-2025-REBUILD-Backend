@@ -236,69 +236,61 @@ class BeritaAcaraPenarikanController extends Controller
             $nama_pihak_pertama = $request->get('nama_pihak_pertama', 'GUNAWAN HUTAGALUNG');
             $nama_pihak_kedua = $request->get('nama_pihak_kedua', 'FAIZAL ROCHMAD DJOEMADI');
 
-            $cacheKey = "penarikan_pdf_{$type_data}_{$tahun}_{$bulan}";
+            // Ambil data langsung tanpa cache
+            $biaya = DB::table('verifikasi_biaya_rutin')
+                ->select(
+                    'verifikasi_biaya_rutin.*',
+                    'regional.nama as nama_regional',
+                    DB::raw(($type_data == 1
+                        ? 'SUM(verifikasi_biaya_rutin_detail.pelaporan)'
+                        : 'SUM(verifikasi_biaya_rutin_detail.pelaporan_prognosa)'
+                    ) . ' AS total_biaya_regional')
+                )
+                ->leftJoin('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+                ->leftJoin('regional', 'regional.id', '=', 'verifikasi_biaya_rutin.id_regional')
+                ->where('verifikasi_biaya_rutin.tahun', $tahun)
+                ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
+                ->groupBy('verifikasi_biaya_rutin_detail.bulan', 'verifikasi_biaya_rutin.tahun', 'verifikasi_biaya_rutin.id_regional')
+                ->orderBy('triwulan')
+                ->orderBy('regional.nama')
+                ->get();
 
-            $data = Cache::remember($cacheKey, 172800, function () use ($type_data, $tahun, $bulan) {
-                $biaya = DB::table('verifikasi_biaya_rutin')
-                    ->select(
-                        'verifikasi_biaya_rutin.*',
-                        'regional.nama as nama_regional',
-                        DB::raw(($type_data == 1
-                            ? 'SUM(verifikasi_biaya_rutin_detail.pelaporan)'
-                            : 'SUM(verifikasi_biaya_rutin_detail.pelaporan_prognosa)'
-                        ) . ' AS total_biaya_regional')
-                    )
-                    ->leftJoin('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
-                    ->leftJoin('regional', 'regional.id', '=', 'verifikasi_biaya_rutin.id_regional')
-                    ->where('verifikasi_biaya_rutin.tahun', $tahun)
-                    ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
-                    ->groupBy('verifikasi_biaya_rutin_detail.bulan', 'verifikasi_biaya_rutin.tahun', 'verifikasi_biaya_rutin.id_regional')
-                    ->orderBy('triwulan')
-                    ->orderBy('regional.nama')
-                    ->get();
+            $regionalIds = $biaya->pluck('id_regional')->unique();
 
-                $regionalIds = $biaya->pluck('id_regional')->unique();
+            $pendapatanByRegional = DB::table('produksi_detail')
+                ->join('produksi', 'produksi.id', '=', 'produksi_detail.id_produksi')
+                ->select(
+                    'produksi.id_regional',
+                    DB::raw('SUM(' . ($type_data == 1
+                        ? 'produksi_detail.pelaporan'
+                        : 'ROUND(produksi_detail.pelaporan_prognosa)') . ') as total_pendapatan')
+                )
+                ->whereIn('produksi.id_regional', $regionalIds)
+                ->where('produksi.tahun_anggaran', $tahun)
+                ->where('produksi_detail.nama_bulan', $bulan)
+                ->groupBy('produksi.id_regional')
+                ->pluck('total_pendapatan', 'produksi.id_regional');
 
-                $pendapatanByRegional = DB::table('produksi_detail')
-                    ->join('produksi', 'produksi.id', '=', 'produksi_detail.id_produksi')
-                    ->select(
-                        'produksi.id_regional',
-                        DB::raw('SUM(' . ($type_data == 1
-                            ? 'produksi_detail.pelaporan'
-                            : 'ROUND(produksi_detail.pelaporan_prognosa)') . ') as total_pendapatan')
-                    )
-                    ->whereIn('produksi.id_regional', $regionalIds)
-                    ->where('produksi.tahun_anggaran', $tahun)
-                    ->where('produksi_detail.nama_bulan', $bulan)
-                    ->groupBy('produksi.id_regional')
-                    ->pluck('total_pendapatan', 'produksi.id_regional');
+            foreach ($biaya as $item) {
+                $item->pendapatan_regional = $pendapatanByRegional[$item->id_regional] ?? 0;
+                // $item->total_biaya_regional_terbilang = (new self)->convertToRupiahTerbilang($item->total_biaya_regional);
+            }
 
-                foreach ($biaya as $item) {
-                    $item->pendapatan_regional = $pendapatanByRegional[$item->id_regional] ?? 0;
-                    // $item->total_biaya_regional_terbilang = (new self)->convertToRupiahTerbilang($item->total_biaya_regional);
-                }
+            $pendapatan = DB::table('produksi')
+                ->leftJoin('produksi_detail', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                ->select(
+                    'produksi.*',
+                    DB::raw('SUM(' . ($type_data == 1
+                        ? 'produksi_detail.pelaporan'
+                        : 'produksi_detail.pelaporan_prognosa') . ') AS total_regional')
+                )
+                ->where('produksi.tahun_anggaran', $tahun)
+                ->groupBy('produksi.triwulan', 'produksi.id_regional')
+                ->get();
 
-                $pendapatan = DB::table('produksi')
-                    ->leftJoin('produksi_detail', 'produksi_detail.id_produksi', '=', 'produksi.id')
-                    ->select(
-                        'produksi.*',
-                        DB::raw('SUM(' . ($type_data == 1
-                            ? 'produksi_detail.pelaporan'
-                            : 'produksi_detail.pelaporan_prognosa') . ') AS total_regional')
-                    )
-                    ->where('produksi.tahun_anggaran', $tahun)
-                    ->groupBy('produksi.triwulan', 'produksi.id_regional')
-                    ->get();
-
-                // foreach ($pendapatan as $item) {
-                //     $item->total_pendapatan_regional_terbilang = (new self)->convertToRupiahTerbilang($item->total_regional);
-                // }
-
-                return [
-                    'biaya' => $biaya,
-                    'pendapatan' => $pendapatan,
-                ];
-            });
+            // foreach ($pendapatan as $item) {
+            //     $item->total_pendapatan_regional_terbilang = (new self)->convertToRupiahTerbilang($item->total_regional);
+            // }
 
             $tanggalCarbon = Carbon::createFromFormat('Y-m-d', $tanggal);
             $hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -330,8 +322,8 @@ class BeritaAcaraPenarikanController extends Controller
                 'tanggal_kuasa' => $tanggal_kuasa,
                 'nama_bulan_kuasa' => $hariIni,
                 'nama_bulan' => $nama_bulan,
-                'biaya' => $data['biaya'],
-                'pendapatan' => $data['pendapatan'],
+                'biaya' => $biaya,
+                'pendapatan' => $pendapatan,
                 'tahun_anggaran' => $tahun,
                 'bulan' => $bulan,
                 'nomor_verifikasi' => $no_berita_acara,
