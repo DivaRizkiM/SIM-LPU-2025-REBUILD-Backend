@@ -1,4 +1,3 @@
-
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
    <head>
       <title>BERITA ACARA VERIFIKASI</title>
@@ -170,7 +169,7 @@
                                              <td>&nbsp;&nbsp;</td>
                                              <td>:</td>
                                              <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi, 0, ',', '.') }}</td>
+                                             <td style="text-align: right;">{{ number_format($biaya_langsung, 0, ',', '.') }}</td>
                                            </tr>
                                            <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>b. </td>
@@ -252,7 +251,7 @@
 
                                              <td>:</td>
                                              <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format(round(($total_biaya_verifikasi - $total_verifikasi_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa)), 0, ',', '.') }}</td>
+                                             <td style="text-align: right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi)), 0, ',', '.') }}</td>
                                            </tr>
                                            <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>b. </td>
@@ -269,7 +268,7 @@
                                              <td></td>
                                              <td>:</td>
                                              <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($total_verifikasi_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa), 0, ',', '.') }}</td>
+                                             <td style="text-align: right;">{{ number_format($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi, 0, ',', '.') }}</td>
                                            </tr>
                                            <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>c. </td>
@@ -285,7 +284,7 @@
                                              <td></td>
                                              <td>:</td>
                                              <td>Rp. </td>
-                                             <td style="text-align: right;">{{number_format($totalverifikasipendapatan, 0, ',', '.')}}</td>
+                                             <td style="text-align: right;">{{number_format($totalpelaporanpendapatan - $totalverifikasipendapatan, 0, ',', '.')}}</td>
                                            </tr>
                                            <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>d. </td>
@@ -301,7 +300,7 @@
                                              <td> </td>
                                              <td>:</td>
                                              <td>Rp. </td>
-                                             <td  style="text-align: right;">{{ number_format(round($total_biaya_verifikasi - $totalverifikasipendapatan), 0, ',', '.') }}
+                                             <td  style="text-align: right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)), 0, ',', '.') }}
 </td>
                                            </tr>
                                         </table>
@@ -326,7 +325,7 @@
                                           <!-- <td>&nbsp;</td> -->
                                           <td>:</td>
                                           <td>Rp. </td>
-                                          <td style="text-align: right;">{{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($totalpelaporanpendapatan - $totalverifikasipendapatan))), 0, ',', '.') }}
+                                          <td style="text-align: right;">{{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan) - (($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan))), 0, ',', '.') }}
 </td>
                                           </tr>
                                        </table>
@@ -343,113 +342,64 @@
                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>a. </td>
                                              <td>Penalti penyediaan prasarana</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
-
+                                             <td style="width: 30px;"></td>
                                              <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($penalti_penyediaan_prasarana, 0, ',', '.') }}
-                                                </td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
+                                             <td>Rp.</td>
+                                             <td style="text-align: right;">{{ number_format($penalti_penyediaan_prasarana, 0, ',', '.') }}</td>
+                                          </tr>
+                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>b. </td>
                                              <td>Penalti waktu tempuh kiriman surat</td>
 
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
+                                             <td style="width: 30px;"></td>
                                              <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">
-                                             {{ number_format($penalti_waktu_tempuh_kiriman_surat, 0, ',', '.') }}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
+                                             <td>Rp.</td>
+                                             <td style="text-align: right;">{{ number_format($penalti_waktu_tempuh_kiriman_surat, 0, ',', '.') }}</td>
+                                          </tr>
+                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
                                              <td>c. </td>
                                              <td>Faktor pengurang atas pembayaran 80%</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
+                                             <td style="width: 30px;"></td>
                                              <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.') }}
-</td>
-                                           </tr>
-                                        </table>
-                                       <table>
-                                       @php
-    $nop = 1;
-    $bulanArray = [
-        1 => 'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember',
-    ];
-@endphp
-
-@for ($i = $bulan_pertama; $i < $bulan_terakhir; $i++)
-    @php
-        $namaBulan = $bulanArray[$i];
-    @endphp
-
-    @if ($i == $bulan_pertama)
-        <tr>
-            <td>
-                <div style="font-family: Ubuntu, Helvetica, Arial, sans-serif; font-size: 11px; line-height: 1.5; text-align: left; color: #000000;">
-                    <span style="font-size: 12px; font-family: arial, sans-serif;">
-                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
-                        {{ $namaBulan }}  
-                        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;: &nbsp;&nbsp; Rp. {{ number_format($totalpembayaranbulanpertama, 0, ',', '.') }}
-                    </span>
-                </div>
-            </td>
-        </tr>
-    @else
-    <tr>
-        </tr>
-    @endif
-@endfor
-                           </table>
-                                       <p><span style="font-size: 12px; font-family: arial, sans-serif;"> &nbsp; &nbsp; &nbsp; &nbsp; d. Jumlah Faktor Pengurang &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp;: &nbsp;&nbsp; Rp.  {{ number_format($total_faktor + $totalpembayaranbulankedua + $totalpembayaranbulanpertama, 0, ',', '.') }}
-</span></p>
+                                             <td>Rp.</td>
+                                             <td style="text-align: right;">{{ number_format($totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.') }}</td>
+                                          </tr>
+                                          @php
+                                              $bulanArray = [
+                                                  1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                                                  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+                                              ];
+                                              $pembayaranBulan = [
+                                                  $bulan_pertama => $totalpembayaranbulanpertama ?? 0,
+                                                  $bulan_pertama + 1 => $totalpembayaranbulankedua ?? 0,
+                                                  $bulan_terakhir => $totalpembayaranbulanketiga ?? 0,
+                                              ];
+                                          @endphp
+                                          @for ($i = $bulan_pertama; $i <= $bulan_terakhir; $i++)
+                                              @php
+                                                  $namaBulan = $bulanArray[$i];
+                                                  $pembayaran = $pembayaranBulan[$i] ?? 0;
+                                              @endphp
+                                              @if($pembayaran > 0)
+                                                  <tr style="font-size: 12px; font-family: arial, sans-serif;">
+                                                      <td></td>
+                                                      <td style="padding-left: 30px;">{{ $namaBulan }}</td>
+                                                      <td style="width: 30px;"></td>
+                                                      <td>:</td>
+                                                      <td>Rp.</td>
+                                                      <td style="text-align: right;">{{ number_format($pembayaran, 0, ',', '.') }}</td>
+                                                  </tr>
+                                              @endif
+                                          @endfor
+                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
+                                             <td>d. </td>
+                                             <td>Jumlah Faktor Pengurang</td>
+                                             <td style="width: 30px;"></td>
+                                             <td>:</td>
+                                             <td>Rp.</td>
+                                             <td style="text-align: right;">{{ number_format($total_faktor + $totalpembayaranbulankedua + $totalpembayaranbulanpertama, 0, ',', '.') }}</td>
+                                          </tr>
+                                       </table>
                                        <p> </p>
                                     </div>
                                  </td>
