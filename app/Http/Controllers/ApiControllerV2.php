@@ -20,25 +20,10 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $bulan     = $request->get('bulan', '01');       // default '01'
-        $tahun     = $request->get('tahun', date('Y'));  // default tahun sekarang
-        $kd_bisnis = $request->get('kd_bisnis', '03');   // default '03'
-        $nopend    = $request->get('nopend', '31400');
-        $tahunbulan = $request->get('tahunbulan');
-        $nopends = Kpc::where('id_regional', '10004')->pluck('nomor_dirian')->toArray();
-        $kategori_pendapatan = KategoriPendapatan::get();
-        $endpoints = [];
-        foreach ($kategori_pendapatan as $kp) {
-            $kpid = str_pad($kp->id, 2, '0', STR_PAD_LEFT);
-            $endpoints[] = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
-        }
-        // Jika hanya ingin satu kategori, bisa pakai first()
-        // $kp = $kategori_pendapatan->first();
-        // $kpid = str_pad($kp->id, 2, '0', STR_PAD_LEFT);
-        // $endpoint = "pendapatan?kategoripendapatan=" . $kpid . "&nopend=" . implode(',', $nopends) . "&tahun=2025&triwulan=2";
+        $endpoint = "dashboard_produksi_pendapatan?tahunbulan=202508";
 
         // Untuk contoh, ambil endpoint pertama
-        $request->merge(['end_point' => $endpoints[0]]);
+        $request->merge(['end_point' => $endpoint]);
 
         return $this->makeRequest($request);
     }
