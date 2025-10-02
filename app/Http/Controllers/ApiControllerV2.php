@@ -20,7 +20,7 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $endpoint = "dashboard_produksi_pendapatan?tahunbulan=202508";
+        $endpoint = "dashboard_produksi_pendapatan?tahunbulan=202509";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
