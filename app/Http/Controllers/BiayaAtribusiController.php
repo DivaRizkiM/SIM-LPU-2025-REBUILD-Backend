@@ -423,7 +423,8 @@ class BiayaAtribusiController extends Controller
                     $bulan = $i;
                     $getPelaporan = BiayaAtribusiDetail::select(
                         DB::raw('SUM(pelaporan) as total_pelaporan'),
-                        DB::raw('SUM(verifikasi) as total_verifikasi')
+                        DB::raw('SUM(verifikasi) as total_verifikasi'),
+                        'lampiran'
                     )
                         ->where('bulan', $bulan)
                         ->where('id_rekening_biaya', $kodeRekening)
@@ -444,13 +445,18 @@ class BiayaAtribusiController extends Controller
                         $isLockStatus = $isLock->status;
                     }
 
+                $lampiran = $getPelaporan->first()->lampiran ? 'Y' : 'N';
+                $url_lampiran = $lampiran === 'Y' ? config('app.env_config_path') . $getPelaporan->first()->lampiran : null;
+
                     // Tambahkan data ke dalam array laporan
                     $laporanArray[] = [
                         'bulan_string' => $bulanString,
                         'bulan' => $bulan,
                         'pelaporan' => $pelaporan,
                         'verifikasi' => $verifikasi,
-                        'isLock' => $isLockStatus
+                        'isLock' => $isLockStatus,
+                        'lampiran' => $lampiran,
+                        'url_lampiran' => $url_lampiran,
                     ];
                 }
 
