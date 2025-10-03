@@ -20,6 +20,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as WriterXlsx;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class VerifikasiLapanganController extends Controller
 {
@@ -89,28 +91,39 @@ class VerifikasiLapanganController extends Controller
             $query = PencatatanKantor::select([
                 'pencatatan_kantor.*',
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (1, 61, 4) THEN kj.skor
+                            WHEN kt.id_tanya IN (1, 61, 4) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_operasional'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (31, 36, 43, 67) THEN kj.skor
+                            WHEN kt.id_tanya IN (31, 36, 43, 67) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_sarana'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (17, 22, 25, 27) THEN kj.skor
+                            WHEN kt.id_tanya IN (17, 22, 25, 27) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_wilayah'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya = 15 THEN kj.skor
+                            WHEN kt.id_tanya = 15 THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_pegawai'),
             ])
-                ->Join('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
-                ->Join('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
-                ->Join('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
-                ->where('pencatatan_kantor.jenis', 'Verifikasi Lapangan')
-                ->groupBy('pencatatan_kantor_kuis.id_parent', 'pencatatan_kantor.id_kpc');
-                $total_data = $query->count();
+                // join('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
+                // join('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
+                // join('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
+                // gunakan LEFT JOIN agar pencatatan tanpa kuis tetap muncul
+                ->leftJoin('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
+                ->leftJoin('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
+                ->leftJoin('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
+                 // join lokasi supaya bisa search dan menampilkan nama
+                 ->leftJoin('kelurahan', 'pencatatan_kantor.id_kelurahan', '=', 'kelurahan.id')
+                 ->leftJoin('kecamatan', 'pencatatan_kantor.id_kecamatan', '=', 'kecamatan.id')
+                 ->leftJoin('kabupaten_kota', 'pencatatan_kantor.id_kabupaten', '=', 'kabupaten_kota.id')
+                 ->leftJoin('provinsi', 'pencatatan_kantor.id_provinsi', '=', 'provinsi.id')
+                // ->where('pencatatan_kantor.jenis', 'Verifikasi Lapangan')
+                // case-insensitive trim match supaya variasi 'survey' / spacing tidak mem-filter keluar data
+                ->whereRaw("LOWER(TRIM(pencatatan_kantor.jenis)) = ?", ['verifikasi lapangan'])
+                 // group by primary key (agregasi per pencatatan_kantor)
+                 ->groupBy('pencatatan_kantor.id');
 
             if ($idProvinsi) {
                 $query->where('pencatatan_kantor.id_provinsi', $idProvinsi);
@@ -140,6 +153,9 @@ class VerifikasiLapanganController extends Controller
                 });
             }
 
+            // hitung total setelah semua filter/search diterapkan
+            $total_data = $query->count();
+
             $result = $query
             ->orderByRaw($order)
             ->offset($offset)
@@ -166,7 +182,7 @@ class VerifikasiLapanganController extends Controller
                     'id' => $item->id,
                     'tanggal' => $item->created,
                     'petugas_list' => $petugas,
-                    'kode_pos' => $kpc->nomor_dirian,
+                    'kode_pos' => $kpc->nomor_dirian ?? "",
                     'provinsi' => $provinsi->nama ?? "",
                     'kabupaten' => $kabupaten->nama ?? "",
                     'kecamatan' => $kecamatan->nama ?? "",
@@ -264,25 +280,25 @@ class VerifikasiLapanganController extends Controller
             $query = PencatatanKantor::select([
                 'pencatatan_kantor.*',
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (1, 61, 4) THEN kj.skor
+                            WHEN kt.id_tanya IN (1, 61, 4) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_operasional'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (31, 36, 43, 67) THEN kj.skor
+                            WHEN kt.id_tanya IN (31, 36, 43, 67) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_sarana'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (17, 22, 25, 27) THEN kj.skor
+                            WHEN kt.id_tanya IN (17, 22, 25, 27) THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_wilayah'),
                 DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya = 15 THEN kj.skor
+                            WHEN kt.id_tanya = 15 THEN COALESCE(kj.skor,0)
                             ELSE 0
                             END), 2) AS aspek_pegawai'),
             ])
-                ->Join('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
-                ->Join('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
-                ->Join('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
+                ->join('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
+                ->join('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
+                ->join('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
                 ->where('pencatatan_kantor.jenis', 'Verifikasi Lapangan')
                 ->groupBy('pencatatan_kantor_kuis.id_parent', 'pencatatan_kantor.id_kpc');
                 $total_data = $query->count();
@@ -336,7 +352,7 @@ class VerifikasiLapanganController extends Controller
                     'id' => $item->id,
                     'tanggal' => $item->created,
                     'petugas_list' => $petugas,
-                    'kode_pos' => $kpc->nomor_dirian,
+                    'kode_pos' => $kpc->nomor_dirian ?? "",
                     'provinsi' => $provinsi->nama ?? "",
                     'kabupaten' => $kabupaten->nama ?? "",
                     'kecamatan' => $kecamatan->nama ?? "",
@@ -372,6 +388,162 @@ class VerifikasiLapanganController extends Controller
         } catch (\Exception $e) {
 
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            $rules = [
+                'pencatatan_kantor' => 'required|array',
+                'pencatatan_kantor.id_kpc' => 'required|numeric',
+                'pencatatan_kantor.id_user' => 'required|numeric',
+                'pencatatan_kantor.id_provinsi' => 'nullable|numeric',
+                'pencatatan_kantor.id_kabupaten' => 'nullable|numeric',
+                'pencatatan_kantor.id_kecamatan' => 'nullable|numeric',
+                'pencatatan_kantor.id_kelurahan' => 'nullable|string',
+                'pencatatan_kantor.jenis' => 'nullable|string',
+                'pencatatan_kantor.latitude' => 'nullable|numeric',
+                'pencatatan_kantor.longitude' => 'nullable|numeric',
+                'pencatatan_kantor.tanggal' => 'nullable|date',
+                'pencatatan_kantor_user' => 'nullable|array',
+                'pencatatan_kantor_kuis' => 'nullable|array',
+            ];
+
+            $payload = $request->all();
+            $raw = $request->getContent();
+            if (empty($payload) && !empty($raw)) {
+                $decodedRaw = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedRaw)) {
+                    $payload = $decodedRaw;
+                }
+            }
+
+            foreach (['pencatatan_kantor', 'pencatatan_kantor_user', 'pencatatan_kantor_kuis'] as $key) {
+                if (isset($payload[$key]) && is_string($payload[$key])) {
+                    $decoded = json_decode($payload[$key], true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $payload[$key] = $decoded;
+                    }
+                }
+            }
+
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            $validator = Validator::make($payload, $rules);
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $pk = $payload['pencatatan_kantor'];
+            
+            if (!empty($pk['id']) && $existing = PencatatanKantor::find($pk['id'])) {
+                $existing->fill($pk);
+                $existing->save();
+                $pencatatan = $existing;
+            } else {
+                $pencatatan = PencatatanKantor::create($pk);
+            }
+
+            $pkUser = $payload['pencatatan_kantor_user'] ?? null;
+             if (!empty($pkUser) && is_array($pkUser)) {
+                 $insertUser = [
+                     'rowid_parent' => $pkUser['rowid_parent'] ?? null,
+                     'id_parent' => $pencatatan->id,
+                     'id_user' => $pkUser['id_user'] ?? $pk['id_user'],
+                 ];
+                 
+                if (!empty($pkUser['rowid_parent'])) {
+                    DB::table('pencatatan_kantor_user')->updateOrInsert(
+                        ['rowid_parent' => $pkUser['rowid_parent']],
+                        $insertUser
+                    );
+                } else {
+                    DB::table('pencatatan_kantor_user')->insert($insertUser);
+                }
+            }
+
+            $kuisList = $payload['pencatatan_kantor_kuis'] ?? [];
+            foreach ($kuisList as $kuis) {
+                $kuisInsert = [
+                    'rowid_parent' => $kuis['rowid_parent'] ?? null,
+                    'id_parent' => $pencatatan->id,
+                    'id_tanya' => $kuis['id_tanya'] ?? null,
+                    'id_jawab' => $kuis['id_jawab'] ?? null,
+                    'data' => $kuis['data'] ?? null,
+                ];
+
+                if (!empty($kuis['rowid_parent'])) {
+                    DB::table('pencatatan_kantor_kuis')->updateOrInsert(
+                        ['rowid_parent' => $kuis['rowid_parent']],
+                        $kuisInsert
+                    );
+                } else {
+                    DB::table('pencatatan_kantor_kuis')->insert($kuisInsert);
+                }
+
+                if (!empty($kuis['file']) && is_array($kuis['file']) && !empty($kuis['file']['file'])) {
+                    $file = $kuis['file'];
+                    $b64 = $file['file'];
+                    if (strpos($b64, ';base64,') !== false) {
+                        $parts = explode(';base64,', $b64);
+                        $b64 = $parts[1];
+                    }
+                    $decoded = base64_decode($b64);
+                    if ($decoded === false) {
+                        continue;
+                    }
+
+                    $fileName = $file['file_name'] ?? ($file['nama'] ?? (Str::random(8) . '.bin'));
+                    $ext = pathinfo($fileName, PATHINFO_EXTENSION);
+                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
+                    $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . Str::random(8) . ($ext ? '.' . $ext : '');
+                    $fullPath = $storePath . $storedName;
+
+                    Storage::disk('public')->put($fullPath, $decoded);
+
+                    $fileRecord = [
+                        'rowid_parent' => $file['rowid_parent'] ?? null,
+                        'id_parent' => $kuis['id_tanya'] ?? $file['id_parent'] ?? $pencatatan->id,
+                        'nama' => $file['nama'] ?? $fileName,
+                        'file' => $fullPath,
+                        'file_name' => $fileName,
+                        'file_type' => $file['file_type'] ?? null,
+                        'created' => $file['created'] ?? now(),
+                        'updated' => $file['updated'] ?? now(),
+                    ];
+
+                    if (!empty($file['rowid_parent'])) {
+                        DB::table('pencatatan_kantor_file')->updateOrInsert(
+                            ['rowid_parent' => $file['rowid_parent']],
+                            $fileRecord
+                        );
+                    } else {
+                        DB::table('pencatatan_kantor_file')->insert($fileRecord);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => 'Data saved',
+                'id' => $pencatatan->id,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
