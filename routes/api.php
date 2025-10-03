@@ -312,6 +312,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('monitoring-kantor-usulan/export', [MonitoringKantorUsulanController::class, 'export'])->name('monitoring-kantor-usulan-export');
 
         Route::get('verifikasi-lapangan', [VerifikasiLapanganController::class, 'index'])->name('verifikasi-lapangan');
+        Route::post('verifikasi-lapangan', [VerifikasiLapanganController::class, 'store'])->name('verifikasi-lapangan-store');
         Route::get('verifikasi-lapangan/export', [VerifikasiLapanganController::class, 'export'])->name('verifikasi-lapangan-export');
 
         Route::get('perbaikan-ringan', [PerbaikanRinganController::class, 'index'])->name('perbaikan-ringan');
