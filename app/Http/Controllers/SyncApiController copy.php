@@ -458,12 +458,12 @@ class SyncApiController extends Controller
         try {
 
             $endpoint = 'profil_kpc';
-            $id_kcp = $request->id_kcp;
+            // $id_kcp = $request->id_kcp;
             // Membuat instance dari ApiController
             $apiController = new ApiController();
 
-            $url_request = $endpoint . '?nopend=' . $id_kcp;
-            $request->merge(['end_point' => $url_request]);
+            // $url_request = $endpoint . '?nopend=' . $id_kcp;
+            $request->merge(['end_point' => $endpoint]);
 
             $response = $apiController->makeRequest($request);
 

@@ -20,7 +20,7 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $endpoint = "daftar_kpc";
+        $endpoint = "profil_kpc";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
