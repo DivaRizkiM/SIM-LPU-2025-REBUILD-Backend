@@ -512,18 +512,34 @@ class SyncApiController extends Controller
                     ]);
                 } else {
 
-                    Kprk::create([
-                        'id' => $data['id_kprk'],
-                        'id_regional' => $data['regional'],
-                        'nama' => $data['nama_kprk'],
-                        'id_provinsi' => $data['provinsi'],
-                        'id_kabupaten_kota' => $data['kab_kota'],
-                        'id_kecamatan' => $data['kecamatan'],
-                        'id_kelurahan' => $data['kelurahan'],
-                        'jumlah_kpc_lpu' => $data['jumlah_kpc_lpu'],
-                        'jumlah_kpc_lpk' => $data['jumlah_kpc_lpk'],
+                    Kpc::create([
+                        'id_regional' => $data['Regional'],
+                        'id_kprk' => $data['ID_KPRK'],
+                        'nomor_dirian' => $data['NomorDirian'],
+                        'nama' => $data['Nama_KPC'],
+                        'jenis_kantor' => $data['Jenis_KPC'],
+                        'alamat' => $data['Alamat'],
+                        'koordinat_longitude' => $data['Longitude'],
+                        'koordinat_latitude' => $data['Latitude'],
+                        'nomor_telpon' => $data['Nomor_Telp'],
+                        'nomor_fax' => $data['Nomor_fax'],
+                        'id_provinsi' => $data['Provinsi'],
+                        'id_kabupaten_kota' => $data['Kabupaten_Kota'],
+                        'id_kecamatan' => $data['Kecamatan'],
+                        'id_kelurahan' => $data['Kelurahan'],
+                        'tipe_kantor' => $data['Status_Gedung_Kantor'],
+                        'jam_kerja_senin_kamis' => $data['JamKerjaSeninKamis'],
+                        'jam_kerja_jumat' => $data['JamKerjaJumat'],
+                        'jam_kerja_sabtu' => $data['JamKerjaSabtu'],
+                        'frekuensi_antar_ke_alamat' => $data['FrekuensiAntarKeAlamat'],
+                        'frekuensi_antar_ke_dari_kprk' => $data['FrekuensiKirimDariKeKprk'],
+                        'jumlah_tenaga_kontrak' => $data['JumlahTenagaKontrak'],
+                        'kondisi_gedung' => $data['KondisiGedung'],
+                        'fasilitas_publik_dalam' => $data['FasilitasPublikDalamKantor'],
+                        'fasilitas_publik_halaman' => $data['FasilitasPublikLuarKantor'],
+                        'lingkungan_kantor' => $data['LingkunganKantor'],
+                        'lingkungan_sekitar_kantor' => $data['LingkunganSekitarKantor'],
                         'tgl_sinkronisasi' => now(),
-
                     ]);
                 }
             }
