@@ -791,118 +791,30 @@ class SyncApiController extends Controller
     public function syncKPC(Request $request)
     {
         try {
-
             $endpoint = 'daftar_kpc';
-            // $id_kpc = $request->id_kprk;
-            // Membuat instance dari ApiController
-            $apiController = new ApiController();
-            $request->merge(['end_point' => $endpoint]);
-            // Memanggil makeRequest dari ApiController untuk sinkronisasi dengan endpoint provinsi
-            $response = $apiController->makeRequest($request);
+            $endpointProfile = 'profil_kpc';
+            $idKpc = $request->id_kpc;
+            $serverIpAddress = gethostbyname(gethostname());
+            $agent = new Agent();
+            $userAgent = $request->header('User-Agent');
+            $agent->setUserAgent($userAgent);
+            $platform = $agent->platform();
+            $browser = $agent->browser();
+            $userLog = [
+                'timestamp' => now(),
+                'aktifitas' => 'Sinkronisasi KPC',
+                'modul' => 'KPC',
+                'id_user' => $this->auth(),
+            ];
 
-            $dataKCP = $response['data'] ?? [];
-            if (!$dataKCP) {
-                return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
-            }
+            $userLog = UserLog::create($userLog);
+            $job = ProcessSyncKPCJob::dispatch($endpoint, $endpointProfile, $userAgent);
 
-            // Memulai transaksi database untuk meningkatkan kinerja
-            DB::beginTransaction();
-
-            // Simpan daftar KPC singkat (id) lalu ambil profil lengkap per nopend
-            foreach ($dataKCP as $data) {
-                $nopend = $data['nopend'] ?? null;
-                if (!$nopend) {
-                    continue;
-                }
-
-                // Pastikan record dasar ada
-                $kcp = Kpc::find($nopend);
-                if (!$kcp) {
-                    Kpc::create([
-                        'id' => $nopend,
-                    ]);
-                }
-            }
-
-            // Commit sementara agar daftar_kpc tersimpan
-            DB::commit();
-
-            // Sekarang foreach lagi untuk mem-fetch profil detail tiap nopend dan upsert
-            foreach ($dataKCP as $data) {
-                $nopend = $data['nopend'] ?? null;
-                if (!$nopend) {
-                    continue;
-                }
-
-                try {
-                    $profileRequest = new Request();
-                    $profileRequest->merge(['end_point' => 'profil_kpc?nopend=' . $nopend]);
-
-                    $profileResponse = $apiController->makeRequest($profileRequest);
-                    $profileData = $profileResponse['data'] ?? [];
-
-                    if (empty($profileData)) {
-                        // tidak ada data profil untuk nopend ini
-                        continue;
-                    }
-
-                    // Upsert profil (dataProfil bisa berisi satu atau beberapa entry)
-                    DB::beginTransaction();
-                    foreach ($profileData as $p) {
-                        $idKpc = $p['ID_KPC'] ?? $nopend;
-                        $updateData = [
-                            'id_regional' => $p['Regional'] ?? null,
-                            'id_kprk' => $p['ID_KPRK'] ?? null,
-                            'nomor_dirian' => $p['NomorDirian'] ?? null,
-                            'nama' => $p['Nama_KPC'] ?? null,
-                            'jenis_kantor' => $p['Jenis_KPC'] ?? null,
-                            'alamat' => $p['Alamat'] ?? null,
-                            'koordinat_longitude' => $p['Longitude'] ?? null,
-                            'koordinat_latitude' => $p['Latitude'] ?? null,
-                            'nomor_telpon' => $p['Nomor_Telp'] ?? null,
-                            'nomor_fax' => $p['Nomor_fax'] ?? null,
-                            'id_provinsi' => $p['Provinsi'] ?? null,
-                            'id_kabupaten_kota' => $p['Kabupaten_Kota'] ?? null,
-                            'id_kecamatan' => $p['Kecamatan'] ?? null,
-                            'id_kelurahan' => $p['Kelurahan'] ?? null,
-                            'tipe_kantor' => $p['Status_Gedung_Kantor'] ?? null,
-                            'jam_kerja_senin_kamis' => $p['JamKerjaSeninKamis'] ?? null,
-                            'jam_kerja_jumat' => $p['JamKerjaJumat'] ?? null,
-                            'jam_kerja_sabtu' => $p['JamKerjaSabtu'] ?? null,
-                            'frekuensi_antar_ke_alamat' => $p['FrekuensiAntarKeAlamat'] ?? null,
-                            'frekuensi_antar_ke_dari_kprk' => $p['FrekuensiKirimDariKeKprk'] ?? null,
-                            'jumlah_tenaga_kontrak' => $p['JumlahTenagaKontrak'] ?? null,
-                            'kondisi_gedung' => $p['KondisiGedung'] ?? null,
-                            'fasilitas_publik_dalam' => $p['FasilitasPublikDalamKantor'] ?? null,
-                            'fasilitas_publik_halaman' => $p['FasilitasPublikLuarKantor'] ?? null,
-                            'lingkungan_kantor' => $p['LingkunganKantor'] ?? null,
-                            'lingkungan_sekitar_kantor' => $p['LingkunganSekitarKantor'] ?? null,
-                            'tgl_sinkronisasi' => now(),
-                        ];
-
-                        $existing = Kpc::find($idKpc);
-                        if ($existing) {
-                            $existing->update($updateData);
-                        } else {
-                            Kpc::create(array_merge(['id' => $idKpc], $updateData));
-                        }
-                    }
-                    DB::commit();
-                } catch (\Exception $e) {
-                    // log dan lanjutkan dengan nopend berikutnya
-                    \Illuminate\Support\Facades\Log::error("syncKPC -> profil_kpc failed for nopend {$nopend}: " . $e->getMessage());
-                    DB::rollBack();
-                    continue;
-                }
-            }
-
-            // Setelah sinkronisasi selesai, kembalikan respons JSON sukses
             return response()->json([
-                'status' => 'SUCCESS',
-                'message' => 'Sinkronisasi KCP dan profil berhasil'], 200);
+                'status' => 'IN_PROGRESS',
+                'message' => 'Sinkronisasi sedang di proses',
+            ], 200);
         } catch (\Exception $e) {
-
-            DB::rollBack();
 
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
