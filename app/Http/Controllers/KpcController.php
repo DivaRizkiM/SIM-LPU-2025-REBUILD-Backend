@@ -225,7 +225,7 @@ class KpcController extends Controller
             ->select(
                 'kpc.id as id_kpc', 'kpc.*',
                 'regional.nama as nama_regional', 'kprk.nama as nama_kprk',
-                'kprk.id_provinsi as id_provinsi',
+                'provinsi.id as id_provinsi',
                 'kabupaten_kota.id as id_kabupaten_kota',
                 'kecamatan.id as id_kecamatan',
                 'kelurahan.id as id_kelurahan'
