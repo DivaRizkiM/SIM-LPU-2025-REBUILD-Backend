@@ -58,19 +58,42 @@ class ApiLogController extends Controller
             }
 
             $apiLogs = $apiLogsQuery->offset($offset)
-            ->limit($limit)->get();
-            foreach ($apiLogs as $apiLog) {
-                $apiLog->proses = $apiLog->successful_records . '/' . $apiLog->available_records;
-                if ($apiLog->available_records != 0) { // Pastikan tidak terjadi pembagian dengan nol
-                    $persentase = number_format(($apiLog->successful_records / $apiLog->available_records) * 100, 2) . '%';
-                    $apiLog->persentase = $persentase;
-                    // Menghitung persentase
-                } else {
-                    $apiLog->persentase = 0;
-                }
-                $apiLog->updated_at = Carbon::parse($apiLog->updated_at)->setTimezone('Asia/Jakarta')->toDateTimeString();
+                ->limit($limit)->get()
+                ->map(function ($apiLog) {
+                    $proses = $apiLog->successful_records . '/' . $apiLog->available_records;
+                    if ($apiLog->available_records != 0) {
+                        $persentase = number_format(($apiLog->successful_records / $apiLog->available_records) * 100, 2) . '%';
+                    } else {
+                        $persentase = '0%';
+                    }
 
-            }
+                    $arr = $apiLog->toArray();
+                    $arr['proses'] = $proses;
+                    $arr['persentase'] = $persentase;
+
+                    // Format updated_at/tanggal ke timezone aplikasi sebagai string
+                    if (!empty($apiLog->updated_at)) {
+                        $arr['updated_at'] = $apiLog->updated_at
+                            ->setTimezone(config('app.timezone'))
+                            ->toDateTimeString();
+                    } else {
+                        $arr['updated_at'] = null;
+                    }
+
+                    if (!empty($apiLog->tanggal)) {
+                        // jika ada kolom tanggal juga ingin ditampilkan di timezone app
+                        try {
+                            $arr['tanggal'] = \Carbon\Carbon::parse($apiLog->tanggal)
+                                ->setTimezone(config('app.timezone'))
+                                ->toDateTimeString();
+                        } catch (\Exception $e) {
+                            // biarkan nilai aslinya bila parse gagal
+                            $arr['tanggal'] = $apiLog->tanggal;
+                        }
+                    }
+
+                    return $arr;
+                });
             return response()->json([
                 'status' => 'SUCCESS',
                 'offset' => $offset,
