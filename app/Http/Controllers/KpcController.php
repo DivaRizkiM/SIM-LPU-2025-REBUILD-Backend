@@ -219,7 +219,7 @@ class KpcController extends Controller
         $kpcssQuery = Kpc::leftJoin('regional', 'kpc.id_regional', '=', 'regional.id')
             ->leftJoin('kprk', 'kpc.id_kprk', '=', 'kprk.id')
             ->leftJoin('provinsi', 'kpc.id_provinsi', '=', 'provinsi.id')
-            ->leftJoin('kabupaten_kota', 'kprk.id_kabupaten_kota', '=', 'kabupaten_kota.id')
+            ->leftJoin('kabupaten_kota', 'kpc.id_kabupaten_kota', '=', 'kabupaten_kota.id')
             ->leftJoin('kecamatan', 'kpc.id_kecamatan', '=', 'kecamatan.id')
             ->leftJoin('kelurahan', 'kpc.id_kelurahan', '=', 'kelurahan.id')
             ->select(
