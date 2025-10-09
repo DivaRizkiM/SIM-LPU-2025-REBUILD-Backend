@@ -24,7 +24,7 @@ class ProcessSyncKecamatanJob implements ShouldQueue
     protected $page;
     protected $perPage;
 
-    public function __construct($endpoint, $userAgent, $page = 1, $perPage = 8000)
+    public function __construct($endpoint, $userAgent, $page = 1, $perPage = 1000)
     {
         $this->endpoint = $endpoint;
         $this->userAgent = $userAgent;

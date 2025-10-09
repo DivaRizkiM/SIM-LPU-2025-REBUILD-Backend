@@ -348,7 +348,7 @@ class KelurahanController extends Controller
             $userAgent = $request->header('User-Agent');
 
             // buat satu request awal untuk mengetahui total_data (gunakan perPage yang wajar)
-            $perPage = 1000;
+            $perPage = 8000;
             $apiController = new ApiController();
             $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
                 'end_point' => $endpoint,
