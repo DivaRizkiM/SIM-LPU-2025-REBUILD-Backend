@@ -89,8 +89,6 @@ class ProcessSyncKelurahanJob implements ShouldQueue
                 'id_kecamatan' => $d['kode_kecamatan'] ?? null,
                 'id_kabupaten_kota' => $d['kode_kota_kab'] ?? null,
                 'id_provinsi' => $d['kode_provinsi'] ?? null,
-                'updated_at' => now(),
-                'created_at' => now(),
             ];
         }
 
