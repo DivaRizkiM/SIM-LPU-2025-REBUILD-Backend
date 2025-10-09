@@ -65,8 +65,10 @@ class ProcessSyncKelurahanJob implements ShouldQueue
             'ip_address' => $serverIpAddress,
             'platform_request' => $platform_request,
             'successful_records' => 0,
-            'available_records' => $response['total_data'] ?? count($dataKelurahan),
-            'total_records' => count($dataKelurahan),
+            // total_records = total keseluruhan dari API (jika tersedia)
+            'total_records' => $response['total_data'] ?? count($dataKelurahan),
+            // available_records = jumlah data pada halaman ini (batch), bukan total keseluruhan
+            'available_records' => count($dataKelurahan),
             'status' => 'Memproses Batch',
         ]);
 
@@ -92,14 +94,17 @@ class ProcessSyncKelurahanJob implements ShouldQueue
             ];
         }
 
-        // Lakukan DB transaction untuk batch upsert
+        // Lakukan DB transaction untuk batch upsert (gunakan chunk agar memory stabil)
         DB::transaction(function () use ($batch, $apiRequestLog) {
             if (!empty($batch)) {
-                // upsert: insert baru atau update kolom yang diinginkan
-                Kelurahan::upsert($batch, ['id'], ['nama', 'id_kecamatan', 'id_kabupaten_kota', 'id_provinsi', 'updated_at']);
+                $processed = 0;
+                foreach (array_chunk($batch, 500) as $chunk) {
+                    Kelurahan::upsert($chunk, ['id'], ['nama', 'id_kecamatan', 'id_kabupaten_kota', 'id_provinsi', 'updated_at']);
+                    $processed += count($chunk);
+                }
 
                 $apiRequestLog->update([
-                    'successful_records' => count($batch),
+                    'successful_records' => $processed,
                     'status' => 'success',
                 ]);
             } else {
@@ -108,6 +113,12 @@ class ProcessSyncKelurahanJob implements ShouldQueue
                 ]);
             }
         });
+
+        // free memory
+        unset($dataKelurahan, $batch);
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
     }
 
     public function maxAttempts()
