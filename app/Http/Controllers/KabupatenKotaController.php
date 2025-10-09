@@ -372,6 +372,30 @@ class KabupatenKotaController extends Controller
                 }
                 $totalSumber++;
                 $successful++;
+                $status = ($successful == $available) ? 'success' : 'on progress';
+                $updated_payload = $payload->payload ?? '';
+                $jsonData = json_encode($data);
+                $fileSize = strlen($jsonData);
+                $data['size'] = $fileSize;
+
+                if ($updated_payload !== '' || $payload->payload !== null) {
+                    $existing_payload = json_decode($updated_payload, true);
+                    $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
+                    $new_payload = (object) $data;
+                    $existing_payload[] = $new_payload;
+                    $updated_payload = json_encode($existing_payload);
+                } else {
+                    $updated_payload = json_encode([(object) $data]);
+                }
+
+                $payload->update([
+                    'payload' => $updated_payload,
+                ]);
+
+                $apiRequestLog->update([
+                    'successful_records' => $successful,
+                    'status' => $status,
+                ]);
             }
             $updated_keterangan = json_encode($all_get_data);
             $apiLogData = [
@@ -397,31 +421,6 @@ class KabupatenKotaController extends Controller
             ];
 
             $userLog = UserLog::create($userLog);
-            $status = ($successful == $available) ? 'success' : 'on progress';
-            $updated_payload = $payload->payload ?? '';
-            $jsonData = json_encode($data);
-            $fileSize = strlen($jsonData);
-            $data['size'] = $fileSize;
-
-            if ($updated_payload !== '' || $payload->payload !== null) {
-                $existing_payload = json_decode($updated_payload, true);
-                $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
-                $new_payload = (object) $data;
-                $existing_payload[] = $new_payload;
-                $updated_payload = json_encode($existing_payload);
-            } else {
-                $updated_payload = json_encode([(object) $data]);
-            }
-
-            sleep(2);
-            $payload->update([
-                'payload' => $updated_payload,
-            ]);
-
-            $apiRequestLog->update([
-                'successful_records' => $successful,
-                'status' => $status,
-            ]);
             // Commit transaksi setelah selesai
             DB::commit();
 
