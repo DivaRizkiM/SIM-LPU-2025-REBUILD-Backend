@@ -97,7 +97,7 @@ class ProcessSyncKelurahanJob implements ShouldQueue
             if (!empty($batch)) {
                 $processed = 0;
                 foreach (array_chunk($batch, 500) as $chunk) {
-                    Kelurahan::upsert($chunk, ['id'], ['nama', 'id_kecamatan', 'id_kabupaten_kota', 'id_provinsi', 'updated_at']);
+                    Kelurahan::upsert($chunk, ['id'], ['nama', 'id_kecamatan', 'id_kabupaten_kota', 'id_provinsi']);
                     $processed += count($chunk);
                 }
 
