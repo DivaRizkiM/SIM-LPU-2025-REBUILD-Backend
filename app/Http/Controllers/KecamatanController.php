@@ -178,7 +178,7 @@ class KecamatanController extends Controller
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            // Query kecamatan dengan kondisi pencarian dan filter
+            // Query kecamatan with search and filter conditions
             $query = Kecamatan::leftJoin('kabupaten_kota', 'kecamatan.id_kabupaten_kota', '=', 'kabupaten_kota.id')
                 ->leftJoin('provinsi', 'kabupaten_kota.id_provinsi', '=', 'provinsi.id')
                 ->select('kecamatan.*', 'kabupaten_kota.nama as nama_kabupaten_kota', 'provinsi.nama as nama_provinsi');
@@ -313,103 +313,49 @@ class KecamatanController extends Controller
     public function syncKecamatan(Request $request)
     {
         try {
-            $serverIpAddress = gethostbyname(gethostname());
-            $agent = new Agent();
-            $userAgent = $request->header('User-Agent');
-            $agent->setUserAgent($userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
-            $platform_request = $platform . '/' . $browser;
-            $all_get_data = [];
-
-            $totalTarget = 0;
-            $totalSumber = 0;
-            // Memulai transaksi database untuk meningkatkan kinerja
-
-            // Mendefinisikan endpoint untuk sinkronisasi kecamatan
             $endpoint = 'kecamatan';
+            $userAgent = $request->header('User-Agent');
 
-            // Membuat instance dari ApiController
+            // probe untuk mengetahui total data
+            $perPage = 1000;
             $apiController = new ApiController();
+            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
+                'end_point' => $endpoint,
+                'page' => 1,
+                'per_page' => $perPage,
+            ]);
+            $firstResp = $apiController->makeRequest($probeReq);
+            $total = $firstResp['total_data'] ?? (is_array($firstResp['data']) ? count($firstResp['data']) : 0);
 
-            // Membuat instance dari Request dan mengisi access token jika diperlukan
-            $request = new Request();
-            $request->merge(['end_point' => $endpoint]);
-
-            // Memanggil makeRequest dari ApiController untuk sinkronisasi dengan endpoint kecamatan
-            $response = $apiController->makeRequest($request);
-
-            // Mengambil data kecamatan dari respons
-            $dataKecamatan = $response['data'] ?? [];
-            DB::beginTransaction();
-            // Memproses setiap data kecamatan dari respons
-            foreach ($dataKecamatan as $data) {
-                if (empty($data)) {
-                    continue;
-                } else {
-                    $all_get_data[] = $data;
-                    $totalTarget++;
-                }
-                // Mencari kecamatan berdasarkan ID
-                $kecamatan = Kecamatan::find($data['kode_kecamatan']);
-
-                // Jika kecamatan ditemukan, perbarui data
-                if ($kecamatan) {
-                    $kecamatan->update([
-                        'nama' => $data['nama_kecamatan'],
-                        'id_kabupaten_kota' => $data['kode_kota_kab'],
-                        'id_provinsi' => $data['kode_provinsi'],
-                        // Perbarui atribut lain yang diperlukan
-                    ]);
-                } else {
-                    // Jika kecamatan tidak ditemukan, tambahkan data baru
-                    Kecamatan::create([
-                        'id' => $data['kode_kecamatan'],
-                        'nama' => $data['nama_kecamatan'],
-                        'id_kabupaten_kota' => $data['kode_kota_kab'],
-                        'id_provinsi' => $data['kode_provinsi'],
-                        // Tambahkan atribut lain yang diperlukan
-                    ]);
-                }
-                $totalSumber++;
+            if ($total <= 0) {
+                return response()->json(['status' => 'NO_DATA', 'message' => 'Tidak ada data untuk disinkronisasi'], 200);
             }
-            $updated_keterangan = json_encode($all_get_data);
-            $apiLogData = [
-                'komponen' => 'Kecamatan',
-                'tanggal' => now(),
-                'ip_addres' => $serverIpAddress,
-                'platform_request' => $platform_request,
-                'error_code' => null,
-                'ssid' => null,
-                'identifier_activity' => 'request',
-                'sumber' => $totalSumber,
-                'target' => $totalTarget,
-                'keterangan' => $updated_keterangan,
-                'status' => 'success',
-            ];
 
-            $createApiLog = ApiLog::create($apiLogData);
-            $userLog=[
+            $pages = (int) ceil($total / $perPage);
+
+            // Log aktivitas user singkat
+            $userLog = [
                 'timestamp' => now(),
-                'aktifitas' =>'Sinkronisasi Kecamatan',
+                'aktifitas' => 'Sinkronisasi Kecamatan',
                 'modul' => 'Kecamatan',
                 'id_user' => Auth::user(),
             ];
+            UserLog::create($userLog);
 
-            $userLog = UserLog::create($userLog);
-            // Commit transaksi setelah selesai
-            DB::commit();
+            // Dispatch job per halaman
+            for ($p = 1; $p <= $pages; $p++) {
+                \App\Jobs\ProcessSyncKecamatanJob::dispatch($endpoint, $userAgent, $p, $perPage);
+            }
 
-            // Setelah sinkronisasi selesai, kembalikan respons JSON sukses
             return response()->json([
-                'status' => 'SUCCESS',
-                'message' => 'Sinkronisasi kecamatan berhasil',
+                'status' => 'IN_PROGRESS',
+                'message' => 'Sinkronisasi sedang diproses (jobs dispatched)',
+                'total_records' => $total,
+                'pages' => $pages,
+                'per_page' => $perPage,
             ], 200);
-        } catch (\Exception $e) {
-            // Rollback transaksi jika terjadi kesalahan
-            DB::rollBack();
 
-            // Tangani kesalahan yang terjadi selama sinkronisasi
+        } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
