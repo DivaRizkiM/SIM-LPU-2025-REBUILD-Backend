@@ -3,13 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApiLog;
-use App\Models\Provinsi;
 use App\Models\UserLog;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use App\Models\Provinsi;
 use Jenssegers\Agent\Agent;
+use Illuminate\Http\Request;
+use App\Models\ApiRequestLog;
+use Illuminate\Support\Facades\DB;
+use App\Models\ApiRequestPayloadLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
 class ProvinsiController extends Controller
