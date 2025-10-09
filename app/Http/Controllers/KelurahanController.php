@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Jenssegers\Agent\Agent;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\ApiController; // tambahkan di use section
 class KelurahanController extends Controller
 {
     // public function index()
@@ -344,26 +345,45 @@ class KelurahanController extends Controller
     {
         try {
             $endpoint = 'kelurahan';
-            $serverIpAddress = gethostbyname(gethostname());
-            $agent = new Agent();
             $userAgent = $request->header('User-Agent');
-            $agent->setUserAgent($userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
+
+            // buat satu request awal untuk mengetahui total_data (gunakan perPage yang wajar)
+            $perPage = 1000;
+            $apiController = new ApiController();
+            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
+                'end_point' => $endpoint,
+                'page' => 1,
+                'per_page' => $perPage,
+            ]);
+            $firstResp = $apiController->makeRequest($probeReq);
+            $total = $firstResp['total_data'] ?? (is_array($firstResp['data']) ? count($firstResp['data']) : 0);
+
+            if ($total <= 0) {
+                return response()->json(['status' => 'NO_DATA', 'message' => 'Tidak ada data untuk disinkronisasi'], 200);
+            }
+
+            $pages = (int) ceil($total / $perPage);
+
+            // Log aktivitas user singkat
             $userLog=[
                 'timestamp' => now(),
                 'aktifitas' =>'Sinkronisasi Kelurahan',
                 'modul' => 'Kelurahan',
                 'id_user' => Auth::user(),
             ];
+            UserLog::create($userLog);
 
-            $userLog = UserLog::create($userLog);
-
-            $job = ProcessSyncKelurahanJob::dispatch($endpoint, $userAgent);
+            // Dispatch job per halaman — gunakan queue worker untuk memproses paralel sesuai konfigurasi queue
+            for ($p = 1; $p <= $pages; $p++) {
+                ProcessSyncKelurahanJob::dispatch($endpoint, $userAgent, $p, $perPage);
+            }
 
             return response()->json([
                 'status' => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang di proses',
+                'message' => 'Sinkronisasi sedang diproses (jobs dispatched)',
+                'total_records' => $total,
+                'pages' => $pages,
+                'per_page' => $perPage,
             ], 200);
 
         } catch (\Exception $e) {
