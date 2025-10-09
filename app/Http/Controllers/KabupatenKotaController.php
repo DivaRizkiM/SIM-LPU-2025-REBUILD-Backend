@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApiLog;
-use App\Models\KabupatenKota;
 use App\Models\UserLog;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Jenssegers\Agent\Agent;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\Request;
+use App\Models\ApiRequestLog;
+use App\Models\KabupatenKota;
+use Illuminate\Support\Facades\DB;
+use App\Models\ApiRequestPayloadLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\Response;
+
 class KabupatenKotaController extends Controller
 {
     // public function index()
