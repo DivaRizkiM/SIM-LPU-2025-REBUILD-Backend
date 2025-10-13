@@ -147,13 +147,9 @@ class RekonsiliasiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'id_penyelenggara' => 'required|exists:penyelenggara,id',
-                // 'id_provinsi' => 'required|exists:provinsi,id',
-                // 'id_kabupaten_kota' => 'required|exists:kabupaten_kota,id',
-                // 'id_kecamatan' => 'required|exists:kecamatan,id',
                 'id_kelurahan' => 'required|exists:kelurahan,id',
                 'id_jenis_kantor' => 'required',
                 'id_kantor' => 'required|integer',
-                'nama' => 'required|string',
                 'nama_kantor' => 'required|string',
                 'alamat' => 'required|string',
                 'longitude' => 'required|numeric',

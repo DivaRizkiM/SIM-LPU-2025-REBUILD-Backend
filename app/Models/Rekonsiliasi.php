@@ -17,7 +17,7 @@ class Rekonsiliasi extends Model
         'id_kelurahan',
         'id_jenis_kantor',
         'id_kantor',
-        'nam_kantor',
+        'nama_kantor',
         'alamat',
         'longitude',
         'latitude',
