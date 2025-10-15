@@ -536,4 +536,13 @@ class KpcController extends Controller
         }
     }
 
+    public function countKPC()
+    {
+        try {
+            $count = Kpc::count();
+            return response()->json(['status' => 'SUCCESS', 'count' => $count]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
 }
