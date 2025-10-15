@@ -193,6 +193,7 @@ Route::middleware('auth:api')->group(function () {
         Route::apiResource('jenis-kantor', JenisKantorController::class);
         Route::apiResource('kprk', KprkController::class);
         Route::apiResource('kpc', KpcController::class);
+        Route::get('kpc-count', [KpcController::class, 'countKPC']);
         Route::apiResource('petugas-kpc', PetugasKpcController::class);
         Route::apiResource('penyelenggara', PenyelenggaraController::class);
         Route::apiResource('regional', RegionalController::class);
