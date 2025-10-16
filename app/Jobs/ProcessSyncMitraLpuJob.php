@@ -12,73 +12,70 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request as HttpRequest;
 use Jenssegers\Agent\Agent;
+use Illuminate\Http\Request;
 
 class ProcessSyncMitraLpuJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** @var string endpoint dasar, contoh: 'mitra_lpu' */
-    protected string $endpoint;
+    /** contoh: 'mitra_lpu' (tanpa query) */
+    protected string $endpointBase;
 
-    /** @var string NOPEND KPC (== nomor_dirian) */
-    protected string $nopendKpc;
+    /** ID KPC yang digunakan sebagai nopend_kpc */
+    protected string $idKpc;
 
-    /** @var string|null */
     protected ?string $userAgent;
 
-    public function __construct(string $endpoint, string $nopendKpc, ?string $userAgent = null)
+    public function __construct(string $endpointBase, string $idKpc, ?string $userAgent = null)
     {
-        $this->endpoint  = $endpoint;
-        $this->nopendKpc = $nopendKpc;
-        $this->userAgent = $userAgent;
+        $this->endpointBase = trim($endpointBase);
+        $this->idKpc        = trim($idKpc);
+        $this->userAgent    = $userAgent;
     }
 
     public function handle(): void
     {
-        $urlRequest = $this->endpoint . '?nopend_kpc=' . $this->nopendKpc;
+        $urlRequest = "{$this->endpointBase}?nopend_kpc={$this->idKpc}";
 
-        // Logging request header/platform (sesuai pola controller lain)
+        // --- ApiRequestLog (pakai kolom yang ada: komponen, dst.)
         $serverIpAddress = gethostbyname(gethostname());
-        $agent           = new Agent();
-        if ($this->userAgent) $agent->setUserAgent($this->userAgent);
-        $platform_request = trim(($agent->platform() ?? '') . '/' . ($agent->browser() ?? ''), '/');
+        $agent = new Agent();
+        if ($this->userAgent) {
+            $agent->setUserAgent($this->userAgent);
+        }
+        $platformRequest = $agent->platform() . '/' . $agent->browser();
 
-        // Buat rekap log awal
         $apiLog = ApiRequestLog::create([
-            'komponen'           => 'Mitra LPU',
-            'tanggal'            => now(),
-            'ip_address'         => $serverIpAddress,
-            'platform_request'   => $platform_request,
-            'successful_records' => 0,
-            'available_records'  => 0,
-            'total_records'      => 0,
-            'status'             => 'Memuat Data',
+            'komponen'            => 'Mitra LPU',
+            'tanggal'             => now(),
+            'ip_address'          => $serverIpAddress,
+            'platform_request'    => $platformRequest,
+            'successful_records'  => 0,
+            'available_records'   => 0,
+            'total_records'       => 0,
+            'status'              => 'Memuat Data',
         ]);
 
-        $payloadLog = ApiRequestPayloadLog::create([
+        $payload = ApiRequestPayloadLog::create([
             'api_request_log_id' => $apiLog->id,
             'payload'            => null,
         ]);
 
         try {
-            // Panggil API via ApiController yang sudah ada
+            // --- Panggil API
             $apiController = new ApiController();
-            $req = new HttpRequest();
+            $req = new Request();
             if ($this->userAgent) {
-                // simulasikan UA di job
                 $req->headers->set('User-Agent', $this->userAgent);
             }
             $req->merge(['end_point' => $urlRequest]);
 
             $resp = $apiController->makeRequest($req);
-
             $rows = $this->extractRows($resp);
 
-            $available = $resp['total_data'] ?? count($rows);
             $apiLog->update([
-                'available_records' => $available,
+                'available_records' => $resp['total_data'] ?? count($rows),
                 'total_records'     => count($rows),
                 'status'            => empty($rows) ? 'data tidak tersedia' : 'on progress',
             ]);
@@ -86,68 +83,59 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
             $ok = 0;
 
             foreach ($rows as $row) {
-                $payload = $this->normalizeRow($row);
+                $norm = $this->normalizeRow($row);
 
-                // Upsert: id_kpc = NOPEND KPC (nomor_dirian)
+                // Upsert (id_kpc, nopend, nib)
                 MitraLpu::updateOrCreate(
                     [
-                        'id_kpc' => $this->nopendKpc,
-                        'nopend' => $payload['nopend'],
-                        'nib'    => $payload['nib'],
+                        'id_kpc' => $this->idKpc,
+                        'nopend' => $norm['nopend'],
+                        'nib'    => $norm['nib'],
                     ],
                     [
-                        'nama_mitra'         => $payload['nama_mitra'],
-                        'alamat_mitra'       => $payload['alamat_mitra'],
-                        'kode_wilayah_kerja' => $payload['kode_wilayah_kerja'],
-                        'nama_wilayah'       => $payload['nama_wilayah'],
-                        'lat'                => $payload['lat'],
-                        'long'               => $payload['long'],
-                        'nik'                => $payload['nik'],
-                        'namafile'           => $payload['namafile'],
-                        'raw'                => $row, // simpan raw utk audit
+                        'nama_mitra'         => $norm['nama_mitra'],
+                        'alamat_mitra'       => $norm['alamat_mitra'],
+                        'kode_wilayah_kerja' => $norm['kode_wilayah_kerja'],
+                        'nama_wilayah'       => $norm['nama_wilayah'],
+                        'lat'                => $norm['lat'],
+                        'long'               => $norm['long'],
+                        'nik'                => $norm['nik'],
+                        'namafile'           => $norm['namafile'],
+                        'raw'                => $row,
                     ]
                 );
 
-                // simpan payload historis
-                $updated_payload = $payloadLog->payload ?? '';
-                $jsonData = json_encode($row);
+                // Append payload history
+                $updated = $payload->payload ? json_decode($payload->payload, true) : [];
+                if (!is_array($updated)) $updated = [$updated];
                 $row['_synced_at'] = now()->toIso8601String();
-                $row['size'] = strlen($jsonData);
-
-                if ($updated_payload !== '' || $payloadLog->payload !== null) {
-                    $existing = json_decode($updated_payload, true);
-                    $existing = is_array($existing) ? $existing : [$existing];
-                    $existing[] = (object)$row;
-                    $updated_payload = json_encode($existing);
-                } else {
-                    $updated_payload = json_encode([(object)$row]);
-                }
-
-                $payloadLog->update(['payload' => $updated_payload]);
+                $updated[] = $row;
+                $payload->update(['payload' => json_encode($updated)]);
 
                 $ok++;
-                usleep(250_000); // throttle
+                usleep(200_000); // throttle 0.2s
             }
 
             $apiLog->update([
                 'successful_records' => $ok,
-                'status'             => $ok > 0 ? 'success' : 'data tidak tersedia',
+                'status'             => 'success',
             ]);
         } catch (\Throwable $e) {
+            $apiLog->update(['status' => 'gagal']);
             Log::error('ProcessSyncMitraLpuJob failed', [
-                'endpoint' => $this->endpoint,
-                'nopend'   => $this->nopendKpc,
+                'endpoint' => $this->endpointBase,
+                'id_kpc'   => $this->idKpc,
                 'error'    => $e->getMessage(),
             ]);
-            throw $e; // biar retry sesuai konfigurasi queue
+            throw $e;
         }
     }
 
-    /** Ambil array baris data dari response API */
     protected function extractRows($resp): array
     {
         if (!is_array($resp)) return [];
         $data = $resp['data'] ?? [];
+
         if (isset($data['data']) && is_array($data['data'])) {
             return $data['data'];
         }
@@ -157,7 +145,6 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
         return [];
     }
 
-    /** Normalisasi 1 row ke struktur kolom DB */
     protected function normalizeRow(array $row): array
     {
         $toFloat = function ($v) {
@@ -168,15 +155,15 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
 
         return [
             'nib'                => (string)($row['nib'] ?? $row['NIB'] ?? ''),
-            'nama_mitra'         => (string)($row['nama_mitra'] ?? $row['NamaMitra'] ?? $row['Nama_Mitra'] ?? ''),
-            'alamat_mitra'       => (string)($row['alamat_mitra'] ?? $row['AlamatMitra'] ?? $row['Alamat_Mitra'] ?? ''),
+            'nama_mitra'         => (string)($row['nama_mitra'] ?? $row['NamaMitra'] ?? ''),
+            'alamat_mitra'       => (string)($row['alamat_mitra'] ?? $row['AlamatMitra'] ?? ''),
             'kode_wilayah_kerja' => (string)($row['kode_wilayah_kerja'] ?? $row['KodeWilayahKerja'] ?? ''),
             'nama_wilayah'       => (string)($row['nama_wilayah'] ?? $row['NamaWilayah'] ?? ''),
-            'nopend'             => (string)($row['nopend'] ?? $row['Nopend'] ?? $row['NOPEND'] ?? ''),
-            'lat'                => $toFloat($row['lat'] ?? $row['Lat'] ?? $row['latitude'] ?? null),
-            'long'               => $toFloat($row['long'] ?? $row['Long'] ?? $row['longitude'] ?? null),
+            'nopend'             => (string)($row['nopend'] ?? $row['NOPEND'] ?? ''),
+            'lat'                => $toFloat($row['lat'] ?? $row['latitude'] ?? $row['Lat'] ?? null),
+            'long'               => $toFloat($row['long'] ?? $row['longitude'] ?? $row['Long'] ?? null),
             'nik'                => (string)($row['nik'] ?? $row['NIK'] ?? ''),
-            'namafile'           => (string)($row['namafile'] ?? $row['NamaFile'] ?? $row['nama_file'] ?? ''),
+            'namafile'           => (string)($row['namafile'] ?? $row['nama_file'] ?? $row['NamaFile'] ?? ''),
         ];
     }
 
