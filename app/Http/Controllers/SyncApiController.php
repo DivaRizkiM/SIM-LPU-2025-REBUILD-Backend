@@ -2337,27 +2337,31 @@ class SyncApiController extends Controller
     public function syncMitraLpu(Request $request)
     {
         try {
-            $endpoint = 'mitra_lpu';
+            // wajib pilih regional
+            $request->validate([
+                'id_regional' => 'required|exists:regional,id',
+            ]);
+
+            $endpoint  = 'mitra_lpu';
             $userAgent = $request->header('User-Agent');
-            $idsParam = $request->input('id_kpc');
 
-            if (is_array($idsParam)) {
-                $targetIds = collect($idsParam)->map(fn($v) => trim((string) $v))
-                    ->filter()->unique()->values()->all();
-            } elseif (is_string($idsParam) && trim($idsParam) !== '') {
-                $targetIds = collect(explode(',', $idsParam))->map(fn($v) => trim($v))
-                    ->filter()->unique()->values()->all();
-            } else {
-                $targetIds = \App\Models\Kpc::query()->pluck('id')->all();
-            }
+            // ambil semua KPC di regional tsb (pakai NOPEND/NomorDirian)
+            $targetNopend = \App\Models\Kpc::query()
+                ->where('id_regional', $request->id_regional)
+                ->pluck('nomor_dirian') // <— param API kamu = nopend_kpc
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
 
-            if (empty($targetIds)) {
+            if (empty($targetNopend)) {
                 return response()->json([
-                    'status'  => 'SUCCESS',
-                    'message' => 'Tidak ada KPC yang perlu disinkron.',
+                    'status'      => 'SUCCESS',
+                    'message'     => 'Tidak ada KPC di regional tersebut.',
                     'queued_jobs' => 0,
                 ], 200);
             }
+
             \App\Models\UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi Mitra LPU',
@@ -2365,17 +2369,18 @@ class SyncApiController extends Controller
                 'id_user'   => $this->auth(),
             ]);
 
-            foreach ($targetIds as $idKpc) {
-                ProcessSyncMitraLpuJob::dispatch($endpoint, (string) $idKpc, $userAgent)
+            foreach ($targetNopend as $nopend) {
+                \App\Jobs\ProcessSyncMitraLpuJob::dispatch($endpoint, (string)$nopend, $userAgent)
                     ->onQueue('default');
             }
 
             return response()->json([
                 'status'      => 'IN_PROGRESS',
                 'message'     => 'Sinkronisasi sedang diproses',
-                'queued_jobs' => count($targetIds),
+                'queued_jobs' => count($targetNopend),
+                'filter'      => ['id_regional' => $request->id_regional],
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
