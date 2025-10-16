@@ -17,13 +17,13 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** @var string Base endpoint tanpa query, contoh: https://host/pso/1.0.0/data/mitra_lpu */
+    /** Base endpoint tanpa query, contoh: 'mitra_lpu' */
     protected string $endpointBase;
 
-    /** @var string ID KPC yang akan disinkron (== nopend_kpc) */
+    /** NOPEND KPC (id_kpc yg dipakai API) */
     protected string $idKpc;
 
-    /** @var string|null */
+    /** Optional UA yang diteruskan ke ApiController */
     protected ?string $userAgent;
 
     public function __construct(string $endpointBase, string $idKpc, ?string $userAgent = null)
@@ -35,46 +35,56 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Siapkan endpoint final
         $urlRequest = "{$this->endpointBase}?nopend_kpc={$this->idKpc}";
 
-        // Log request summary (atau pakai ApiRequestLog jika mau rekap global)
-        $apiLog = ApiRequestLog::firstOrCreate(
-            ['endpoint' => $this->endpointBase],
-            ['total_records' => 0, 'available_records' => 0, 'status' => 'on progress', 'successful_records' => 0]
-        );
+        // ----- ApiRequestLog (TANPA kolom 'endpoint') -----
+        $serverIpAddress  = gethostbyname(gethostname());
+        $agent            = new \Jenssegers\Agent\Agent();
+        if ($this->userAgent) {
+            $agent->setUserAgent($this->userAgent);
+        }
+        $platformRequest  = $agent->platform().'/'.$agent->browser();
+
+        $apiLog = ApiRequestLog::create([
+            'komponen'           => 'Mitra LPU',
+            'tanggal'            => now(),
+            'ip_address'         => $serverIpAddress,
+            'platform_request'   => $platformRequest,
+            'successful_records' => 0,
+            'available_records'  => 0,
+            'total_records'      => 0,
+            'status'             => 'Memuat Data',
+        ]);
+
+        // Satu payload log untuk 1 job ini
+        $payloadLog = ApiRequestPayloadLog::create([
+            'api_request_log_id' => $apiLog->id,
+            'payload'            => null,
+        ]);
 
         try {
-            // Panggil API via controller util yang sudah ada di project-mu
             $apiController = new ApiController();
             $req = request();
-            $req->headers->set('User-Agent', $this->userAgent ?? $req->userAgent());
+            if ($this->userAgent) {
+                $req->headers->set('User-Agent', $this->userAgent);
+            }
             $req->merge(['end_point' => $urlRequest]);
 
             $resp = $apiController->makeRequest($req);
-            // Bentuk umum yang diharapkan:
-            // $resp = [
-            //   'success' => '00000' | 'true' | 'success' | etc,
-            //   'message' => 'ok',
-            //   'total_data' => 12,
-            //   'data' => [ { nib, nama_mitra, ... }, ... ]
-            // ]
-
             $rows = $this->extractRows($resp);
 
             $apiLog->update([
                 'available_records' => $resp['total_data'] ?? count($rows),
-                'total_records'     => ($apiLog->total_records ?? 0) + count($rows),
+                'total_records'     => count($rows),
                 'status'            => empty($rows) ? 'data tidak tersedia' : 'on progress',
             ]);
 
             $ok = 0;
 
             foreach ($rows as $row) {
-                // Map field dari response ke kolom DB
                 $payload = $this->normalizeRow($row);
 
-                // Upsert berdasarkan unique key: id_kpc, nopend, nib
+                // Upsert unik by: id_kpc (nopend), nopend, nib
                 MitraLpu::updateOrCreate(
                     [
                         'id_kpc' => $this->idKpc,
@@ -90,20 +100,15 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
                         'long'               => $payload['long'],
                         'nik'                => $payload['nik'],
                         'namafile'           => $payload['namafile'],
-                        'raw'                => $row, // simpan mentah untuk audit
+                        'raw'                => $row,
                     ]
                 );
 
-                // Simpan payload historis per KPC (opsional, mengikuti polamu)
-                $payloadLog = ApiRequestPayloadLog::firstOrCreate(
-                    ['kpc_id' => $this->idKpc],
-                    ['payload' => null]
-                );
-
-                $existing = $payloadLog->payload;
-                $newItem  = (object) array_merge($row, ['_synced_at' => now()->toIso8601String()]);
-                if ($existing) {
-                    $arr = json_decode($existing, true);
+                // Tambah ke payload log
+                $updatedPayload = $payloadLog->payload ?? '';
+                $newItem = (object) array_merge($row, ['_synced_at' => now()->toIso8601String()]);
+                if ($updatedPayload !== '' && $payloadLog->payload !== null) {
+                    $arr = json_decode($updatedPayload, true);
                     $arr = is_array($arr) ? $arr : [$arr];
                     $arr[] = $newItem;
                     $payloadLog->update(['payload' => json_encode($arr)]);
@@ -112,53 +117,43 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
                 }
 
                 $ok++;
-                // Hindari rate limit
-                usleep(250_000);
+                usleep(250_000); // rate-limit guard
             }
 
             $apiLog->update([
-                'successful_records' => ($apiLog->successful_records ?? 0) + $ok,
-                'status'             => 'success',
+                'successful_records' => $ok,
+                'status'             => empty($rows) ? 'data tidak tersedia' : 'success',
             ]);
-
         } catch (\Throwable $e) {
+            $apiLog->update(['status' => 'gagal']);
             Log::error('ProcessSyncMitraLpuJob failed', [
                 'endpoint' => $this->endpointBase,
                 'id_kpc'   => $this->idKpc,
                 'error'    => $e->getMessage(),
             ]);
-            // Re-throw supaya queue dapat retry sesuai konfigurasi job
             throw $e;
         }
     }
 
-    /**
-     * Ambil array baris data dari response API; tahan variasi bentuk.
-     */
+    /** Ambil array baris dari response API yang mungkin bervariasi strukturnya */
     protected function extractRows($resp): array
     {
         if (!is_array($resp)) return [];
         $data = $resp['data'] ?? [];
-        // Kalau 'data' berupa object seperti ['data' => ['items' => [...]]]
         if (isset($data['data']) && is_array($data['data'])) {
             return $data['data'];
         }
-        // Jika 'data' sudah berupa array of objects
         if (is_array($data) && (empty($data) || is_array(reset($data)))) {
             return $data;
         }
         return [];
     }
 
-    /**
-     * Normalisasi 1 row ke struktur yang sesuai kolom DB.
-     */
+    /** Normalisasi 1 row ke struktur field DB */
     protected function normalizeRow(array $row): array
     {
-        // Helper numeric
         $toFloat = function ($v) {
             if ($v === null || $v === '') return null;
-            // Hilangkan koma/desimal lokal
             $v = str_replace([' ', ','], ['', '.'], (string) $v);
             return is_numeric($v) ? (float) $v : null;
         };
@@ -177,18 +172,7 @@ class ProcessSyncMitraLpuJob implements ShouldQueue
         ];
     }
 
-    public function maxAttempts(): int
-    {
-        return 5;
-    }
-
-    public function backoff(): int
-    {
-        return 10; // detik
-    }
-
-    public function timeout(): int
-    {
-        return 0; // tanpa timeout
-    }
+    public function maxAttempts(): int { return 5; }
+    public function backoff(): int { return 10; }       // detik
+    public function timeout(): int { return 0; }        // tanpa timeout
 }

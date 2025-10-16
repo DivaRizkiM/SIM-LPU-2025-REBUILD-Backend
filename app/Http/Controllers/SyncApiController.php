@@ -2337,27 +2337,29 @@ class SyncApiController extends Controller
     public function syncMitraLpu(Request $request)
     {
         try {
-            $endpoint = 'mitra_lpu';
-            $userAgent = $request->header('User-Agent');
-            $idsParam = $request->input('id_kpc');
+            $endpoint   = 'mitra_lpu';
+            $userAgent  = $request->header('User-Agent');
+            $idRegional = $request->input('id_regional');
 
-            if (is_array($idsParam)) {
-                $targetIds = collect($idsParam)->map(fn($v) => trim((string) $v))
-                    ->filter()->unique()->values()->all();
-            } elseif (is_string($idsParam) && trim($idsParam) !== '') {
-                $targetIds = collect(explode(',', $idsParam))->map(fn($v) => trim($v))
-                    ->filter()->unique()->values()->all();
-            } else {
-                $targetIds = \App\Models\Kpc::query()->pluck('id')->all();
+            // Ambil daftar KPC target berdasar regional (pakai nomor_dirian sebagai nopend_kpc)
+            $query = \App\Models\Kpc::query()->select('nomor_dirian');
+            if (!empty($idRegional)) {
+                $query->where('id_regional', $idRegional);
             }
+            $targetIds = $query->pluck('nomor_dirian')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
 
             if (empty($targetIds)) {
                 return response()->json([
-                    'status'  => 'SUCCESS',
-                    'message' => 'Tidak ada KPC yang perlu disinkron.',
+                    'status'      => 'SUCCESS',
+                    'message'     => 'Tidak ada KPC yang perlu disinkron.',
                     'queued_jobs' => 0,
                 ], 200);
             }
+
             \App\Models\UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi Mitra LPU',
@@ -2365,8 +2367,8 @@ class SyncApiController extends Controller
                 'id_user'   => $this->auth(),
             ]);
 
-            foreach ($targetIds as $idKpc) {
-                ProcessSyncMitraLpuJob::dispatch($endpoint, (string) $idKpc, $userAgent)
+            foreach ($targetIds as $nopendKpc) {
+                \App\Jobs\ProcessSyncMitraLpuJob::dispatch($endpoint, (string) $nopendKpc, $userAgent)
                     ->onQueue('default');
             }
 
