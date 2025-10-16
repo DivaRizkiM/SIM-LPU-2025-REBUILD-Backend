@@ -7,6 +7,7 @@ use App\Jobs\ProcessSyncBiayaJob;
 use App\Jobs\ProcessSyncBiayaPrognosaJob;
 use App\Jobs\ProcessSyncKCUJob;
 use App\Jobs\ProcessSyncKPCJob;
+use App\Jobs\ProcessSyncMitraLpuJob;
 use App\Jobs\ProcessSyncPendapatanJob;
 use App\Jobs\ProcessSyncPetugasKCPJob;
 use App\Jobs\ProcessSyncProduksiJob;
@@ -2226,7 +2227,7 @@ class SyncApiController extends Controller
             ], 500);
         }
     }
-    
+
     public function syncProfilKCP(Request $request)
     {
         try {
@@ -2324,11 +2325,57 @@ class SyncApiController extends Controller
             // Setelah sinkronisasi selesai, kembalikan respons JSON sukses
             return response()->json([
                 'status' => 'SUCCESS',
-                'message' => 'Sinkronisasi petugas KPC berhasil'], 200);
+                'message' => 'Sinkronisasi petugas KPC berhasil'
+            ], 200);
         } catch (\Exception $e) {
 
             DB::rollBack();
 
+            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+    public function syncMitraLpu(Request $request)
+    {
+        try {
+            $endpoint = 'mitra_lpu';
+            $userAgent = $request->header('User-Agent');
+            $idsParam = $request->input('id_kpc');
+
+            if (is_array($idsParam)) {
+                $targetIds = collect($idsParam)->map(fn($v) => trim((string) $v))
+                    ->filter()->unique()->values()->all();
+            } elseif (is_string($idsParam) && trim($idsParam) !== '') {
+                $targetIds = collect(explode(',', $idsParam))->map(fn($v) => trim($v))
+                    ->filter()->unique()->values()->all();
+            } else {
+                $targetIds = \App\Models\Kpc::query()->pluck('id')->all();
+            }
+
+            if (empty($targetIds)) {
+                return response()->json([
+                    'status'  => 'SUCCESS',
+                    'message' => 'Tidak ada KPC yang perlu disinkron.',
+                    'queued_jobs' => 0,
+                ], 200);
+            }
+            \App\Models\UserLog::create([
+                'timestamp' => now(),
+                'aktifitas' => 'Sinkronisasi Mitra LPU',
+                'modul'     => 'mitra_lpu',
+                'id_user'   => $this->auth(),
+            ]);
+
+            foreach ($targetIds as $idKpc) {
+                ProcessSyncMitraLpuJob::dispatch($endpoint, (string) $idKpc, $userAgent)
+                    ->onQueue('default');
+            }
+
+            return response()->json([
+                'status'      => 'IN_PROGRESS',
+                'message'     => 'Sinkronisasi sedang diproses',
+                'queued_jobs' => count($targetIds),
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }

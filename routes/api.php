@@ -134,6 +134,7 @@ Route::get('/syncNpp', [SyncApiController::class, 'syncNpp']);
 Route::get('/syncDashboardProduksiPendapatan', [SyncApiController::class, 'syncDashboardProduksiPendapatan']);
 Route::get('/syncProduksi-nasional', [SyncApiController::class, 'syncProduksiNasional']);
 Route::get('/syncLampiranBiaya', [SyncApiController::class, 'syncLampiran']);
+Route::get('/syncMitraLpu', [SyncApiController::class, 'syncMitraLpu']);
 Route::get('/api-log', [ApiLogController::class, 'index']);
 Route::get('/api-log-detail/{id}', [ApiLogController::class, 'show']);
 Route::get('/stop-sync', [ApiLogController::class, 'manageQueue']);
@@ -324,7 +325,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('berita-acara-verifikasi-bulanan', [BeritaAcaraVerifikasiBulananController::class, 'index'])->name('berita-acara-verifikasi-bulanan');
 
         Route::get('map-monitoring', [KpcController::class, 'map'])->name('map-monitoring');
-        
+
         Route::get('/export-biaya', [ExportController::class, 'exportBiaya']);
         Route::get('/export-rekap-biaya', [ExportController::class, 'exportRekapBiaya']);
         Route::get('/export-pendapatan', [ExportController::class, 'exportPendapatan']);
