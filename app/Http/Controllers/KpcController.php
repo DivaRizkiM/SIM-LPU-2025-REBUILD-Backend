@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kpc;
+use App\Models\Mitra;
 use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Auth;
 
 class KpcController extends Controller
 {
@@ -536,10 +537,49 @@ class KpcController extends Controller
         }
     }
 
-    public function countKPC()
+    public function countKPC(Request $request)
     {
         try {
-            $count = Kpc::count();
+            $filterParams = [
+                'id_regional' => $request->get('id_regional', ''),
+                'id_kprk' => $request->get('id_kprk', ''),
+                'id_kpc' => $request->get('id_kpc', ''),
+                'id_provinsi' => $request->get('id_provinsi', ''),
+                'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
+                'id_kecamatan' => $request->get('id_kecamatan', '')
+            ];
+            $kpcQuery = Kpc::query();
+            foreach ($filterParams as $key => $value) {
+                if ($value) {
+                    $kpcQuery->where($key, $value);
+                }
+            }
+            $count = $kpcQuery->count();
+            return response()->json(['status' => 'SUCCESS', 'count' => $count]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function countMitra(Request $request)
+    {
+        try {
+            $filterParams = [
+                'id_regional' => $request->get('id_regional', ''),
+                'id_kprk' => $request->get('id_kprk', ''),
+                'id_kpc' => $request->get('id_kpc', ''),
+                'id_provinsi' => $request->get('id_provinsi', ''),
+                'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
+                'id_kecamatan' => $request->get('id_kecamatan', '')
+            ];
+            $kpcQuery = Kpc::whereNotNull('nomor_dirian');
+            foreach ($filterParams as $key => $value) {
+                if ($value) {
+                    $kpcQuery->where($key, $value);
+                }
+            }
+            $mitraQuery = Mitra::query()->whereIn('id_kpc', $kpcQuery->pluck('id'));
+            $count = $mitraQuery->count();
             return response()->json(['status' => 'SUCCESS', 'count' => $count]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);

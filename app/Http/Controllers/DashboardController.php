@@ -143,52 +143,80 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#374151'; // Warna default jika kategori tidak ditemukan
     }
 
-    public static function getRealisasiDanaLpu()
+    public static function getRealisasiDanaLpu(array $filterParams = [])
     {
         $tahun = date('Y');
 
-        // Mengambil data realisasi
-        $realisasi = DB::table('produksi')
+        $detailColMap = [
+            'id_regional'        => 'produksi.id_regional',
+            'id_kprk'            => 'produksi.id_kprk',           
+            'id_kpc'             => 'produksi.id_kpc',           
+        ];
+
+        $rutinColMap = [
+            'id_regional'        => 'verifikasi_biaya_rutin.id_regional',
+            'id_kprk'            => 'verifikasi_biaya_rutin.id_kprk',
+            'id_kpc'             => 'verifikasi_biaya_rutin.id_kpc',
+        ];
+
+        $applyFilters = function (\Illuminate\Database\Query\Builder $q, array $map) use ($filterParams) {
+            foreach ($filterParams as $key => $val) {
+                if ($val === '' || $val === null) continue;
+                if (isset($map[$key])) {
+                    $q->where($map[$key], $val);
+                }
+            }
+            return $q;
+        };
+
+        $detailAgg = DB::table('produksi')
             ->join('produksi_detail', 'produksi.id', '=', 'produksi_detail.id_produksi')
+            ->when(true, fn($q) => $applyFilters($q, $detailColMap))
+            ->where('produksi.tahun_anggaran', $tahun)
+            ->groupBy('produksi.triwulan', 'produksi.tahun_anggaran')
             ->select([
                 'produksi.triwulan',
                 'produksi.tahun_anggaran',
-                DB::raw('IFNULL(SUM(produksi_detail.verifikasi), 0) as verifikasi_outgoing'),
-                DB::raw('IFNULL(SUM(IF(produksi_detail.jenis_produksi = "PENGELUARAN/INCOMING", produksi_detail.verifikasi, 0)), 0) as verifikasi_incoming'),
-                DB::raw('IFNULL(SUM(IF(produksi_detail.jenis_produksi = "SISA LAYANAN", produksi_detail.verifikasi, 0)), 0) as verifikasi_sisa_layanan'),
-                // Subkueri atribusi yang diperbaiki untuk mengembalikan satu nilai
-                DB::raw('IFNULL((SELECT SUM(verifikasi) FROM biaya_atribusi_detail
-                        JOIN biaya_atribusi ON biaya_atribusi_detail.id_biaya_atribusi = biaya_atribusi.id
-                        WHERE biaya_atribusi.triwulan = produksi.triwulan AND biaya_atribusi.tahun_anggaran = produksi.tahun_anggaran), 0) as atribusi'),
-                // Subkueri rutin yang diperbaiki dengan menghapus GROUP BY
-                DB::raw('IFNULL((SELECT SUM(verifikasi) FROM verifikasi_biaya_rutin_detail
-                        JOIN verifikasi_biaya_rutin ON verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin = verifikasi_biaya_rutin.id
-                        WHERE verifikasi_biaya_rutin.triwulan = produksi.triwulan
-                        AND verifikasi_biaya_rutin.tahun = produksi.tahun_anggaran), 0) as rutin')
+                DB::raw('COALESCE(SUM(CASE WHEN produksi_detail.jenis_produksi = "PENGELUARAN/OUTGOING" THEN produksi_detail.verifikasi ELSE 0 END), 0) AS verifikasi_outgoing'),
+            ]);
+
+        $rutinAgg = DB::table('verifikasi_biaya_rutin')
+            ->join('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+            ->when(true, fn($q) => $applyFilters($q, $rutinColMap))
+            ->where('verifikasi_biaya_rutin.tahun', $tahun)
+            ->groupBy('verifikasi_biaya_rutin.triwulan', 'verifikasi_biaya_rutin.tahun')
+            ->select([
+                'verifikasi_biaya_rutin.triwulan',
+                DB::raw('verifikasi_biaya_rutin.tahun AS tahun_anggaran'),
+                DB::raw('COALESCE(SUM(verifikasi_biaya_rutin_detail.verifikasi), 0) AS rutin'),
+            ]);
+
+        $joined = DB::query()
+            ->fromSub($detailAgg, 'D')
+            ->leftJoinSub($rutinAgg, 'R', function ($join) {
+                $join->on('R.triwulan', '=', 'D.triwulan')
+                    ->on('R.tahun_anggaran', '=', 'D.tahun_anggaran');
+            })
+            ->select([
+                'D.triwulan',
+                'D.tahun_anggaran',
+                DB::raw('COALESCE(D.verifikasi_outgoing, 0) AS verifikasi_outgoing'),
+                DB::raw('COALESCE(R.rutin, 0) AS rutin'),
             ])
-            ->where('produksi.tahun_anggaran', $tahun)
-            ->groupBy('produksi.triwulan', 'produksi.tahun_anggaran')
+            ->orderBy('D.triwulan')
             ->get();
-        // Inisialisasi array untuk menyimpan selisih
+
         $selisih = [];
-
-        // Menghitung selisih rutin dan verifikasi_outgoing untuk setiap triwulan
-        foreach ($realisasi as $value) {
-            $biaya = $value->rutin ?? 0; // Nilai rutin, default 0 jika tidak ada
-            $jumlah = $value->verifikasi_outgoing ?? 0; // Nilai verifikasi_outgoing, default 0 jika tidak ada
-            $selisih[$value->triwulan] = $biaya - $jumlah; // Menyimpan hasil selisih per triwulan
+        foreach ($joined as $row) {
+            $selisih[$row->triwulan] = (float)$row->rutin - (float)$row->verifikasi_outgoing;
+        }
+        foreach ([1,2,3,4] as $tw) {
+            if (!array_key_exists($tw, $selisih)) $selisih[$tw] = 0.0;
         }
 
-        // Menambahkan triwulan yang tidak ada datanya dengan selisih 0
-        foreach ([1, 2, 3, 4] as $triwulan) {
-            if (!isset($selisih[$triwulan])) {
-                $selisih[$triwulan] = 0;
-            }
-        }
-        // dd($selisih);
-
-        return $selisih; // Mengembalikan array selisih
+        return $selisih;
     }
+
 
     public static function getTargetAnggaran()
     {
@@ -227,10 +255,16 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function RealisasiAnggaran()
+    public function RealisasiAnggaran(Request $request)
     {
+        $filterParams = [
+            'id_regional' => $request->input('id_regional', ''),
+            'id_kprk' => $request->input('id_kprk', ''),
+            'id_kpc' => $request->input('id_kpc', ''),
+        ];
+
         // Mendapatkan data realisasi dan target anggaran
-        $realisasiDanaLpu = $this->getRealisasiDanaLpu();
+        $realisasiDanaLpu = $this->getRealisasiDanaLpu($filterParams);
         $datatargetanggaran = $this->getTargetAnggaran();
 
         // Menghitung realisasi untuk setiap triwulan
