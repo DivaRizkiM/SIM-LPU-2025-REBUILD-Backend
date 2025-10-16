@@ -543,7 +543,7 @@ class KpcController extends Controller
             $filterParams = [
                 'id_regional' => $request->get('id_regional', ''),
                 'id_kprk' => $request->get('id_kprk', ''),
-                'id_kpc' => $request->get('id_kpc', ''),
+                'id' => $request->get('id_kpc', ''),
                 'id_provinsi' => $request->get('id_provinsi', ''),
                 'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
                 'id_kecamatan' => $request->get('id_kecamatan', '')
@@ -567,7 +567,7 @@ class KpcController extends Controller
             $filterParams = [
                 'id_regional' => $request->get('id_regional', ''),
                 'id_kprk' => $request->get('id_kprk', ''),
-                'id_kpc' => $request->get('id_kpc', ''),
+                'id' => $request->get('id_kpc', ''),
                 'id_provinsi' => $request->get('id_provinsi', ''),
                 'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
                 'id_kecamatan' => $request->get('id_kecamatan', '')
