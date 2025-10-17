@@ -12,15 +12,28 @@ use App\Models\Produksi; // Pastikan untuk mengimpor model yang sesuai
 
 class DashboardController extends Controller
 {
-    public function RealisasiBiaya()
+    public function RealisasiBiaya(Request $request)
     {
         // Mendapatkan tahun sekarang
         $tahunSekarang = date('Y');
+
+        $id_regional = $request->get('id_regional');
+        $id_kprk     = $request->get('id_kprk');
+        $id_kpc      = $request->get('id_kpc');
 
         // Menghitung total pelaporan berdasarkan kategori biaya
         $totalPelaporan = VerifikasiBiayaRutinDetail::select('kategori_biaya', DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_pelaporan'))
             ->leftjoin('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin.id', '=', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin')
             ->where('verifikasi_biaya_rutin.tahun', $tahunSekarang)
+            ->when($id_regional, function ($query, $id_regional) {
+                return $query->where('verifikasi_biaya_rutin.id_regional', $id_regional);
+            })
+            ->when($id_kprk, function ($query, $id_kprk) {
+                return $query->where('verifikasi_biaya_rutin.id_kprk', $id_kprk);
+            })
+            ->when($id_kpc, function ($query, $id_kpc) {
+                return $query->where('verifikasi_biaya_rutin.id_kpc', $id_kpc);
+            })
             ->groupBy('verifikasi_biaya_rutin_detail.kategori_biaya')
             ->get();
 
@@ -79,15 +92,28 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#374151'; // Warna default jika kategori tidak ditemukan
     }
 
-    public function RealisasiPendapatan()
+    public function RealisasiPendapatan(Request $request)
     {
         // Mendapatkan tahun sekarang
         $tahunSekarang = date('Y');
+
+        $id_regional = $request->get('id_regional');
+        $id_kprk     = $request->get('id_kprk');
+        $id_kpc      = $request->get('id_kpc');
 
         // Menghitung total pelaporan berdasarkan kategori biaya
         $totalPelaporan = ProduksiDetail::select('kategori_produksi', DB::raw('SUM(produksi_detail.pelaporan) as total_pelaporan'))
             ->leftjoin('produksi', 'produksi.id', '=', 'produksi_detail.id_produksi')
             ->where('produksi.tahun_anggaran', $tahunSekarang)
+            ->when($id_regional, function ($query, $id_regional) {
+                return $query->where('produksi.id_regional', $id_regional);
+            })
+            ->when($id_kprk, function ($query, $id_kprk) {
+                return $query->where('produksi.id_kprk', $id_kprk);
+            })
+            ->when($id_kpc, function ($query, $id_kpc) {
+                return $query->where('produksi.id_kpc', $id_kpc);
+            })
             ->groupBy('produksi_detail.kategori_produksi')
             ->get();
 
@@ -224,9 +250,9 @@ class DashboardController extends Controller
         $target = DB::table('target_anggaran')->where('tahun', $tahun)->first();
         return $target;
     }
-    public function RealisasiBiayaChart()
+    public function RealisasiBiayaChart(Request $request)
     {
-        $realisasiDanaLpu = $this->getRealisasiDanaLpu();
+        $realisasiDanaLpu = $this->getRealisasiDanaLpu($request->all());
 
         // Menyiapkan data untuk chart
         $data = [];
