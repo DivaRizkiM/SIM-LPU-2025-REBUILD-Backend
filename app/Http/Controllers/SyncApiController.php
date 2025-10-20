@@ -2231,98 +2231,105 @@ class SyncApiController extends Controller
     public function syncProfilKCP(Request $request)
     {
         try {
-            $userAgent = $request->header('User-Agent');
-            $api       = new ApiController();
 
-            $idKcp = $request->input('id_kcp');
-            if ($idKcp) {
-                // SYNC BY-ID (langsung profil_kpc?nopend=...)
-                UserLog::create([
-                    'timestamp' => now(),
-                    'aktifitas' => 'Sinkronisasi Profil KCP (by id)',
-                    'modul'     => 'Profil KCP',
-                    'id_user'   => Auth::id(),
-                ]);
+            $endpoint = 'profil_kpc';
+            $id_kcp = $request->id_kcp;
+            // Membuat instance dari ApiController
+            $apiController = new ApiController();
 
-                // Reuse job lama kalau mau; atau panggil ProcessSyncKPCJob by-id
-                ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, 1, 1, (string) $idKcp);
+            $url_request = $endpoint . '?nopend=' . $id_kcp;
+            $request->merge(['end_point' => $url_request]);
 
-                return response()->json([
-                    'status'   => 'IN_PROGRESS',
-                    'message'  => 'Sinkronisasi profil KCP (spesifik) sedang diproses (job dispatched)',
-                    'id_kcp'   => $idKcp,
-                ], 200);
+            $response = $apiController->makeRequest($request);
+
+            $dataKCP = $response['data'] ?? [];
+            if (!$dataKCP) {
+                return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
             }
 
-            // FULL SYNC → hit daftar_kpc, lalu foreach profil_kpc
-            UserLog::create([
-                'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi Profil KCP (FULL via daftar_kpc)',
-                'modul'     => 'Profil KCP',
-                'id_user'   => Auth::id(),
-            ]);
+            // Memulai transaksi database untuk meningkatkan kinerja
+            DB::beginTransaction();
 
-            // Dispatch satu job (tanpa paging)
-            \App\Jobs\FetchDaftarKpcAndSyncJob::dispatch($userAgent);
+            foreach ($dataKCP as $data) {
 
+                $petugasKCP = Kpc::find($data['ID_KPC']);
+
+                if ($petugasKCP) {
+                    $petugasKCP->update([
+                        'id_regional' => $data['Regional'],
+                        'id_kprk' => $data['ID_KPRK'],
+                        'nomor_dirian' => $data['NomorDirian'],
+                        'nama' => $data['Nama_KPC'],
+                        'jenis_kantor' => $data['Jenis_KPC'],
+                        'alamat' => $data['Alamat'],
+                        'koordinat_longitude' => $data['Longitude'],
+                        'koordinat_latitude' => $data['Latitude'],
+                        'nomor_telpon' => $data['Nomor_Telp'],
+                        'nomor_fax' => $data['Nomor_fax'],
+                        'id_provinsi' => $data['Provinsi'],
+                        'id_kabupaten_kota' => $data['Kabupaten_Kota'],
+                        'id_kecamatan' => $data['Kecamatan'],
+                        'id_kelurahan' => $data['Kelurahan'],
+                        'tipe_kantor' => $data['Status_Gedung_Kantor'],
+                        'jam_kerja_senin_kamis' => $data['JamKerjaSeninKamis'],
+                        'jam_kerja_jumat' => $data['JamKerjaJumat'],
+                        'jam_kerja_sabtu' => $data['JamKerjaSabtu'],
+                        'frekuensi_antar_ke_alamat' => $data['FrekuensiAntarKeAlamat'],
+                        'frekuensi_antar_ke_dari_kprk' => $data['FrekuensiKirimDariKeKprk'],
+                        'jumlah_tenaga_kontrak' => $data['JumlahTenagaKontrak'],
+                        'kondisi_gedung' => $data['KondisiGedung'],
+                        'fasilitas_publik_dalam' => $data['FasilitasPublikDalamKantor'],
+                        'fasilitas_publik_halaman' => $data['FasilitasPublikLuarKantor'],
+                        'lingkungan_kantor' => $data['LingkunganKantor'],
+                        'lingkungan_sekitar_kantor' => $data['LingkunganSekitarKantor'],
+                        'tgl_sinkronisasi' => now(),
+
+                    ]);
+                } else {
+
+                    Kpc::create([
+                        'id_regional' => $data['Regional'],
+                        'id_kprk' => $data['ID_KPRK'],
+                        'nomor_dirian' => $data['NomorDirian'],
+                        'nama' => $data['Nama_KPC'],
+                        'jenis_kantor' => $data['Jenis_KPC'],
+                        'alamat' => $data['Alamat'],
+                        'koordinat_longitude' => $data['Longitude'],
+                        'koordinat_latitude' => $data['Latitude'],
+                        'nomor_telpon' => $data['Nomor_Telp'],
+                        'nomor_fax' => $data['Nomor_fax'],
+                        'id_provinsi' => $data['Provinsi'],
+                        'id_kabupaten_kota' => $data['Kabupaten_Kota'],
+                        'id_kecamatan' => $data['Kecamatan'],
+                        'id_kelurahan' => $data['Kelurahan'],
+                        'tipe_kantor' => $data['Status_Gedung_Kantor'],
+                        'jam_kerja_senin_kamis' => $data['JamKerjaSeninKamis'],
+                        'jam_kerja_jumat' => $data['JamKerjaJumat'],
+                        'jam_kerja_sabtu' => $data['JamKerjaSabtu'],
+                        'frekuensi_antar_ke_alamat' => $data['FrekuensiAntarKeAlamat'],
+                        'frekuensi_antar_ke_dari_kprk' => $data['FrekuensiKirimDariKeKprk'],
+                        'jumlah_tenaga_kontrak' => $data['JumlahTenagaKontrak'],
+                        'kondisi_gedung' => $data['KondisiGedung'],
+                        'fasilitas_publik_dalam' => $data['FasilitasPublikDalamKantor'],
+                        'fasilitas_publik_halaman' => $data['FasilitasPublikLuarKantor'],
+                        'lingkungan_kantor' => $data['LingkunganKantor'],
+                        'lingkungan_sekitar_kantor' => $data['LingkunganSekitarKantor'],
+                        'tgl_sinkronisasi' => now(),
+                    ]);
+                }
+            }
+
+            // Commit transaksi setelah selesai
+            DB::commit();
+
+            // Setelah sinkronisasi selesai, kembalikan respons JSON sukses
             return response()->json([
-                'status'  => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi (FULL) sedang diproses (job dispatched via daftar_kpc)',
-            ], 200);
-
+                'status' => 'SUCCESS',
+                'message' => 'Sinkronisasi petugas KPC berhasil'], 200);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
-        }
-    }
 
+            DB::rollBack();
 
-
-    public function syncMitraLpu(Request $request)
-    {
-        try {
-            $endpoint   = 'mitra_lpu';
-            $userAgent  = $request->header('User-Agent');
-            $idRegional = $request->input('id_regional');
-
-            // Ambil daftar KPC target berdasar regional (pakai nomor_dirian sebagai nopend_kpc)
-            $query = \App\Models\Kpc::query()->select('nomor_dirian');
-            if (!empty($idRegional)) {
-                $query->where('id_regional', $idRegional);
-            }
-            $targetIds = $query->pluck('nomor_dirian')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-
-            if (empty($targetIds)) {
-                return response()->json([
-                    'status'      => 'SUCCESS',
-                    'message'     => 'Tidak ada KPC yang perlu disinkron.',
-                    'queued_jobs' => 0,
-                ], 200);
-            }
-
-            \App\Models\UserLog::create([
-                'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi Mitra LPU',
-                'modul'     => 'mitra_lpu',
-                'id_user'   => $this->auth(),
-            ]);
-
-            foreach ($targetIds as $nopendKpc) {
-                \App\Jobs\ProcessSyncMitraLpuJob::dispatch($endpoint, (string) $nopendKpc, $userAgent)
-                    ->onQueue('default');
-            }
-
-            return response()->json([
-                'status'      => 'IN_PROGRESS',
-                'message'     => 'Sinkronisasi sedang diproses',
-                'queued_jobs' => count($targetIds),
-            ], 200);
-        } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
