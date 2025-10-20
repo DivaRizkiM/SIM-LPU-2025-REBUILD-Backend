@@ -63,6 +63,7 @@ class ProcessSyncKPCJob implements ShouldQueue
             $buffer     = [];
 
             if ($this->idKcp) {
+                // by-id (tanpa paging)
                 $req  = Request::create('/', 'GET', ['end_point' => $this->endpoint . '?nopend=' . $this->idKcp]);
                 $resp = $api->makeRequest($req);
                 $rows = $resp['data'] ?? [];
@@ -75,13 +76,14 @@ class ProcessSyncKPCJob implements ShouldQueue
                 }
 
                 foreach ($rows as $r) $buffer[] = $this->mapRow($r);
-                $totalRows = count($rows);
-
-                if (!empty($buffer)) {
+                $flushed = count($buffer);
+                if ($flushed > 0) {
                     $this->flushUpsert($buffer);
-                    $processed += $totalRows;
+                    $processed += $flushed;
+                    $totalRows += $flushed;
                 }
             } else {
+                // mode paging penuh
                 do {
                     $req  = Request::create('/', 'GET', [
                         'end_point' => $this->endpoint,
@@ -103,9 +105,11 @@ class ProcessSyncKPCJob implements ShouldQueue
                     foreach ($rows as $r) $buffer[] = $this->mapRow($r);
                     $totalRows += count($rows);
 
+                    // flush semua yang terkumpul (bisa >500, nanti di-chunk di flushUpsert)
                     if (count($buffer) >= 500) {
-                        $this->flushUpsert($buffer);
-                        $processed += 500;
+                        $flushed = count($buffer);   // <<— HITUNG DULU
+                        $this->flushUpsert($buffer); // akan mengosongkan $buffer
+                        $processed += $flushed;      // <<— TAMBAH SESUAI JUMLAH SEBENARNYA
                         $apiRequestLog->update([
                             'successful_records' => $processed,
                             'status' => "Memproses halaman {$page}",
@@ -115,9 +119,11 @@ class ProcessSyncKPCJob implements ShouldQueue
                     $page++;
                 } while (count($rows) === $perPage);
 
+                // flush sisa
                 if (!empty($buffer)) {
+                    $flushed = count($buffer);
                     $this->flushUpsert($buffer);
-                    $processed += count($buffer);
+                    $processed += $flushed;
                 }
             }
 
