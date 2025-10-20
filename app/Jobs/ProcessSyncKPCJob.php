@@ -24,13 +24,15 @@ class ProcessSyncKPCJob implements ShouldQueue
     protected $userAgent;
     protected $page;
     protected $perPage;
+    protected $idKcp; // opsional jika by-id
 
-    public function __construct(string $endpoint, ?string $userAgent = null, int $page = 1, int $perPage = 1000)
+    public function __construct(string $endpoint, ?string $userAgent = null, int $page = 1, int $perPage = 1000, ?string $idKcp = null)
     {
-        $this->endpoint = $endpoint;
+        $this->endpoint  = $endpoint;
         $this->userAgent = $userAgent;
-        $this->page = $page;
-        $this->perPage = $perPage;
+        $this->page      = (int) $page;
+        $this->perPage   = (int) $perPage;
+        $this->idKcp     = $idKcp;
     }
 
     public function handle()
@@ -53,85 +55,76 @@ class ProcessSyncKPCJob implements ShouldQueue
         ]);
 
         try {
-            $page = $this->page;
-            $perPage = $this->perPage;
+            $page = (int) $this->page;
+            $perPage = (int) $this->perPage;
             $processed = 0;
             $totalRecords = 0;
             $collected = [];
 
-            do {
-                // panggil API dengan pagination
+            // Mode by id (jika dikirim id_kcp)
+            if ($this->idKcp) {
                 $req = Request::create('/', 'GET', [
-                    'end_point' => $this->endpoint,
-                    'page' => $page,
-                    'per_page' => $perPage,
+                    'end_point' => $this->endpoint . '?nopend=' . $this->idKcp,
                 ]);
                 $resp = $api->makeRequest($req);
                 $data = $resp['data'] ?? [];
-                $totalData = $resp['total_data'] ?? count($data);
-
-                if ($page === $this->page && isset($data[0])) {
+                if (isset($data[0])) {
                     ApiRequestPayloadLog::create([
                         'api_request_log_id' => $apiRequestLog->id,
                         'payload' => json_encode($data[0]),
                     ]);
                 }
-
-                if (empty($data)) break;
-                $totalRecords += count($data);
+                $totalRecords = is_array($data) ? count($data) : 0;
 
                 foreach ($data as $p) {
-                    $collected[] = [
-                        'id' => $p['ID_KPC'] ?? null,
-                        'id_regional' => $p['Regional'] ?? null,
-                        'id_kprk' => $p['ID_KPRK'] ?? null,
-                        'nomor_dirian' => $p['NomorDirian'] ?? null,
-                        'nama' => $p['Nama_KPC'] ?? null,
-                        'jenis_kantor' => $p['Jenis_KPC'] ?? null,
-                        'alamat' => $p['Alamat'] ?? null,
-                        'koordinat_longitude' => $p['Longitude'] ?? null,
-                        'koordinat_latitude' => $p['Latitude'] ?? null,
-                        'nomor_telpon' => $p['Nomor_Telp'] ?? null,
-                        'nomor_fax' => $p['Nomor_fax'] ?? null,
-                        'id_provinsi' => $p['Provinsi'] ?? null,
-                        'id_kabupaten_kota' => $p['Kabupaten_Kota'] ?? null,
-                        'id_kecamatan' => $p['Kecamatan'] ?? null,
-                        'id_kelurahan' => $p['Kelurahan'] ?? null,
-                        'tipe_kantor' => $p['Status_Gedung_Kantor'] ?? null,
-                        'jam_kerja_senin_kamis' => $p['JamKerjaSeninKamis'] ?? null,
-                        'jam_kerja_jumat' => $p['JamKerjaJumat'] ?? null,
-                        'jam_kerja_sabtu' => $p['JamKerjaSabtu'] ?? null,
-                        'frekuensi_antar_ke_alamat' => $p['FrekuensiAntarKeAlamat'] ?? null,
-                        'frekuensi_antar_ke_dari_kprk' => $p['FrekuensiKirimDariKeKprk'] ?? null,
-                        'jumlah_tenaga_kontrak' => $p['JumlahTenagaKontrak'] ?? null,
-                        'kondisi_gedung' => $p['KondisiGedung'] ?? null,
-                        'fasilitas_publik_dalam' => $p['FasilitasPublikDalamKantor'] ?? null,
-                        'fasilitas_publik_halaman' => $p['FasilitasPublikLuarKantor'] ?? null,
-                        'lingkungan_kantor' => $p['LingkunganKantor'] ?? null,
-                        'lingkungan_sekitar_kantor' => $p['LingkunganSekitarKantor'] ?? null,
-                        'tgl_sinkronisasi' => now(),
-                        'tgl_update' => now(),
-                        'jarak_ke_kprk' => $p['Jarak'] ?? null,
-                    ];
+                    $collected[] = $this->mapData($p);
                 }
 
-                // upsert per 500 row
-                if (count($collected) >= 500) {
+                if (!empty($collected)) {
                     $this->flushUpsert($collected);
-                    $processed += 500;
-                    $apiRequestLog->update([
-                        'successful_records' => $processed,
-                        'status' => "Memproses halaman {$page}",
-                    ]);
+                    $processed += count($collected);
                 }
+            } else {
+                // Mode full sync dengan pagination
+                do {
+                    $req = Request::create('/', 'GET', [
+                        'end_point' => $this->endpoint,
+                        'page' => $page,
+                        'per_page' => $perPage,
+                    ]);
+                    $resp = $api->makeRequest($req);
+                    $data = $resp['data'] ?? [];
 
-                $page++;
-            } while (!empty($data) && count($data) === $perPage);
+                    if ($page === $this->page && isset($data[0])) {
+                        ApiRequestPayloadLog::create([
+                            'api_request_log_id' => $apiRequestLog->id,
+                            'payload' => json_encode($data[0]),
+                        ]);
+                    }
 
-            // flush sisa data
-            if (!empty($collected)) {
-                $this->flushUpsert($collected);
-                $processed += count($collected);
+                    if (empty($data)) break;
+                    $totalRecords += count($data);
+
+                    foreach ($data as $p) {
+                        $collected[] = $this->mapData($p);
+                    }
+
+                    if (count($collected) >= 500) {
+                        $this->flushUpsert($collected);
+                        $processed += 500;
+                        $apiRequestLog->update([
+                            'successful_records' => $processed,
+                            'status' => "Memproses halaman {$page}",
+                        ]);
+                    }
+
+                    $page++;
+                } while (!empty($data) && count($data) === $perPage);
+
+                if (!empty($collected)) {
+                    $this->flushUpsert($collected);
+                    $processed += count($collected);
+                }
             }
 
             $apiRequestLog->update([
@@ -145,7 +138,7 @@ class ProcessSyncKPCJob implements ShouldQueue
             if (function_exists('gc_collect_cycles')) gc_collect_cycles();
         } catch (\Throwable $e) {
             $apiRequestLog->update(['status' => 'failed']);
-            Log::error('ProcessSyncKecamatanJob failed', [
+            Log::error('ProcessSyncKPCJob failed', [
                 'endpoint' => $this->endpoint,
                 'page' => $this->page,
                 'perPage' => $this->perPage,
@@ -154,6 +147,42 @@ class ProcessSyncKPCJob implements ShouldQueue
             ]);
             throw $e;
         }
+    }
+
+    protected function mapData($p)
+    {
+        return [
+            'id' => $p['ID_KPC'] ?? null,
+            'id_regional' => $p['Regional'] ?? null,
+            'id_kprk' => $p['ID_KPRK'] ?? null,
+            'nomor_dirian' => $p['NomorDirian'] ?? null,
+            'nama' => $p['Nama_KPC'] ?? null,
+            'jenis_kantor' => $p['Jenis_KPC'] ?? null,
+            'alamat' => $p['Alamat'] ?? null,
+            'koordinat_longitude' => $p['Longitude'] ?? null,
+            'koordinat_latitude' => $p['Latitude'] ?? null,
+            'nomor_telpon' => $p['Nomor_Telp'] ?? null,
+            'nomor_fax' => $p['Nomor_fax'] ?? null,
+            'id_provinsi' => $p['Provinsi'] ?? null,
+            'id_kabupaten_kota' => $p['Kabupaten_Kota'] ?? null,
+            'id_kecamatan' => $p['Kecamatan'] ?? null,
+            'id_kelurahan' => $p['Kelurahan'] ?? null,
+            'tipe_kantor' => $p['Status_Gedung_Kantor'] ?? null,
+            'jam_kerja_senin_kamis' => $p['JamKerjaSeninKamis'] ?? null,
+            'jam_kerja_jumat' => $p['JamKerjaJumat'] ?? null,
+            'jam_kerja_sabtu' => $p['JamKerjaSabtu'] ?? null,
+            'frekuensi_antar_ke_alamat' => $p['FrekuensiAntarKeAlamat'] ?? null,
+            'frekuensi_antar_ke_dari_kprk' => $p['FrekuensiKirimDariKeKprk'] ?? null,
+            'jumlah_tenaga_kontrak' => $p['JumlahTenagaKontrak'] ?? null,
+            'kondisi_gedung' => $p['KondisiGedung'] ?? null,
+            'fasilitas_publik_dalam' => $p['FasilitasPublikDalamKantor'] ?? null,
+            'fasilitas_publik_halaman' => $p['FasilitasPublikLuarKantor'] ?? null,
+            'lingkungan_kantor' => $p['LingkunganKantor'] ?? null,
+            'lingkungan_sekitar_kantor' => $p['LingkunganSekitarKantor'] ?? null,
+            'tgl_sinkronisasi' => now(),
+            'tgl_update' => now(),
+            'jarak_ke_kprk' => $p['Jarak'] ?? null,
+        ];
     }
 
     protected function flushUpsert(array &$rows)
@@ -181,6 +210,6 @@ class ProcessSyncKPCJob implements ShouldQueue
     }
 
     public function maxAttempts() { return 5; }
-    public function backoff()     { return 10; }
-    public function timeout()     { return 0; }
+    public function backoff() { return 10; }
+    public function timeout() { return 0; }
 }
