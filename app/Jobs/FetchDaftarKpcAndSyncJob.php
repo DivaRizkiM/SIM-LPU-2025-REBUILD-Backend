@@ -16,34 +16,19 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Jenssegers\Agent\Agent;
 
-class ProcessSyncKPCJob implements ShouldQueue
+class FetchDaftarKpcAndSyncJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $endpoint;          // biasanya 'profil_kpc'
     protected ?string $userAgent;
-    protected ?int $page;                // dibiarkan untuk kompatibilitas
-    protected ?int $perPage;             // dibiarkan untuk kompatibilitas
-    protected string $idKcp;             // NOPEND / ID_KPC
 
-    // Tetap terima 5 argumen biar kompatibel dengan dispatch lamamu
-    public function __construct(string $endpoint, ?string $userAgent = null, $page = 1, $perPage = 1, ?string $idKcp = null)
+    public function __construct(?string $userAgent = null)
     {
-        $this->endpoint  = $endpoint;
         $this->userAgent = $userAgent;
-        $this->page      = (int) $page;
-        $this->perPage   = (int) $perPage;
-        $this->idKcp     = (string) ($idKcp ?? '');
     }
 
     public function handle(): void
     {
-        if ($this->idKcp === '') {
-            // Tanpa NOPEND tidak ada yang bisa diambil
-            Log::warning('ProcessSyncKPCJob: idKcp kosong, skip.');
-            return;
-        }
-
         $serverIpAddress = gethostbyname(gethostname());
         $agent = new Agent();
         if ($this->userAgent) $agent->setUserAgent($this->userAgent);
@@ -58,52 +43,70 @@ class ProcessSyncKPCJob implements ShouldQueue
             'successful_records' => 0,
             'total_records'      => 0,
             'available_records'  => 0,
-            'status'             => 'Memulai (by id)',
+            'status'             => 'Memulai (daftar_kpc)',
         ]);
 
         try {
-            // Request profil by id
-            $req = Request::create('/', 'GET', [
-                'end_point' => $this->endpoint . '?nopend=' . $this->idKcp,
-            ]);
-            if ($this->userAgent) $req->headers->set('User-Agent', $this->userAgent);
+            // 1) Ambil daftar KPC
+            $listReq = Request::create('/', 'GET', ['end_point' => 'daftar_kpc']);
+            if ($this->userAgent) $listReq->headers->set('User-Agent', $this->userAgent);
 
-            $resp = $api->makeRequest($req);
-            $rows = $resp['data'] ?? [];
-            $available = is_array($rows) ? count($rows) : 0;
-
-            if (isset($rows[0])) {
-                ApiRequestPayloadLog::create([
-                    'api_request_log_id' => $log->id,
-                    'payload'            => json_encode($rows[0]),
-                ]);
-            }
-
-            $affected = $this->persistWithUpdateOrCreate($rows);
+            $listResp   = $api->makeRequest($listReq);
+            $daftar     = $listResp['data'] ?? [];
+            $totalAvail = is_array($daftar) ? count($daftar) : 0;
 
             $log->update([
-                'available_records'  => $available,
-                'total_records'      => $available,
-                'successful_records' => $affected,
+                'available_records' => $totalAvail,
+                'total_records'     => $totalAvail,
+                'status'            => 'Mengambil profil_kpc per nopend',
+            ]);
+
+            $processed = 0;
+
+            // 2) Loop nopend → ambil profil & simpan
+            foreach ($daftar as $i => $row) {
+                $nopend = isset($row['nopend']) ? (string) $row['nopend'] : '';
+                if ($nopend === '') continue;
+
+                $profilReq = Request::create('/', 'GET', [
+                    'end_point' => 'profil_kpc?nopend=' . $nopend
+                ]);
+                if ($this->userAgent) $profilReq->headers->set('User-Agent', $this->userAgent);
+
+                $profilResp = $api->makeRequest($profilReq);
+                $items      = $profilResp['data'] ?? [];
+
+                if ($i === 0 && isset($items[0])) {
+                    ApiRequestPayloadLog::create([
+                        'api_request_log_id' => $log->id,
+                        'payload'            => json_encode($items[0]),
+                    ]);
+                }
+
+                $affected = $this->persistWithUpdateOrCreate($items);
+                $processed += $affected;
+
+                // optional progress tiap 100
+                if ($processed % 100 === 0) {
+                    $log->update([
+                        'successful_records' => $processed,
+                        'status'             => "Memproses {$processed}/{$totalAvail}",
+                    ]);
+                }
+            }
+
+            $log->update([
+                'successful_records' => $processed,
                 'status'             => 'success',
             ]);
+
         } catch (\Throwable $e) {
             $log->update(['status' => 'failed']);
-            Log::error('ProcessSyncKPCJob failed', [
-                'endpoint' => $this->endpoint,
-                'idKcp'    => $this->idKcp,
-                'error'    => $e->getMessage(),
-            ]);
+            Log::error('FetchDaftarKpcAndSyncJob failed', ['error' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Simpan data pakai updateOrCreate:
-     * - Kunci: id (langsung = ID_KPC), sesuai maumu
-     * - Hanya kolom yang punya nilai (bukan null/empty) yang diupdate,
-     *   supaya tidak menimpa data lama dengan kosong.
-     */
     protected function persistWithUpdateOrCreate(array $apiRows): int
     {
         if (empty($apiRows)) return 0;
@@ -115,6 +118,7 @@ class ProcessSyncKPCJob implements ShouldQueue
                 $idKpc = isset($p['ID_KPC']) ? (int) $p['ID_KPC'] : null;
                 if (!$idKpc) continue;
 
+                // Hanya kirim kolom yang ada nilainya (biar gak niban null)
                 $vals = [
                     'id_regional'                => $this->nn($p['Regional'] ?? null),
                     'id_kprk'                    => $this->nn($p['ID_KPRK'] ?? null),
@@ -147,13 +151,10 @@ class ProcessSyncKPCJob implements ShouldQueue
                     'tgl_update'                 => now(),
                 ];
 
-                // Buang yang null supaya tidak menimpa nilai lama dengan kosong
                 $vals = array_filter($vals, fn($v) => !is_null($v));
 
-                Kpc::updateOrCreate(
-                    ['id' => $idKpc], // id = ID_KPC (bukan auto-increment)
-                    $vals
-                );
+                // id = ID_KPC (sesuai maumu)
+                Kpc::updateOrCreate(['id' => $idKpc], $vals);
 
                 $count++;
             }
@@ -162,7 +163,6 @@ class ProcessSyncKPCJob implements ShouldQueue
         }, 3);
     }
 
-    /** Normalizer: "" -> null, trim string */
     protected function nn($v)
     {
         if (!isset($v)) return null;
