@@ -305,6 +305,7 @@ class DashboardController extends Controller
 
         // Menghitung persentase realisasi
         $sudahterealisasi = $nominal != 0 ? ($totalRealisasi / $nominal) * 100 : 0;
+        $sudahterealisasi = round($sudahterealisasi, 2); 
 
         // Respons akhir
         return response()->json([
