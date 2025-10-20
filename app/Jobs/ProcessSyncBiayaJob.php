@@ -191,26 +191,39 @@ class ProcessSyncBiayaJob implements ShouldQueue
             'id_status_kprk' => 7,
         ]);
 
-        if ($data['lampiran'] == 'Y') {
+        if ($data['lampiran'] === 'Y') {
             $apiControllerLapiran = new ApiController();
             $url_request_lampiran = 'lampiran_biaya?id_biaya=' . $data['id'];
-            $request = request(); // Buat instance request
+            $request = request();
             $request->merge(['end_point' => $url_request_lampiran]);
             $response = $apiControllerLapiran->makeRequest($request);
-            $lampiran = $response['data'] ?? [];
-            if ($lampiran !== []) {
-                $detail_lampiran = VerifikasiBiayaRutinDetailLampiran::where('verifikasi_biaya_rutin_detail', $data['id'])->first();
-                if ($detail_lampiran) {
-                    $detail_lampiran->update([
-                        'nama_file' => $lampiran['nama_file'],
-                    ]);
-                } else {
-                    VerifikasiBiayaRutinDetailLampiran::create([
-                        'verifikasi_biaya_rutin_detail' => $lampiran['id_biaya'],
-                        'nama_file' => $lampiran['nama_file'],
-                        'id' => $lampiran['id'],
-                    ]);
-                }
+
+            $lampiranList = $response['data'] ?? [];
+
+            // Normalisasi: kalau yang datang single object, jadikan array satu elemen
+            if (!is_array($lampiranList) || (is_array($lampiranList) && array_is_list($lampiranList) === false && isset($lampiranList['id']))) {
+                $lampiranList = [$lampiranList];
+            }
+
+            foreach ($lampiranList as $lp) {
+                // Pilih kunci idempotency:
+                // 1) Jika API punya id lampiran yang stabil:
+                VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
+                    ['id' => $lp['id']], // kunci unik berdasarkan id eksternal
+                    [
+                        'verifikasi_biaya_rutin_detail' => $data['id'],     // id detail lokal
+                        'nama_file' => $lp['nama_file'],
+                    ]
+                );
+
+                // 2) Jika TIDAK ada id eksternal stabil:
+                // VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
+                //     [
+                //         'verifikasi_biaya_rutin_detail' => $data['id'],
+                //         'nama_file' => $lp['nama_file'],
+                //     ],
+                //     []
+                // );
             }
         }
         // Update the payload with the current data
