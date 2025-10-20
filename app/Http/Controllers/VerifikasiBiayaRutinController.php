@@ -713,8 +713,7 @@ class VerifikasiBiayaRutinController extends Controller
                 if ($existingIndex !== null) {
                     $grouped[$kode]['laporan'][$existingIndex]['pelaporan'] =
                         'Rp. ' . number_format(
-                            str_replace('.', '', str_replace('Rp. ', '', $grouped[$kode]['laporan'][$existingIndex]['pelaporan']))
-                                + round($detail->pelaporan),
+                            str_replace('.', '', str_replace('Rp. ', '', $grouped[$kode]['laporan'][$existingIndex]['pelaporan'])),
                             0,
                             '',
                             '.'
@@ -722,8 +721,7 @@ class VerifikasiBiayaRutinController extends Controller
 
                     $grouped[$kode]['laporan'][$existingIndex]['verifikasi'] =
                         'Rp. ' . number_format(
-                            str_replace('.', '', str_replace('Rp. ', '', $grouped[$kode]['laporan'][$existingIndex]['verifikasi']))
-                                + round($detail->verifikasi),
+                            str_replace('.', '', str_replace('Rp. ', '', $grouped[$kode]['laporan'][$existingIndex]['verifikasi'])),
                             0,
                             '',
                             '.'
