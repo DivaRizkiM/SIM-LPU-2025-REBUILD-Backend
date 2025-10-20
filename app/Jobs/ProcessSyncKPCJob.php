@@ -24,9 +24,10 @@ class ProcessSyncKPCJob implements ShouldQueue
     protected ?string $userAgent;
     protected int $page;
     protected int $perPage;
-    protected ?string $idKcp; // opsional (by id)
+    protected ?string $idKcp;
 
-    public function __construct(string $endpoint, ?string $userAgent = null, int $page = 1, int $perPage = 1000, ?string $idKcp = null)
+    // >>> Perhatikan: $page & $perPage TANPA type-hint di signature
+    public function __construct(string $endpoint, ?string $userAgent = null, $page = 1, $perPage = 1000, ?string $idKcp = null)
     {
         $this->endpoint  = $endpoint;
         $this->userAgent = $userAgent;
@@ -55,14 +56,13 @@ class ProcessSyncKPCJob implements ShouldQueue
         ]);
 
         try {
-            $page       = $this->page;
-            $perPage    = $this->perPage;
+            $page       = (int) $this->page;
+            $perPage    = (int) $this->perPage;
             $processed  = 0;
             $totalRows  = 0;
             $buffer     = [];
 
             if ($this->idKcp) {
-                // mode by-id (tanpa paging)
                 $req  = Request::create('/', 'GET', ['end_point' => $this->endpoint . '?nopend=' . $this->idKcp]);
                 $resp = $api->makeRequest($req);
                 $rows = $resp['data'] ?? [];
@@ -82,9 +82,12 @@ class ProcessSyncKPCJob implements ShouldQueue
                     $processed += $totalRows;
                 }
             } else {
-                // mode paging penuh
                 do {
-                    $req  = Request::create('/', 'GET', ['end_point' => $this->endpoint, 'page' => $page, 'per_page' => $perPage]);
+                    $req  = Request::create('/', 'GET', [
+                        'end_point' => $this->endpoint,
+                        'page'      => $page,
+                        'per_page'  => $perPage
+                    ]);
                     $resp = $api->makeRequest($req);
                     $rows = $resp['data'] ?? [];
 

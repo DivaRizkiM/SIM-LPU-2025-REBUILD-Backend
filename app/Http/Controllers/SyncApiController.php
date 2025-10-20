@@ -2245,7 +2245,7 @@ class SyncApiController extends Controller
                     'id_user'   => Auth::id(),
                 ]);
 
-                ProcessSyncKPCJob::dispatch($endpoint, $userAgent, 1, (int) $perPage, (string) $idKcp);
+                ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, 1, 1, (string) $idKcp);
 
                 return response()->json([
                     'status'   => 'IN_PROGRESS',
@@ -2283,7 +2283,7 @@ class SyncApiController extends Controller
             ]);
 
             for ($p = 1; $p <= $pages; $p++) {
-                ProcessSyncKPCJob::dispatch($endpoint, $userAgent, (int) $p, (int) $perPage);
+                ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, (int) $p, (int) $perPage);
             }
 
             return response()->json([
