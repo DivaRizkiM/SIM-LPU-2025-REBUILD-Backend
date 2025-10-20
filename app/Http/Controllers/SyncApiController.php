@@ -2236,10 +2236,8 @@ class SyncApiController extends Controller
             $perPage   = 1000;
             $api       = new ApiController();
 
-            // Jika user kirim id_kcp tertentu → langsung dispatch satu job khusus (tanpa probe)
             $idKcp = $request->input('id_kcp');
             if ($idKcp) {
-                // Log singkat
                 UserLog::create([
                     'timestamp' => now(),
                     'aktifitas' => 'Sinkronisasi Profil KCP (by id)',
@@ -2247,7 +2245,7 @@ class SyncApiController extends Controller
                     'id_user'   => Auth::id(),
                 ]);
 
-                ProcessSyncProfilKcpJob::dispatch($endpoint, $userAgent, 1, $perPage, $idKcp);
+                ProcessSyncKPCJob::dispatch($endpoint, $userAgent, 1, (int) $perPage, (string) $idKcp);
 
                 return response()->json([
                     'status'   => 'IN_PROGRESS',
@@ -2257,7 +2255,7 @@ class SyncApiController extends Controller
                 ], 200);
             }
 
-            // === PROBE total data seperti referensi kecamatan ===
+            // === PROBE total data ===
             $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
                 'end_point' => $endpoint,
                 'page'      => 1,
@@ -2277,7 +2275,6 @@ class SyncApiController extends Controller
 
             $pages = (int) ceil($total / $perPage);
 
-            // Log aktivitas user singkat (menyerupai referensi)
             UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi Profil KCP',
@@ -2285,9 +2282,8 @@ class SyncApiController extends Controller
                 'id_user'   => Auth::id(),
             ]);
 
-            // Dispatch job per halaman
             for ($p = 1; $p <= $pages; $p++) {
-                ProcessSyncKPCJob::dispatch($endpoint, $userAgent, $p, $perPage, null);
+                ProcessSyncKPCJob::dispatch($endpoint, $userAgent, (int) $p, (int) $perPage);
             }
 
             return response()->json([
@@ -2304,6 +2300,7 @@ class SyncApiController extends Controller
             ], 500);
         }
     }
+
 
     public function syncMitraLpu(Request $request)
     {
