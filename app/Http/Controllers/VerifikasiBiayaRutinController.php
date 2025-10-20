@@ -1171,6 +1171,10 @@ class VerifikasiBiayaRutinController extends Controller
                 'Desember',
             ];
 
+            $lampiranDistinct = DB::table('verifikasi_biaya_rutin_detail_lampiran')
+                ->select('verifikasi_biaya_rutin_detail', 'nama_file')
+                ->groupBy('verifikasi_biaya_rutin_detail', 'nama_file');
+
             $rutin = VerifikasiBiayaRutinDetail::select(
                 'kpc.nama as nama_kcp',
                 'verifikasi_biaya_rutin_detail.kategori_biaya',
@@ -1184,19 +1188,21 @@ class VerifikasiBiayaRutinController extends Controller
                 'verifikasi_biaya_rutin_detail.pelaporan',
                 'verifikasi_biaya_rutin_detail.verifikasi',
                 'verifikasi_biaya_rutin_detail.catatan_pemeriksa',
-                'verifikasi_biaya_rutin_detail_lampiran.nama_file'
+                'lamp.nama_file'
             )
-                ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
-                ->join('rekening_biaya', 'verifikasi_biaya_rutin_detail.id_rekening_biaya', '=', 'rekening_biaya.id')
-                ->join('kprk', 'verifikasi_biaya_rutin.id_kprk', '=', 'kprk.id')
-                ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
-                ->leftJoin('verifikasi_biaya_rutin_detail_lampiran', 'verifikasi_biaya_rutin_detail.id', '=', 'verifikasi_biaya_rutin_detail_lampiran.verifikasi_biaya_rutin_detail')
-                ->where('verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', $id_verifikasi_biaya_rutin)
-                ->where('verifikasi_biaya_rutin_detail.id_rekening_biaya', $kode_rekening)
-                ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
-                ->where('verifikasi_biaya_rutin.id_kprk', $id_kcu)
-                ->where('verifikasi_biaya_rutin.id_kpc', $id_kpc)
-                ->get();
+            ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+            ->join('rekening_biaya', 'verifikasi_biaya_rutin_detail.id_rekening_biaya', '=', 'rekening_biaya.id')
+            ->join('kprk', 'verifikasi_biaya_rutin.id_kprk', '=', 'kprk.id')
+            ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
+            ->leftJoinSub($lampiranDistinct, 'lamp', function ($join) {
+                $join->on('verifikasi_biaya_rutin_detail.id', '=', 'lamp.verifikasi_biaya_rutin_detail');
+            })
+            ->where('verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', $id_verifikasi_biaya_rutin)
+            ->where('verifikasi_biaya_rutin_detail.id_rekening_biaya', $kode_rekening)
+            ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
+            ->where('verifikasi_biaya_rutin.id_kprk', $id_kcu)
+            ->where('verifikasi_biaya_rutin.id_kpc', $id_kpc)
+            ->get();
 
             $isLockStatus = false;
 
