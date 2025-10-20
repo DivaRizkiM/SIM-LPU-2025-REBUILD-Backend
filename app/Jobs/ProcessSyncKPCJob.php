@@ -16,24 +16,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Jenssegers\Agent\Agent;
 
-class ProcessSyncKPCJob implements ShouldQueue
+class FetchDaftarKpcAndSyncJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $endpoint;
     protected ?string $userAgent;
-    protected int $page;
-    protected int $perPage;
-    protected ?string $idKcp; // opsional (by id)
 
-    // Biarkan $page/$perPage bebas type di call-site; cast di sini
-    public function __construct(string $endpoint, ?string $userAgent = null, $page = 1, $perPage = 1000, ?string $idKcp = null)
+    public function __construct(?string $userAgent = null)
     {
-        $this->endpoint  = $endpoint;
         $this->userAgent = $userAgent;
-        $this->page      = (int) $page;
-        $this->perPage   = (int) $perPage;
-        $this->idKcp     = $idKcp;
     }
 
     public function handle(): void
@@ -44,106 +35,79 @@ class ProcessSyncKPCJob implements ShouldQueue
         $platform_request = $agent->platform() . '/' . $agent->browser();
 
         $api = new ApiController();
-        $apiRequestLog = ApiRequestLog::create([
-            'komponen' => 'KPC',
-            'tanggal' => now(),
-            'ip_address' => $serverIpAddress,
-            'platform_request' => $platform_request,
+        $log = ApiRequestLog::create([
+            'komponen'           => 'KPC',
+            'tanggal'            => now(),
+            'ip_address'         => $serverIpAddress,
+            'platform_request'   => $platform_request,
             'successful_records' => 0,
-            'total_records' => 0,
-            'available_records' => 0,
-            'status' => 'Memulai',
+            'total_records'      => 0,
+            'available_records'  => 0,
+            'status'             => 'Memulai (daftar_kpc)',
         ]);
 
         try {
-            $page       = (int) $this->page;
-            $perPage    = (int) $this->perPage;
-            $processed  = 0;
-            $totalRows  = 0;
+            // 1) Ambil daftar KPC
+            $listReq = Request::create('/', 'GET', ['end_point' => 'daftar_kpc']);
+            if ($this->userAgent) $listReq->headers->set('User-Agent', $this->userAgent);
 
-            if ($this->idKcp) {
-                // mode by-id (tanpa paging)
-                $req  = Request::create('/', 'GET', [
-                    'end_point' => $this->endpoint . '?nopend=' . $this->idKcp
+            $listResp   = $api->makeRequest($listReq);
+            $daftar     = $listResp['data'] ?? [];
+            $totalAvail = is_array($daftar) ? count($daftar) : 0;
+
+            $log->update([
+                'available_records' => $totalAvail,
+                'total_records'     => $totalAvail,
+                'status'            => 'Mengambil profil_kpc per nopend',
+            ]);
+
+            $processed = 0;
+
+            // 2) Loop nopend → ambil profil & simpan
+            foreach ($daftar as $i => $row) {
+                $nopend = isset($row['nopend']) ? (string) $row['nopend'] : '';
+                if ($nopend === '') continue;
+
+                $profilReq = Request::create('/', 'GET', [
+                    'end_point' => 'profil_kpc?nopend=' . $nopend
                 ]);
-                if ($this->userAgent) $req->headers->set('User-Agent', $this->userAgent);
+                if ($this->userAgent) $profilReq->headers->set('User-Agent', $this->userAgent);
 
-                $resp = $api->makeRequest($req);
-                $rows = $resp['data'] ?? [];
+                $profilResp = $api->makeRequest($profilReq);
+                $items      = $profilResp['data'] ?? [];
 
-                if (isset($rows[0])) {
+                if ($i === 0 && isset($items[0])) {
                     ApiRequestPayloadLog::create([
-                        'api_request_log_id' => $apiRequestLog->id,
-                        'payload' => json_encode($rows[0]),
+                        'api_request_log_id' => $log->id,
+                        'payload'            => json_encode($items[0]),
                     ]);
                 }
 
-                $affected = $this->persistRowsWithUpdateOrCreate($rows);
+                $affected = $this->persistWithUpdateOrCreate($items);
                 $processed += $affected;
-                $totalRows += $affected;
-            } else {
-                // mode paging penuh
-                do {
-                    $req  = Request::create('/', 'GET', [
-                        'end_point' => $this->endpoint,
-                        'page'      => $page,
-                        'per_page'  => $perPage,
-                    ]);
-                    if ($this->userAgent) $req->headers->set('User-Agent', $this->userAgent);
 
-                    $resp = $api->makeRequest($req);
-                    $rows = $resp['data'] ?? [];
-
-                    if ($page === $this->page && isset($rows[0])) {
-                        ApiRequestPayloadLog::create([
-                            'api_request_log_id' => $apiRequestLog->id,
-                            'payload' => json_encode($rows[0]),
-                        ]);
-                    }
-
-                    if (empty($rows)) break;
-
-                    $affected = $this->persistRowsWithUpdateOrCreate($rows);
-                    $processed += $affected;
-                    $totalRows += $affected;
-
-                    $apiRequestLog->update([
+                // optional progress tiap 100
+                if ($processed % 100 === 0) {
+                    $log->update([
                         'successful_records' => $processed,
-                        'status' => "Memproses halaman {$page}",
+                        'status'             => "Memproses {$processed}/{$totalAvail}",
                     ]);
-
-                    $page++;
-                } while (count($rows) === $perPage);
+                }
             }
 
-            $apiRequestLog->update([
+            $log->update([
                 'successful_records' => $processed,
-                'total_records'      => $totalRows,
-                'available_records'  => $totalRows,
                 'status'             => 'success',
             ]);
+
         } catch (\Throwable $e) {
-            $apiRequestLog->update(['status' => 'failed']);
-            Log::error('ProcessSyncKPCJob failed', [
-                'endpoint' => $this->endpoint,
-                'page'     => $this->page,
-                'perPage'  => $this->perPage,
-                'error'    => $e->getMessage(),
-            ]);
+            $log->update(['status' => 'failed']);
+            Log::error('FetchDaftarKpcAndSyncJob failed', ['error' => $e->getMessage()]);
             throw $e;
         }
     }
 
-    /**
-     * Simpan data menggunakan updateOrCreate:
-     * - Kunci: nomor_dirian (ID_KPC)
-     * - Hanya update kolom yang punya nilai (skip null/empty-string) agar tidak menimpa data lama.
-     * - Selalu set tgl_update & tgl_sinkronisasi.
-     *
-     * @param array $apiRows
-     * @return int jumlah baris yang diproses
-     */
-    protected function persistRowsWithUpdateOrCreate(array $apiRows): int
+    protected function persistWithUpdateOrCreate(array $apiRows): int
     {
         if (empty($apiRows)) return 0;
 
@@ -154,8 +118,8 @@ class ProcessSyncKPCJob implements ShouldQueue
                 $idKpc = isset($p['ID_KPC']) ? (int) $p['ID_KPC'] : null;
                 if (!$idKpc) continue;
 
-                // Build data baru
-                $values = [
+                // Hanya kirim kolom yang ada nilainya (biar gak niban null)
+                $vals = [
                     'id_regional'                => $this->nn($p['Regional'] ?? null),
                     'id_kprk'                    => $this->nn($p['ID_KPRK'] ?? null),
                     'nomor_dirian'               => $this->nn($p['NomorDirian'] ?? null),
@@ -187,11 +151,10 @@ class ProcessSyncKPCJob implements ShouldQueue
                     'tgl_update'                 => now(),
                 ];
 
-                // Hapus value yang null biar gak niban isi lama
-                $values = array_filter($values, fn($v) => !is_null($v));
+                $vals = array_filter($vals, fn($v) => !is_null($v));
 
-                // Update jika sudah ada, insert jika belum
-                Kpc::updateOrCreate(['id' => $idKpc], $values);
+                // id = ID_KPC (sesuai maumu)
+                Kpc::updateOrCreate(['id' => $idKpc], $vals);
 
                 $count++;
             }
@@ -200,10 +163,6 @@ class ProcessSyncKPCJob implements ShouldQueue
         }, 3);
     }
 
-
-    /**
-     * Normalizer: "" → null, trim string.
-     */
     protected function nn($v)
     {
         if (!isset($v)) return null;

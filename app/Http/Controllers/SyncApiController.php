@@ -2227,17 +2227,16 @@ class SyncApiController extends Controller
             ], 500);
         }
     }
-
+    
     public function syncProfilKCP(Request $request)
     {
         try {
-            $endpoint  = 'profil_kpc';
             $userAgent = $request->header('User-Agent');
-            $perPage   = 1000;
             $api       = new ApiController();
 
             $idKcp = $request->input('id_kcp');
             if ($idKcp) {
+                // SYNC BY-ID (langsung profil_kpc?nopend=...)
                 UserLog::create([
                     'timestamp' => now(),
                     'aktifitas' => 'Sinkronisasi Profil KCP (by id)',
@@ -2245,53 +2244,30 @@ class SyncApiController extends Controller
                     'id_user'   => Auth::id(),
                 ]);
 
+                // Reuse job lama kalau mau; atau panggil ProcessSyncKPCJob by-id
                 ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, 1, 1, (string) $idKcp);
 
                 return response()->json([
                     'status'   => 'IN_PROGRESS',
                     'message'  => 'Sinkronisasi profil KCP (spesifik) sedang diproses (job dispatched)',
                     'id_kcp'   => $idKcp,
-                    'per_page' => $perPage,
                 ], 200);
             }
 
-            // === PROBE total data ===
-            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
-                'end_point' => $endpoint,
-                'page'      => 1,
-                'per_page'  => $perPage,
-            ]);
-            $firstResp = $api->makeRequest($probeReq);
-
-            $total = $firstResp['total_data']
-                ?? (is_array($firstResp['data'] ?? null) ? count($firstResp['data']) : 0);
-
-            if ($total <= 0) {
-                return response()->json([
-                    'status'  => 'NO_DATA',
-                    'message' => 'Tidak ada data untuk disinkronisasi'
-                ], 200);
-            }
-
-            $pages = (int) ceil($total / $perPage);
-
+            // FULL SYNC → hit daftar_kpc, lalu foreach profil_kpc
             UserLog::create([
                 'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi Profil KCP',
+                'aktifitas' => 'Sinkronisasi Profil KCP (FULL via daftar_kpc)',
                 'modul'     => 'Profil KCP',
                 'id_user'   => Auth::id(),
             ]);
 
-            for ($p = 1; $p <= $pages; $p++) {
-                ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, (int) $p, (int) $perPage);
-            }
+            // Dispatch satu job (tanpa paging)
+            \App\Jobs\FetchDaftarKpcAndSyncJob::dispatch($userAgent);
 
             return response()->json([
-                'status'        => 'IN_PROGRESS',
-                'message'       => 'Sinkronisasi sedang diproses (jobs dispatched)',
-                'total_records' => $total,
-                'pages'         => $pages,
-                'per_page'      => $perPage,
+                'status'  => 'IN_PROGRESS',
+                'message' => 'Sinkronisasi (FULL) sedang diproses (job dispatched via daftar_kpc)',
             ], 200);
 
         } catch (\Exception $e) {
@@ -2300,6 +2276,7 @@ class SyncApiController extends Controller
             ], 500);
         }
     }
+
 
 
     public function syncMitraLpu(Request $request)
