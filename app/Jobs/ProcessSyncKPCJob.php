@@ -145,11 +145,12 @@ class ProcessSyncKPCJob implements ShouldQueue
             if (function_exists('gc_collect_cycles')) gc_collect_cycles();
         } catch (\Throwable $e) {
             $apiRequestLog->update(['status' => 'failed']);
-            Log::error('ProcessSyncKPCJob failed', [
+            Log::error('ProcessSyncKecamatanJob failed', [
                 'endpoint' => $this->endpoint,
                 'page' => $this->page,
                 'perPage' => $this->perPage,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
