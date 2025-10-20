@@ -643,14 +643,14 @@ class VerifikasiBiayaRutinController extends Controller
 
             $order = $orderMappings[$getOrder] ?? ['kode_rekening', 'asc'];
 
-            $lampiranAgg = DB::table('verifikasi_biaya_rutin_detail_lampiran')
-                ->select('verifikasi_biaya_rutin_detail', DB::raw('MIN(nama_file) AS nama_file'))
-                ->groupBy('verifikasi_biaya_rutin_detail');
+            $lampiranDistinct = DB::table('verifikasi_biaya_rutin_detail_lampiran')
+                ->select('verifikasi_biaya_rutin_detail', 'nama_file')
+                ->groupBy('verifikasi_biaya_rutin_detail', 'nama_file');
 
             $details = DB::table('verifikasi_biaya_rutin_detail as d')
                 ->leftJoin('rekening_biaya as r', 'r.id', '=', 'd.id_rekening_biaya')
                 ->join('verifikasi_biaya_rutin as v', 'v.id', '=', 'd.id_verifikasi_biaya_rutin')
-                ->leftJoinSub($lampiranAgg, 'l', function ($join) {
+                ->leftJoinSub($lampiranDistinct, 'l', function ($join) {
                     $join->on('l.verifikasi_biaya_rutin_detail', '=', 'd.id');
                 })
                 ->where('d.id_verifikasi_biaya_rutin', $id_verifikasi_biaya_rutin)
