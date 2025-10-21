@@ -122,7 +122,6 @@ Route::get('/syncRekeningProduksi', [SyncApiController::class, 'syncRekeningProd
 Route::get('/syncTipeBisnis', [SyncApiController::class, 'syncTipeBisnis']);
 Route::get('/syncPetugasKCP', [SyncApiController::class, 'syncPetugasKCP']);
 Route::get('/syncKCU', [SyncApiController::class, 'syncKCU']);
-Route::get('/syncProfilKCP', [SyncApiController::class, 'syncProfilKCP']);
 Route::get('/syncLtk', [SyncApiController::class, 'syncMtdLtk']);
 Route::get('/syncKPC', [SyncApiController::class, 'syncKPC']);
 Route::get('/syncBiayaAtribusi', [SyncApiController::class, 'syncBiayaAtribusi']);
