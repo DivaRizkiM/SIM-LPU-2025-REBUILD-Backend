@@ -27,6 +27,7 @@ use App\Models\KategoriPendapatan;
 use Illuminate\Support\Facades\DB;
 use App\Models\BiayaAtribusiDetail;
 use App\Models\LayananJasaKeuangan;
+use App\Jobs\DispatchSyncKpcPageJob;
 use App\Jobs\ProcessSyncAtribusiJob;
 use App\Jobs\ProcessSyncMitraLpuJob;
 use App\Jobs\ProcessSyncProduksiJob;
@@ -823,12 +824,7 @@ class SyncApiController extends Controller
 
             // dispatch per halaman daftar_kpc (BUKAN profil)
             for ($p = 1; $p <= $pages; $p++) {
-                ProcessSyncKPCJob::dispatch(
-                    endpointList: $endpointList,
-                    userAgent: $request->header('User-Agent'),
-                    page: $p,
-                    perPage: $perPage
-                );
+                DispatchSyncKpcPageJob::dispatch($p, $perPage, $request->userAgent());
             }
 
             return response()->json([
