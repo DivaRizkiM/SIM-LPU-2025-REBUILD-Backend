@@ -453,54 +453,6 @@ class SyncApiController extends Controller
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
-    public function syncProfilKCP(Request $request)
-    {
-        try {
-            $userAgent = $request->header('User-Agent');
-            $api       = new ApiController();
-
-            $idKcp = $request->input('id_kcp');
-            if ($idKcp) {
-                // SYNC BY-ID (langsung profil_kpc?nopend=...)
-                UserLog::create([
-                    'timestamp' => now(),
-                    'aktifitas' => 'Sinkronisasi Profil KCP (by id)',
-                    'modul'     => 'Profil KCP',
-                    'id_user'   => Auth::id(),
-                ]);
-
-                // Reuse job lama kalau mau; atau panggil ProcessSyncKPCJob by-id
-                ProcessSyncKPCJob::dispatch('profil_kpc', $userAgent, 1, 1, (string) $idKcp);
-
-                return response()->json([
-                    'status'   => 'IN_PROGRESS',
-                    'message'  => 'Sinkronisasi profil KCP (spesifik) sedang diproses (job dispatched)',
-                    'id_kcp'   => $idKcp,
-                ], 200);
-            }
-
-            // FULL SYNC → hit daftar_kpc, lalu foreach profil_kpc
-            UserLog::create([
-                'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi Profil KCP (FULL via daftar_kpc)',
-                'modul'     => 'Profil KCP',
-                'id_user'   => Auth::id(),
-            ]);
-
-            // Dispatch satu job (tanpa paging)
-            \App\Jobs\FetchDaftarKpcAndSyncJob::dispatch($userAgent);
-
-            return response()->json([
-                'status'  => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi (FULL) sedang diproses (job dispatched via daftar_kpc)',
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
-        }
-    }
 
     public function syncKPC(Request $request)
     {
