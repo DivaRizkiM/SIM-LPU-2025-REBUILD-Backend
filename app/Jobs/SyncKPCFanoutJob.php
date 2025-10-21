@@ -3,6 +3,7 @@
 namespace App\Jobs;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
+use App\Http\Controllers\ApiController;
 
 class SyncKPCFanoutJob implements ShouldQueue
 {
