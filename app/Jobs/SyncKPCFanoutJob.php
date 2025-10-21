@@ -1,9 +1,12 @@
 <?php
 
 namespace App\Jobs;
-use Illuminate\Bus\Batch;
-use Illuminate\Support\Facades\Bus;
-use App\Http\Controllers\ApiController;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;   
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 
 class SyncKPCFanoutJob implements ShouldQueue
 {
@@ -26,13 +29,15 @@ class SyncKPCFanoutJob implements ShouldQueue
 
         $list = $resp['data'] ?? [];
         if (empty($list)) return;
-
+        $agent = new \Jenssegers\Agent\Agent();
+        $agent->setUserAgent($this->userAgent);
+        $platform_request = $agent->platform() . '/' . $agent->browser();
         // siapkan log payung
         $apiRequestLog = ApiRequestLog::create([
             'komponen' => 'KPC',
             'tanggal' => now(),
             'ip_address' => gethostbyname(gethostname()),
-            'platform_request' => (new \Jenssegers\Agent\Agent())->setUserAgent($this->userAgent)->platform().'/'.(new \Jenssegers\Agent\Agent())->browser(),
+            'platform_request' => $platform_request,
             'successful_records' => 0,
             'available_records' => $resp['total_data'] ?? count($list),
             'total_records' => 0,
