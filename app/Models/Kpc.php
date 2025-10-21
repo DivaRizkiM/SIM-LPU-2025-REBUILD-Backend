@@ -4,17 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Kpc extends Model
 {
     use HasFactory;
+
     public $timestamps = false;
     protected $table = 'kpc';
-    protected $primaryKey = 'id'; // Nama kolom primary key
-    public $incrementing = false;  // Non-incrementing
-    protected $keyType = 'string';  // Tipe data string
+    protected $primaryKey = 'id';
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $fillable = [
-	    'id',
+        'id',
         'id_regional',
         'id_kprk',
         'nomor_dirian',
@@ -46,4 +50,34 @@ class Kpc extends Model
         'tgl_update',
         'id_file',
     ];
+
+    public function regional(): BelongsTo
+    {
+        return $this->belongsTo(Regional::class, 'id_regional', 'id');
+    }
+    public function kprk(): BelongsTo
+    {
+        return $this->belongsTo(Kprk::class, 'id_kprk', 'id');
+    }
+    public function provinsi(): BelongsTo
+    {
+        return $this->belongsTo(Provinsi::class, 'id_provinsi', 'id');
+    }
+    public function kabupaten(): BelongsTo
+    {
+        return $this->belongsTo(KabupatenKota::class, 'id_kabupaten_kota', 'id');
+    }
+    public function kecamatan(): BelongsTo
+    {
+        return $this->belongsTo(Kecamatan::class, 'id_kecamatan', 'id');
+    }
+    public function kelurahan(): BelongsTo
+    {
+        return $this->belongsTo(Kelurahan::class, 'id_kelurahan', 'id');
+    }
+
+    public function pencatatan(): HasMany
+    {
+        return $this->hasMany(PencatatanKantor::class, 'id_kpc', 'id');
+    }
 }
