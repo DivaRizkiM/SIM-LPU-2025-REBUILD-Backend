@@ -2,46 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Kpc;
-use App\Models\Npp;
-use App\Models\Kprk;
-use App\Jobs\RsyncJob;
-use App\Models\ApiLog;
-use App\Models\UserLog;
-use App\Models\Regional;
-use App\Models\JenisBisnis;
-use Jenssegers\Agent\Agent;
-use App\Models\LayananKurir;
-use Illuminate\Http\Request;
-use App\Models\ApiRequestLog;
-use App\Models\KategoriBiaya;
-use App\Models\RekeningBiaya;
-use App\Models\VerifikasiLtk;
-use App\Jobs\SyncKPCFanoutJob;
+use App\Jobs\ProcessSyncAtribusiJob;
+use App\Jobs\ProcessSyncBiayaJob;
+use App\Jobs\ProcessSyncBiayaPrognosaJob;
 use App\Jobs\ProcessSyncKCUJob;
 use App\Jobs\ProcessSyncKPCJob;
-use App\Models\ProduksiNasional;
-use App\Models\RekeningProduksi;
-use App\Jobs\ProcessSyncBiayaJob;
-use App\Models\KategoriPendapatan;
-use Illuminate\Support\Facades\DB;
-use App\Models\BiayaAtribusiDetail;
-use App\Models\LayananJasaKeuangan;
-use App\Jobs\DispatchSyncKpcPageJob;
-use App\Jobs\ProcessSyncAtribusiJob;
 use App\Jobs\ProcessSyncMitraLpuJob;
-use App\Jobs\ProcessSyncProduksiJob;
-use App\Models\ApiRequestPayloadLog;
-use Illuminate\Support\Facades\Auth;
-use App\Jobs\FetchKPCProfilesChunkJob;
 use App\Jobs\ProcessSyncPendapatanJob;
 use App\Jobs\ProcessSyncPetugasKCPJob;
-use App\Jobs\ProcessSyncBiayaPrognosaJob;
-use Illuminate\Support\Facades\Validator;
-use App\Models\VerifikasiBiayaRutinDetail;
-use App\Models\DashboardProduksiPendapatan;
+use App\Jobs\ProcessSyncProduksiJob;
 use App\Jobs\ProcessSyncProduksiPrognosaJob;
+use App\Jobs\RsyncJob;
+use App\Models\ApiLog;
+use App\Models\BiayaAtribusiDetail;
+use App\Models\VerifikasiBiayaRutinDetail;
+use App\Models\JenisBisnis;
+use App\Models\KategoriBiaya;
+use App\Models\Kpc;
+use App\Models\Kprk;
+use App\Models\Npp;
+use App\Models\ProduksiNasional;
+use App\Models\Regional;
+use App\Models\RekeningBiaya;
+use App\Models\RekeningProduksi;
+use App\Models\DashboardProduksiPendapatan;
+use App\Models\UserLog;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Jenssegers\Agent\Agent;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
+use App\Models\ApiRequestLog;
+use App\Models\ApiRequestPayloadLog;
+use App\Models\KategoriPendapatan;
+use App\Models\LayananJasaKeuangan;
+use App\Models\LayananKurir;
+use App\Models\VerifikasiLtk;
 
 class SyncApiController extends Controller
 {
@@ -795,55 +792,34 @@ class SyncApiController extends Controller
     public function syncKPC(Request $request)
     {
         try {
-            $endpointList = 'daftar_kpc';
-            $perPage = 1000;
-
-            // probe total dari daftar_kpc
-            $api = new ApiController();
-            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
-                'end_point' => $endpointList,
-                'page'      => 1,
-                'per_page'  => $perPage,
-            ]);
-            $first = $api->makeRequest($probeReq);
-
-            $total = $first['total_data'] ?? (is_array($first['data'] ?? null) ? count($first['data']) : 0);
-            if ($total <= 0) {
-                return response()->json(['status' => 'NO_DATA', 'message' => 'Tidak ada data KPC'], 200);
-            }
-
-            $pages = (int) ceil($total / $perPage);
-
-            // log aktivitas (perbaiki labelnya biar konsisten)
-            UserLog::create([
+            $endpoint = 'daftar_kpc';
+            $endpointProfile = 'profil_kpc';
+            $idKpc = $request->id_kpc;
+            $serverIpAddress = gethostbyname(gethostname());
+            $agent = new Agent();
+            $userAgent = $request->header('User-Agent');
+            $agent->setUserAgent($userAgent);
+            $platform = $agent->platform();
+            $browser = $agent->browser();
+            $userLog = [
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi KPC',
-                'modul'     => 'KPC',
-                'id_user'   => optional(Auth::user())->id,
-            ]);
+                'modul' => 'KPC',
+                'id_user' => $this->auth(),
+            ];
 
-            // dispatch per halaman daftar_kpc (BUKAN profil)
-            for ($p = 1; $p <= $pages; $p++) {
-                DispatchSyncKpcPageJob::dispatch(
-                    page: $p,
-                    perPage: $perPage,
-                    userAgent: $request->header('User-Agent')
-                );
-            }
+            $userLog = UserLog::create($userLog);
+            $job = ProcessSyncKPCJob::dispatch($endpoint, $endpointProfile, $userAgent);
 
             return response()->json([
-                'status'        => 'IN_PROGRESS',
-                'message'       => 'Jobs dispatched',
-                'total_records' => $total,
-                'pages'         => $pages,
-                'per_page'      => $perPage,
+                'status' => 'IN_PROGRESS',
+                'message' => 'Sinkronisasi sedang di proses',
             ], 200);
+        } catch (\Exception $e) {
 
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Terjadi kesalahan: '.$e->getMessage()], 500);
+            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
-
     public function syncBiayaAtribusi(Request $request)
     {
         try {
