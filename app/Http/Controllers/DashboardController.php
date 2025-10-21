@@ -81,10 +81,10 @@ class DashboardController extends Controller
     private function getColorByCategoryBiaya($kategori)
     {
         $colors = [
-            'BIAYA ADMINISTRASI' => '#219EBC',
-            'BIAYA OPERASI' => '#FFB703',
-            'BIAYA PEGAWAI' => '#FB8500',
-            'BIAYA PEMELIHARAAN' => '#8ECAE6',
+            'BIAYA ADMINISTRASI' => '#636CCB',
+            'BIAYA OPERASI' => '#6E8CFB',
+            'BIAYA PEGAWAI' => '#3C467B',
+            'BIAYA PEMELIHARAAN' => '#50589C',
             'BIAYA PENYUSUTAN' => '#023047',
             // Tambahkan kategori lain sesuai kebutuhan
         ];
@@ -159,14 +159,14 @@ class DashboardController extends Controller
     private function getColorByCategoryPendapatan($kategori)
     {
         $colors = [
-            'LAYANAN BERBASIS FEE' => '#FB8500',
-            'LAYANAN POS KOMERSIL' => '#FFB703',
-            'LAYANAN POS UNIVERSAL' => '#8ECAE6',
+            'LAYANAN BERBASIS FEE' => '#3C467B',
+            'LAYANAN POS KOMERSIL' => '#6E8CFB',
+            'LAYANAN POS UNIVERSAL' => '#50589C',
 
             // Tambahkan kategori lain sesuai kebutuhan
         ];
 
-        return $colors[$kategori] ?? '#219EBC'; // Warna default jika kategori tidak ditemukan
+        return $colors[$kategori] ?? '#636CCB'; // Warna default jika kategori tidak ditemukan
     }
 
     public static function getRealisasiDanaLpu(array $filterParams = [])
