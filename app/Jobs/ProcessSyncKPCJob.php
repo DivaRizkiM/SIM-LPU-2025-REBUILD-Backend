@@ -2,203 +2,179 @@
 
 namespace App\Jobs;
 
-use App\Models\Kpc;
-use App\Models\Kprk;
-use App\Models\ApiLog;
-use Jenssegers\Agent\Agent;
-use App\Models\ApiRequestLog;
-use Illuminate\Bus\Queueable;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use App\Models\ApiRequestPayloadLog;
-use Illuminate\Queue\SerializesModels;
 use App\Http\Controllers\ApiController;
-use Illuminate\Queue\InteractsWithQueue;
+use App\Models\ApiRequestLog;
+use App\Models\ApiRequestPayloadLog;
+use App\Models\Kpc;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Request as HttpRequest;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProcessSyncKPCJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $endpoint;
-    protected $endpointProfile;
-    protected $userAgent;
-    public function __construct($endpoint, $endpointProfile, $userAgent)
-    {
-
-        $this->endpoint = $endpoint;
-        $this->endpointProfile = $endpointProfile;
-
-        $this->userAgent = $userAgent;
-    }
+    public function __construct(
+        public string $endpointList = 'daftar_kpc',
+        public ?string $userAgent = null,
+        public int $page = 1,
+        public int $perPage = 1000
+    ) {}
 
     public function handle()
     {
-        try {
-            $serverIpAddress = gethostbyname(gethostname());
-            $agent = new Agent();
-            $agent->setUserAgent($this->userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
-            $platform_request = $platform . '/' . $browser;
+        $api = new ApiController();
 
-            $totalTarget = 0;
-            $allFetchedData = [];
-            $totalSumber = 0;
+        // 1) Ambil daftar_kpc halaman $this->page
+        $listReq = HttpRequest::create('/', 'GET', [
+            'end_point' => $this->endpointList,
+            'page'      => $this->page,
+            'per_page'  => $this->perPage,
+        ]);
 
-            $apiController = new ApiController();
-            $urlRequest = $this->endpoint;
-            $request = request();
-            $request->merge(['end_point' => $urlRequest]);
+        $listResp = $api->makeRequest($listReq);
+        $listData = $listResp['data'] ?? [];
 
-            $response = $apiController->makeRequest($request);
-
-            $dataKCU = $response['data'] ?? [];
-
-            if (!$dataKCU) {
-                return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
-            }
-            $apiRequestLog = ApiRequestLog::create([
-                'komponen' => 'KPC',
-                'tanggal' => now(),
-                'ip_address' => $serverIpAddress,
-                'platform_request' => $platform_request,
-                'successful_records' => 0,
-                'available_records' => 0,
-                'total_records' => 0,
-                'status' => 'Memuat Data',
-            ]);
-           $payload = ApiRequestPayloadLog::create([
-                'api_request_log_id' => $apiRequestLog->id,
-                'payload' => null, // Store the payload as JSON
-            ]);
-
-            foreach ($dataKCU as $data) {
-                $urlRequest = $this->endpointProfile . '?nopend=' . $data['nopend'];
-
-                $request->merge(['end_point' => $urlRequest]);
-
-                $response = $apiController->makeRequest($request);
-
-                $profileKPC = $response['data'] ?? [];
-
-                if (!$profileKPC) {
-                    return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
-                }
-
-                foreach ($profileKPC as $data) {
-                    if (empty($profileKPC)) {
-                        continue;
-                    } else {
-                        $allFetchedData[] = $data;
-                        $totalTarget++;
-                    }
-                }
-            }
-
-
-            $status = 'on progress';
-            if ($allFetchedData == []) {
-                $status = 'data tidak tersedia';
-            }
-            $apiRequestLog->update([
-                'total_records'=> $totalTarget,
-                'available_records' => $response['total_data'] ??$totalTarget,
-                'status' => $status,
-            ]);
-            foreach ($allFetchedData as $data) {
-                $existingKPC = KPC::find($data['ID_KPC']);
-
-                $kpcData = [
-                    'id' => $data['ID_KPC'],
-                    'id_regional' => $data['Regional'],
-                    'id_kprk' => $data['ID_KPRK'],
-                    'nomor_dirian' => $data['NomorDirian'],
-                    'nama' => $data['Nama_KPC'],
-                    'jenis_kantor' => $data['Jenis_KPC'],
-                    'alamat' => $data['Alamat'],
-                    'koordinat_longitude' => $data['Longitude'],
-                    'koordinat_latitude' => $data['Latitude'],
-                    'nomor_telpon' => $data['Nomor_Telp'],
-                    'nomor_fax' => $data['Nomor_fax'],
-                    'id_provinsi' => $data['Provinsi'],
-                    'id_kabupaten_kota' => $data['Kabupaten_Kota'],
-                    'id_kecamatan' => $data['Kecamatan'],
-                    'id_kelurahan' => $data['Kelurahan'],
-                    'tipe_kantor' => $data['Status_Gedung_Kantor'],
-                    'jam_kerja_senin_kamis' => $data['JamKerjaSeninKamis'],
-                    'jam_kerja_jumat' => $data['JamKerjaJumat'],
-                    'jam_kerja_sabtu' => $data['JamKerjaSabtu'],
-                    'frekuensi_antar_ke_alamat' => $data['FrekuensiAntarKeAlamat'],
-                    'frekuensi_antar_ke_dari_kprk' => $data['FrekuensiKirimDariKeKprk'],
-                    'jumlah_tenaga_kontrak' => $data['JumlahTenagaKontrak'],
-                    'kondisi_gedung' => $data['KondisiGedung'],
-                    'fasilitas_publik_dalam' => $data['FasilitasPublikDalamKantor'],
-                    'fasilitas_publik_halaman' => $data['FasilitasPublikLuarKantor'],
-                    'lingkungan_kantor' => $data['LingkunganKantor'],
-                    'lingkungan_sekitar_kantor' => $data['LingkunganSekitarKantor'],
-                    'tgl_sinkronisasi' => now(),
-                    'tgl_update' => now(),
-                    'jarak_ke_kprk' => $data['Jarak'],
-                ];
-
-                if ($existingKPC) {
-                    $existingKPC->update($kpcData);
-                } else {
-                    KPC::create(array_merge(['id' => $data['ID_KPC']], $kpcData));
-                }
-
-                $totalSumber++;
-                $status = ($totalSumber == $totalTarget) ? 'success' : 'on progress';
-                $updated_payload = $payload->payload ?? '';
-                $jsonData = json_encode($data);
-                $fileSize = strlen($jsonData);
-                $data['size'] = $fileSize;
-                if ($updated_payload !== '' || $payload->payload !== null) {
-                    // Decode existing payload from JSON string to PHP array
-                    $existing_payload = json_decode($updated_payload, true);
-                    $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
-
-                    // Convert new data to object if it's not already an object
-                    $new_payload = (object) $data;
-
-                    // Add new payload object to existing_payload array
-                    $existing_payload[] = $new_payload;
-
-                    // Encode updated payload array back to JSON
-                    $updated_payload = json_encode($existing_payload);
-                } else {
-                    $updated_payload = json_encode([(object) $data]);
-                }
-
-                sleep(2);
-                $payload->update([
-                    'payload' => $updated_payload,
-                ]);
-
-                $apiRequestLog->update([
-                    'successful_records' => $totalSumber,
-                    'status' => $status,
-                ]);
-            }
-
-        } catch (\Exception $e) {
-            dd($e);
+        if (empty($listData)) {
+            Log::info('ProcessSyncKPCJob: daftar_kpc kosong pada page '.$this->page);
+            return;
         }
-    }
-    public function maxAttempts()
-    {
-        return 5; // Set the maximum attempts
+
+        // Ambil hanya nopend, buang null
+        $nopends = array_values(array_filter(array_map(
+            fn($row) => is_array($row) ? ($row['nopend'] ?? null) : null,
+            $listData
+        )));
+
+        // Logging awal
+        $apiRequestLog = ApiRequestLog::create([
+            'komponen'          => 'KPC',
+            'tanggal'           => now(),
+            'ip_address'        => gethostbyname(gethostname()),
+            'platform_request'  => $this->userAgent ?? 'unknown',
+            'successful_records'=> 0,
+            'total_records'     => count($nopends),
+            'available_records' => count($nopends),
+            'status'            => 'Memproses Batch',
+        ]);
+
+        ApiRequestPayloadLog::create([
+            'api_request_log_id' => $apiRequestLog->id,
+            'payload'            => json_encode(['sample_nopend' => $nopends[0] ?? null]),
+        ]);
+
+        // 2) Untuk setiap nopend, call profil_kpc?nopend=...
+        $rows = [];
+        $now = now();
+
+        // batasi agar aman (misal 100 per batch)
+        foreach (array_chunk($nopends, 100) as $chunk) {
+            foreach ($chunk as $nopend) {
+                try {
+                    $profilReq = HttpRequest::create('/', 'GET', [
+                        'end_point' => 'profil_kpc',
+                        'nopend'    => $nopend,
+                    ]);
+                    $profilResp = $api->makeRequest($profilReq);
+                    $payload = $profilResp['data'] ?? null;
+
+                    if (!$payload) continue;
+
+                    // Normalisasi: API bisa return array atau objek tunggal
+                    $item = is_array($payload) && Arr::isAssoc($payload) ? $payload
+                         : (is_array($payload) && !empty($payload) ? $payload[0] : null);
+
+                    if (!$item) continue;
+
+                    // 3) Mapping field API → kolom DB (SESUAIKAN DENGAN SHEMA KAMU)
+                    $row = [
+                        // Primary/unique key: kamu tadi bilang id pakai id_kpc
+                        // kalau unique-nya di 'id_kpc', maka jadikan ini kolom unique di DB.
+                        'id_kpc'                  => $item['ID_KPC']          ?? $item['id_kpc'] ?? null,
+                        'nopend'                  => $item['NoPend']          ?? $item['nopend'] ?? null,
+                        'id_regional'             => $item['Regional']        ?? null,
+                        'id_kprk'                 => $item['ID_KPRK']         ?? null,
+                        'nomor_dirian'            => $item['NomorDirian']     ?? null,
+                        'nama'                    => $item['Nama_KPC']        ?? $item['nama'] ?? null,
+                        'jenis_kantor'            => $item['Jenis_KPC']       ?? null,
+                        'alamat'                  => $item['Alamat']          ?? null,
+                        'koordinat_longitude'     => $item['Longitude']       ?? null,
+                        'koordinat_latitude'      => $item['Latitude']        ?? null,
+                        'nomor_telpon'            => $item['Nomor_Telp']      ?? null,
+                        'nomor_fax'               => $item['Nomor_fax']       ?? null,
+                        'id_provinsi'             => $item['Provinsi']        ?? null,
+                        'id_kabupaten_kota'       => $item['Kabupaten_Kota']  ?? null,
+                        'id_kecamatan'            => $item['Kecamatan']       ?? null,
+                        'id_kelurahan'            => $item['Kelurahan']       ?? null,
+                        'tipe_kantor'             => $item['Status_Gedung_Kantor'] ?? null,
+                        'jam_kerja_senin_kamis'   => $item['JamKerjaSeninKamis']   ?? null,
+                        'jam_kerja_jumat'         => $item['JamKerjaJumat']        ?? null,
+                        'jam_kerja_sabtu'         => $item['JamKerjaSabtu']        ?? null,
+                        'frekuensi_antar_ke_alamat'       => $item['FrekuensiAntarKeAlamat']  ?? null,
+                        'frekuensi_antar_ke_dari_kprk'    => $item['FrekuensiKirimDariKeKprk']?? null,
+                        'jumlah_tenaga_kontrak'   => $item['JumlahTenagaKontrak'] ?? null,
+                        'kondisi_gedung'          => $item['KondisiGedung']       ?? null,
+                        'fasilitas_publik_dalam'  => $item['FasilitasPublikDalamKantor'] ?? null,
+                        'fasilitas_publik_halaman'=> $item['FasilitasPublikLuarKantor']  ?? null,
+                        'lingkungan_kantor'       => $item['LingkunganKantor']   ?? null,
+                        'lingkungan_sekitar_kantor'=> $item['LingkunganSekitarKantor'] ?? null,
+                        'jarak_ke_kprk'           => $item['Jarak'] ?? null,
+                        'tgl_sinkronisasi'        => $now,
+                        'tgl_update'              => $now,
+                        'created_at'              => $now,
+                        'updated_at'              => $now,
+                    ];
+
+                    // kalau id_kpc kosong tapi nopend ada, kamu bisa pakai 'nopend' sbg unique key alternatif
+                    $rows[] = $row;
+                } catch (\Throwable $th) {
+                    Log::warning('profil_kpc gagal', ['nopend' => $nopend, 'err' => $th->getMessage()]);
+                    // lanjut saja; biar yang lain tetap diproses
+                }
+            }
+
+            // throttle kecil biar aman ke API (opsional)
+            usleep(150000); // 150ms
+        }
+
+        // 4) Upsert per chunk
+        $processed = 0;
+        if (!empty($rows)) {
+            DB::transaction(function () use (&$processed, $rows) {
+                foreach (array_chunk($rows, 500) as $chunk) {
+                    // tentukan unique-by sesuai skema: id_kpc atau nopend
+                    Kpc::upsert(
+                        $chunk,
+                        ['id_kpc'], // <- unique key di DB
+                        [
+                            'nopend','id_regional','id_kprk','nomor_dirian','nama','jenis_kantor','alamat',
+                            'koordinat_longitude','koordinat_latitude','nomor_telpon','nomor_fax',
+                            'id_provinsi','id_kabupaten_kota','id_kecamatan','id_kelurahan','tipe_kantor',
+                            'jam_kerja_senin_kamis','jam_kerja_jumat','jam_kerja_sabtu',
+                            'frekuensi_antar_ke_alamat','frekuensi_antar_ke_dari_kprk',
+                            'jumlah_tenaga_kontrak','kondisi_gedung','fasilitas_publik_dalam',
+                            'fasilitas_publik_halaman','lingkungan_kantor','lingkungan_sekitar_kantor',
+                            'jarak_ke_kprk','tgl_sinkronisasi','tgl_update','updated_at'
+                        ]
+                    );
+                    $processed += count($chunk);
+                }
+            });
+        }
+
+        $apiRequestLog->update([
+            'successful_records' => $processed,
+            'status'             => $processed > 0 ? 'success' : 'no_data',
+        ]);
     }
 
-    public function backoff()
-    {
-        return 10; // Set the delay in seconds before retrying the job
-    }
-    public function timeout()
-{
-    return 0; // No timeout for this job
-}
-
+    public function maxAttempts() { return 5; }
+    public function backoff() { return 10; }
+    public function timeout() { return 0; }
 }

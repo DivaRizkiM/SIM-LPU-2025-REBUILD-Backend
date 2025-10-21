@@ -794,24 +794,51 @@ class SyncApiController extends Controller
     public function syncKPC(Request $request)
     {
         try {
-            $endpoint = 'daftar_kpc';
-            $endpointProfile = 'profil_kpc';
-            $userAgent = $request->header('User-Agent');
+            $endpointList = 'daftar_kpc';
+            $perPage = 1000;
 
+            // probe total dari daftar_kpc
+            $api = new ApiController();
+            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
+                'end_point' => $endpointList,
+                'page'      => 1,
+                'per_page'  => $perPage,
+            ]);
+            $first = $api->makeRequest($probeReq);
+
+            $total = $first['total_data'] ?? (is_array($first['data'] ?? null) ? count($first['data']) : 0);
+            if ($total <= 0) {
+                return response()->json(['status' => 'NO_DATA', 'message' => 'Tidak ada data KPC'], 200);
+            }
+
+            $pages = (int) ceil($total / $perPage);
+
+            // log aktivitas (perbaiki labelnya biar konsisten)
             UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi KPC',
-                'modul' => 'KPC',
-                'id_user' => $this->auth(),
+                'modul'     => 'KPC',
+                'id_user'   => optional(Auth::user())->id,
             ]);
 
-            // Job induk saja; batch dibuat di dalam job
-            FetchKPCProfilesChunkJob::dispatch($endpoint, $endpointProfile, $userAgent);
+            // dispatch per halaman daftar_kpc (BUKAN profil)
+            for ($p = 1; $p <= $pages; $p++) {
+                ProcessSyncKPCJob::dispatch(
+                    endpointList: $endpointList,
+                    userAgent: $request->header('User-Agent'),
+                    page: $p,
+                    perPage: $perPage
+                );
+            }
 
             return response()->json([
-                'status' => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang diproses',
+                'status'        => 'IN_PROGRESS',
+                'message'       => 'Jobs dispatched',
+                'total_records' => $total,
+                'pages'         => $pages,
+                'per_page'      => $perPage,
             ], 200);
+
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Terjadi kesalahan: '.$e->getMessage()], 500);
         }
