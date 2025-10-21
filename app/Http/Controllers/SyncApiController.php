@@ -798,22 +798,47 @@ class SyncApiController extends Controller
             $endpointProfile = 'profil_kpc';
             $userAgent = $request->header('User-Agent');
 
-            UserLog::create([
-                'timestamp' => now(),
-                'aktifitas' => 'Sinkronisasi KPC',
-                'modul' => 'KPC',
-                'id_user' => $this->auth(),
+            // probe untuk mengetahui total data
+            $perPage = 1000;
+            $apiController = new ApiController();
+            $probeReq = \Illuminate\Http\Request::create('/', 'GET', [
+                'end_point' => $endpoint,
+                'page' => 1,
+                'per_page' => $perPage,
             ]);
+            $firstResp = $apiController->makeRequest($probeReq);
+            $total = $firstResp['total_data'] ?? (is_array($firstResp['data']) ? count($firstResp['data']) : 0);
 
-            // Job induk saja; batch dibuat di dalam job
-            FetchKPCProfilesChunkJob::dispatch($endpoint, $endpointProfile, $userAgent);
+            if ($total <= 0) {
+                return response()->json(['status' => 'NO_DATA', 'message' => 'Tidak ada data untuk disinkronisasi'], 200);
+            }
+
+            $pages = (int) ceil($total / $perPage);
+
+            // Log aktivitas user singkat
+            $userLog = [
+                'timestamp' => now(),
+                'aktifitas' => 'Sinkronisasi Kecamatan',
+                'modul' => 'Kecamatan',
+                'id_user' => Auth::user(),
+            ];
+            UserLog::create($userLog);
+
+            // Dispatch job per halaman
+            for ($p = 1; $p <= $pages; $p++) {
+                ProcessSyncKPCJob::dispatch($endpointProfile, $userAgent, $p, $perPage);
+            }
 
             return response()->json([
                 'status' => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang diproses',
+                'message' => 'Sinkronisasi sedang diproses (jobs dispatched)',
+                'total_records' => $total,
+                'pages' => $pages,
+                'per_page' => $perPage,
             ], 200);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Terjadi kesalahan: '.$e->getMessage()], 500);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
 
