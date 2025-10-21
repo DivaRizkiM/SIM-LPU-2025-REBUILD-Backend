@@ -32,6 +32,7 @@ use App\Jobs\ProcessSyncMitraLpuJob;
 use App\Jobs\ProcessSyncProduksiJob;
 use App\Models\ApiRequestPayloadLog;
 use Illuminate\Support\Facades\Auth;
+use App\Jobs\FetchKPCProfilesChunkJob;
 use App\Jobs\ProcessSyncPendapatanJob;
 use App\Jobs\ProcessSyncPetugasKCPJob;
 use App\Jobs\ProcessSyncBiayaPrognosaJob;
@@ -805,7 +806,7 @@ class SyncApiController extends Controller
             ]);
 
             // Job induk saja; batch dibuat di dalam job
-            SyncKPCFanoutJob::dispatch($endpoint, $endpointProfile, $userAgent);
+            FetchKPCProfilesChunkJob::dispatch($endpoint, $endpointProfile, $userAgent);
 
             return response()->json([
                 'status' => 'IN_PROGRESS',
