@@ -2,19 +2,20 @@
 
 namespace App\Jobs;
 
-use App\Http\Controllers\ApiController;
-use App\Models\ApiLog;
 use App\Models\Kpc;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
+use App\Models\Kprk;
+use App\Models\ApiLog;
 use Jenssegers\Agent\Agent;
 use App\Models\ApiRequestLog;
-use App\Models\ApiRequestPayloadLog;
+use Illuminate\Bus\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\ApiRequestPayloadLog;
+use Illuminate\Queue\SerializesModels;
+use App\Http\Controllers\ApiController;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 
 class ProcessSyncKPCJob implements ShouldQueue
 {
@@ -47,65 +48,68 @@ class ProcessSyncKPCJob implements ShouldQueue
             $totalSumber = 0;
 
             $apiController = new ApiController();
-            // Ambil daftar KPC lokal yang id_provinsi nya null
-            $localKpcs = Kpc::whereNull('id_provinsi')->get();
-            if ($localKpcs->isEmpty()) {
-                // tidak ada KPC yang perlu diproses
-                return;
+            $urlRequest = $this->endpoint;
+            $request = request();
+            $request->merge(['end_point' => $urlRequest]);
+
+            $response = $apiController->makeRequest($request);
+
+            $dataKCU = $response['data'] ?? [];
+
+            if (!$dataKCU) {
+                return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
             }
+            $apiRequestLog = ApiRequestLog::create([
+                'komponen' => 'KPC',
+                'tanggal' => now(),
+                'ip_address' => $serverIpAddress,
+                'platform_request' => $platform_request,
+                'successful_records' => 0,
+                'available_records' => 0,
+                'total_records' => 0,
+                'status' => 'Memuat Data',
+            ]);
+           $payload = ApiRequestPayloadLog::create([
+                'api_request_log_id' => $apiRequestLog->id,
+                'payload' => null, // Store the payload as JSON
+            ]);
 
-            // kita akan mem-fetch profil detail dari remote untuk tiap nopend lokal
-            $response = null;
-            $dataKPC = []; // placeholder untuk kompatibilitas variable name di bawah
+            foreach ($dataKCU as $data) {
+                $urlRequest = $this->endpointProfile . '?nopend=' . $data['nopend'];
 
-            foreach ($dataKPC as $data) {
-                // sebelumnya iterasi berdasarkan response daftar_kpc,
-                // sekarang kita iterasi berdasarkan KPC lokal yang id_provinsi null
-            }
+                $request->merge(['end_point' => $urlRequest]);
 
-            // iterasi lokalKpcs -> panggil profil untuk tiap nopend
-            foreach ($localKpcs as $local) {
-                $nopend = $local->id;
-                $urlRequest = $this->endpointProfile . '?nopend=' . $nopend;
-                $req = request();
-                $req->merge(['end_point' => $urlRequest]);
+                $response = $apiController->makeRequest($request);
 
-                $resp = $apiController->makeRequest($req);
-                $profileData = $resp['data'] ?? [];
-                if (empty($profileData)) {
-                    continue;
+                $profileKPC = $response['data'] ?? [];
+
+                if (!$profileKPC) {
+                    return response()->json(['message' => 'Terjadi kesalahan: sync error'], 500);
                 }
-                foreach ($profileData as $p) {
-                    $allFetchedData[] = $p;
-                    $totalTarget++;
+
+                foreach ($profileKPC as $data) {
+                    if (empty($profileKPC)) {
+                        continue;
+                    } else {
+                        $allFetchedData[] = $data;
+                        $totalTarget++;
+                    }
                 }
-                // simpan last response untuk available_records fallback
-                $response = $resp;
             }
+
 
             $status = 'on progress';
             if ($allFetchedData == []) {
                 $status = 'data tidak tersedia';
             }
-
-            // Initialize $apiRequestLog before using it
-            $apiRequestLog = ApiRequestLog::firstOrCreate(
-                ['endpoint' => $this->endpoint],
-                [
-                    'total_records' => 0,
-                    'available_records' => 0,
-                    'status' => $status,
-                    'successful_records' => 0
-                ]
-            );
-
-            $apiRequestLog->update([    
+            $apiRequestLog->update([
                 'total_records'=> $totalTarget,
-                'available_records' => $response['total_data'] ?? $totalTarget,
+                'available_records' => $response['total_data'] ??$totalTarget,
                 'status' => $status,
             ]);
             foreach ($allFetchedData as $data) {
-                $existingKPC = Kpc::find($data['ID_KPC']);
+                $existingKPC = KPC::find($data['ID_KPC']);
+
                 $kpcData = [
                     'id' => $data['ID_KPC'],
                     'id_regional' => $data['Regional'],
@@ -140,19 +144,13 @@ class ProcessSyncKPCJob implements ShouldQueue
                 ];
 
                 if ($existingKPC) {
-		$existingKPC->update($kpcData);
+                    $existingKPC->update($kpcData);
                 } else {
-                    Kpc::create($kpcData);
+                    KPC::create(array_merge(['id' => $data['ID_KPC']], $kpcData));
                 }
 
                 $totalSumber++;
                 $status = ($totalSumber == $totalTarget) ? 'success' : 'on progress';
-                // Retrieve or create the payload object before using it
-                $payload = ApiRequestPayloadLog::firstOrCreate(
-                    ['kpc_id' => $data['ID_KPC']],
-                    ['payload' => null]
-                );
-
                 $updated_payload = $payload->payload ?? '';
                 $jsonData = json_encode($data);
                 $fileSize = strlen($jsonData);
@@ -183,11 +181,9 @@ class ProcessSyncKPCJob implements ShouldQueue
                     'successful_records' => $totalSumber,
                     'status' => $status,
                 ]);
-
             }
 
         } catch (\Exception $e) {
-            DB::rollBack();
             dd($e);
         }
     }
@@ -204,4 +200,5 @@ class ProcessSyncKPCJob implements ShouldQueue
 {
     return 0; // No timeout for this job
 }
+
 }
