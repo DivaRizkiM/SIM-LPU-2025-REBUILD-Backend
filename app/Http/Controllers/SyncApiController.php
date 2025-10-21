@@ -824,7 +824,11 @@ class SyncApiController extends Controller
 
             // dispatch per halaman daftar_kpc (BUKAN profil)
             for ($p = 1; $p <= $pages; $p++) {
-                DispatchSyncKpcPageJob::dispatch($p, $perPage, $request->userAgent());
+                DispatchSyncKpcPageJob::dispatch(
+                    page: $p,
+                    perPage: $perPage,
+                    userAgent: $request->header('User-Agent')
+                );
             }
 
             return response()->json([
