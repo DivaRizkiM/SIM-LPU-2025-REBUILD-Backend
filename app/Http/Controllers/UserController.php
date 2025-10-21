@@ -213,6 +213,7 @@ class UserController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'nama' => 'required|string|max:255',
+                'nip' => 'string|max:255|unique:user|nullable',
                 'username' => 'required|string|max:255|unique:user',
                 'password' => 'required|string|min:6',
                 'id_grup' => 'required|integer',
@@ -228,6 +229,7 @@ class UserController extends Controller
 
             $user = User::create([
                 'nama' => $request->get('nama'),
+                'nip' => $request->get('nip'),
                 'username' => $request->get('username'),
                 'password_hash' => bcrypt($request->get('password')),
                 'id_grup' => $request->get('id_grup'),
