@@ -794,32 +794,27 @@ class SyncApiController extends Controller
         try {
             $endpoint = 'daftar_kpc';
             $endpointProfile = 'profil_kpc';
-            $idKpc = $request->id_kpc;
-            $serverIpAddress = gethostbyname(gethostname());
-            $agent = new Agent();
             $userAgent = $request->header('User-Agent');
-            $agent->setUserAgent($userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
-            $userLog = [
+
+            UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi KPC',
                 'modul' => 'KPC',
                 'id_user' => $this->auth(),
-            ];
+            ]);
 
-            $userLog = UserLog::create($userLog);
-            $job = ProcessSyncKPCJob::dispatch($endpoint, $endpointProfile, $userAgent);
+            // Job induk saja; batch dibuat di dalam job
+            SyncKPCFanoutJob::dispatch($endpoint, $endpointProfile, $userAgent);
 
             return response()->json([
                 'status' => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang di proses',
+                'message' => 'Sinkronisasi sedang diproses',
             ], 200);
-        } catch (\Exception $e) {
-
-            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Terjadi kesalahan: '.$e->getMessage()], 500);
         }
     }
+
     public function syncBiayaAtribusi(Request $request)
     {
         try {
