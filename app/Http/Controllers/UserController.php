@@ -263,8 +263,9 @@ class UserController extends Controller
             // Validasi input
             $validator = Validator::make($request->all(), [
                 'nama' => 'string|max:255',
-                'username' => 'string|max:255|unique:user',
-                'password' => 'string|min:6',
+                'nip' => 'string|max:255',
+                'username' => 'string|max:255',
+                'password' => 'string|nullable|min:6',
                 'id_grup' => 'integer',
                 'id_status' => 'integer',
             ]);
@@ -279,7 +280,15 @@ class UserController extends Controller
 
             // Cari dan perbarui data User berdasarkan ID
             $user = User::find($id);
-
+            if($user->username != $request->input('username')){
+                $existingUser = User::where('username', $request->input('username'))->first();
+                if ($existingUser) {
+                    return response()->json([
+                        'status' => 'ERROR',
+                        'message' => 'Username already exists',
+                    ], Response::HTTP_CONFLICT);
+                }
+            }
             if (!$user) {
                 return response()->json(['status' => 'ERROR', 'message' => 'User not found'], 404);
             }
@@ -287,6 +296,7 @@ class UserController extends Controller
             // Memperbarui bidang-bidang yang ada dalam permintaan, jika ada
             $user->nama = $request->input('nama') ?? $user->nama;
             $user->username = $request->input('username') ?? $user->username;
+            $user->nip = $request->input('nip') ?? $user->nip;
 
             // Periksa apakah password dikirim dalam permintaan dan setel ulang password_hash jika iya
             if ($request->has('password')) {
@@ -365,7 +375,7 @@ class UserController extends Controller
         // Membuat payload JWT dengan menggunakan Collection
         $claims = new Collection(['api_key' => true]);
         $access_token = Session::get('accessToken');
-        $payload = new Payload($claims, $expiration);
+        $payload = new Payload($claims, $access_token);
 
         // Menghasilkan token JWT dengan payload yang diberikan
         $token = JWTAuth::encode($payload);
