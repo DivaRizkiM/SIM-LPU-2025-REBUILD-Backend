@@ -87,8 +87,8 @@ class ProcessKpcChunkJob implements ShouldQueue {
     foreach (array_chunk($rows, 500) as $chunk) {
       DB::table('kpc')->upsert(
         $chunk,
-        ['id_kpc'],
-        ['nopend','id_regional','id_kprk','nomor_dirian','nama','jenis_kantor','alamat',
+        ['id'],
+        ['id_regional','id_kprk','nomor_dirian','nama','jenis_kantor','alamat',
         'koordinat_longitude','koordinat_latitude','nomor_telpon','nomor_fax',
         'id_provinsi','id_kabupaten_kota','id_kecamatan','id_kelurahan','tipe_kantor',
         'jam_kerja_senin_kamis','jam_kerja_jumat','jam_kerja_sabtu',
