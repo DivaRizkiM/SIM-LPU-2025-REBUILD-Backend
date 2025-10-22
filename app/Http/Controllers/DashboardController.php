@@ -15,7 +15,7 @@ class DashboardController extends Controller
     public function RealisasiBiaya(Request $request)
     {
         // Mendapatkan tahun sekarang
-        $tahunSekarang = date('Y');
+        $tahunSekarang = $request->get('tahun', date('Y')   );
 
         $id_regional = $request->get('id_regional');
         $id_kprk     = $request->get('id_kprk');
@@ -95,7 +95,7 @@ class DashboardController extends Controller
     public function RealisasiPendapatan(Request $request)
     {
         // Mendapatkan tahun sekarang
-        $tahunSekarang = date('Y');
+        $tahunSekarang = $request->get('tahun', date('Y'));
 
         $id_regional = $request->get('id_regional');
         $id_kprk     = $request->get('id_kprk');
@@ -169,9 +169,9 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#636CCB'; // Warna default jika kategori tidak ditemukan
     }
 
-    public static function getRealisasiDanaLpu(array $filterParams = [])
+    public static function getRealisasiDanaLpu(array $filterParams = [], int $tahun = null)
     {
-        $tahun = date('Y');
+        $tahun = $tahun ?? date('Y');
 
         $detailColMap = [
             'id_regional' => 'produksi.id_regional',
@@ -328,13 +328,14 @@ class DashboardController extends Controller
 
     public function RealisasiAnggaran(Request $request)
     {
+        $tahun = (int) $request->input('tahun', date('Y'));
         $filterParams = [
             'id_regional' => $request->input('id_regional', ''),
             'id_kprk'     => $request->input('id_kprk', ''),
             'id_kpc'      => $request->input('id_kpc', ''),
         ];
 
-        $realisasiDanaLpu = $this->getRealisasiDanaLpu($filterParams);
+        $realisasiDanaLpu = $this->getRealisasiDanaLpu($filterParams, $tahun);
         $realisasiDanaLpu = array_replace(array_fill(1, 12, 0.0), $realisasiDanaLpu);
 
         $q1 = (float)$realisasiDanaLpu[1] + (float)$realisasiDanaLpu[2] + (float)$realisasiDanaLpu[3];
