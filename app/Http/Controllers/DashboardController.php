@@ -15,7 +15,7 @@ class DashboardController extends Controller
     public function RealisasiBiaya(Request $request)
     {
         // Mendapatkan tahun sekarang
-        $tahunSekarang = date('Y');
+        $tahunSekarang = $request->get('tahun', date('Y')   );
 
         $id_regional = $request->get('id_regional');
         $id_kprk     = $request->get('id_kprk');
@@ -95,7 +95,7 @@ class DashboardController extends Controller
     public function RealisasiPendapatan(Request $request)
     {
         // Mendapatkan tahun sekarang
-        $tahunSekarang = date('Y');
+        $tahunSekarang = $request->get('tahun', date('Y'));
 
         $id_regional = $request->get('id_regional');
         $id_kprk     = $request->get('id_kprk');
@@ -169,9 +169,9 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#636CCB'; // Warna default jika kategori tidak ditemukan
     }
 
-    public static function getRealisasiDanaLpu(array $filterParams = [])
+    public static function getRealisasiDanaLpu(array $filterParams = [], int $tahun = null)
     {
-        $tahun = date('Y');
+        $tahun = $tahun ?? date('Y');
 
         $detailColMap = [
             'id_regional' => 'produksi.id_regional',
@@ -252,46 +252,90 @@ class DashboardController extends Controller
     }
     public function RealisasiBiayaChart(Request $request)
     {
-        $tahun = date('Y');
-        $realisasiDanaLpu = $this->getRealisasiDanaLpu($request->all());
+        $tahun = (int) $request->input('tahun', date('Y'));
+        $view  = $request->input('view', 'bulan'); // 'bulan' | 'triwulan'
 
-        $bulanLabel = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-
-        // opsional: bikin 12 warna sederhana (atau hapus 'fill' biar pakai default)
-        $colors = [
-            '#0e7490','#1d4ed8','#15803d','#c2410c',
-            '#7c3aed','#0369a1','#ca8a04','#b91c1c',
-            '#2563eb','#16a34a','#ea580c','#475569',
+        $filters = [
+            'id_regional' => $request->input('id_regional', ''),
+            'id_kprk'     => $request->input('id_kprk', ''),
+            'id_kpc'      => $request->input('id_kpc', ''),
         ];
 
+        // 3 seri (bulanan)
+        $subsidi     = $this->getRealisasiDanaLpu($filters, $tahun);   // 1..12
+        $biaya       = $this->getBiayaPerBulan($filters, $tahun);      // 1..12
+        $pendapatan  = $this->getPendapatanPerBulan($filters, $tahun); // 1..12
+
+        if ($view === 'triwulan') {
+            // agregasi ke Q1..Q4
+            $subsidi    = $this->toTriwulan($subsidi);     // 1..4
+            $biaya      = $this->toTriwulan($biaya);       // 1..4
+            $pendapatan = $this->toTriwulan($pendapatan);  // 1..4
+
+            $twLabel = ['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'];
+            $data = [];
+            foreach (range(1,4) as $i) {
+                $data[] = [
+                    'category'   => $twLabel[$i-1],
+                    'subsidi'    => (float)($subsidi[$i] ?? 0),
+                    'biaya'      => (float)($biaya[$i] ?? 0),
+                    'pendapatan' => (float)($pendapatan[$i] ?? 0),
+                ];
+            }
+
+            return response()->json([
+                'chartType'  => 'bar-multi',
+                'title'      => "Realisasi Triwulanan {$tahun}",
+                'data'       => $data,
+                'series'     => [
+                    ['key' => 'subsidi',    'label' => 'Subsidi Operasional'],
+                    ['key' => 'biaya',      'label' => 'Biaya'],
+                    ['key' => 'pendapatan', 'label' => 'Pendapatan'],
+                ],
+                'yAxisLabel' => 'Rupiah',
+                'xAxisLabel' => 'Triwulan',
+            ]);
+        }
+
+        // default: bulanan
+        $bulanLabel = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         $data = [];
-        foreach (range(1, 12) as $i) {
+        foreach (range(1,12) as $i) {
             $data[] = [
-                'category' => $bulanLabel[$i - 1],
-                'value'    => (float) ($realisasiDanaLpu[$i] ?? 0),
-                'fill'     => $colors[$i - 1],
+                'category'   => $bulanLabel[$i-1],
+                'subsidi'    => (float)($subsidi[$i] ?? 0),
+                'biaya'      => (float)($biaya[$i] ?? 0),
+                'pendapatan' => (float)($pendapatan[$i] ?? 0),
             ];
         }
 
         return response()->json([
-            'chartType'  => 'bar',
-            'title'      => "Realisasi Subsidi Operasional LPU Tahun {$tahun}",
+            'chartType'  => 'bar-multi',
+            'title'      => "Realisasi Bulanan {$tahun}",
             'data'       => $data,
+            'series'     => [
+                ['key' => 'subsidi',    'label' => 'Subsidi Operasional'],
+                ['key' => 'biaya',      'label' => 'Biaya'],
+                ['key' => 'pendapatan', 'label' => 'Pendapatan'],
+            ],
             'yAxisLabel' => 'Rupiah',
             'xAxisLabel' => 'Bulan',
         ]);
     }
 
 
+
+
     public function RealisasiAnggaran(Request $request)
     {
+        $tahun = (int) $request->input('tahun', date('Y'));
         $filterParams = [
             'id_regional' => $request->input('id_regional', ''),
             'id_kprk'     => $request->input('id_kprk', ''),
             'id_kpc'      => $request->input('id_kpc', ''),
         ];
 
-        $realisasiDanaLpu = $this->getRealisasiDanaLpu($filterParams);
+        $realisasiDanaLpu = $this->getRealisasiDanaLpu($filterParams, $tahun);
         $realisasiDanaLpu = array_replace(array_fill(1, 12, 0.0), $realisasiDanaLpu);
 
         $q1 = (float)$realisasiDanaLpu[1] + (float)$realisasiDanaLpu[2] + (float)$realisasiDanaLpu[3];
@@ -340,5 +384,79 @@ class DashboardController extends Controller
         ];
 
         return $colors[$kategori] ?? '#374151'; // Warna default jika kategori tidak ditemukan
+    }
+
+    private function getBiayaPerBulan(array $filterParams = [], int $tahun = null): array
+    {
+        $tahun = $tahun ?? date('Y');
+
+        $map = [
+            'id_regional' => 'verifikasi_biaya_rutin.id_regional',
+            'id_kprk'     => 'verifikasi_biaya_rutin.id_kprk',
+            'id_kpc'      => 'verifikasi_biaya_rutin.id_kpc',
+        ];
+        $apply = function ($q) use ($filterParams, $map) {
+            foreach ($filterParams as $k => $v) {
+                if ($v !== null && $v !== '' && isset($map[$k])) $q->where($map[$k], $v);
+            }
+        };
+
+        $rows = DB::table('verifikasi_biaya_rutin')
+            ->join('verifikasi_biaya_rutin_detail','verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin','=','verifikasi_biaya_rutin.id')
+            ->where('verifikasi_biaya_rutin.tahun', $tahun)
+            ->when(true, fn($q) => $apply($q))
+            ->groupBy(DB::raw('CAST(verifikasi_biaya_rutin_detail.bulan AS UNSIGNED)'))
+            ->selectRaw('CAST(verifikasi_biaya_rutin_detail.bulan AS UNSIGNED) AS bulan_num, COALESCE(SUM(verifikasi_biaya_rutin_detail.pelaporan),0) AS biaya')
+            ->get();
+
+        $agg = array_fill(1, 12, 0.0);
+        foreach ($rows as $r) {
+            $b = (int)$r->bulan_num;
+            if ($b>=1 && $b<=12) $agg[$b] = (float)$r->biaya;
+        }
+        return $agg;
+    }
+
+    private function getPendapatanPerBulan(array $filterParams = [], int $tahun = null): array
+    {
+        $tahun = $tahun ?? date('Y');
+
+        $map = [
+            'id_regional' => 'produksi.id_regional',
+            'id_kprk'     => 'produksi.id_kprk',
+            'id_kpc'      => 'produksi.id_kpc',
+        ];
+        $apply = function ($q) use ($filterParams, $map) {
+            foreach ($filterParams as $k => $v) {
+                if ($v !== null && $v !== '' && isset($map[$k])) $q->where($map[$k], $v);
+            }
+        };
+
+        $rows = DB::table('produksi')
+            ->join('produksi_detail','produksi_detail.id_produksi','=','produksi.id')
+            ->where('produksi.tahun_anggaran', $tahun)
+            ->when(true, fn($q) => $apply($q))
+            ->groupBy(DB::raw('CAST(produksi.bulan AS UNSIGNED)'))
+            ->selectRaw('CAST(produksi.bulan AS UNSIGNED) AS bulan_num, COALESCE(SUM(produksi_detail.pelaporan),0) AS pendapatan')
+            ->get();
+
+        $agg = array_fill(1, 12, 0.0);
+        foreach ($rows as $r) {
+            $b = (int)$r->bulan_num;
+            if ($b>=1 && $b<=12) $agg[$b] = (float)$r->pendapatan;
+        }
+        return $agg;
+    }
+
+    private function toTriwulan(array $byMonth): array
+    {
+        // input: [1..12] float
+        $byMonth = array_replace(array_fill(1,12,0.0), $byMonth);
+        return [
+            1 => (float)$byMonth[1] + (float)$byMonth[2] + (float)$byMonth[3],
+            2 => (float)$byMonth[4] + (float)$byMonth[5] + (float)$byMonth[6],
+            3 => (float)$byMonth[7] + (float)$byMonth[8] + (float)$byMonth[9],
+            4 => (float)$byMonth[10] + (float)$byMonth[11] + (float)$byMonth[12],
+        ];
     }
 }
