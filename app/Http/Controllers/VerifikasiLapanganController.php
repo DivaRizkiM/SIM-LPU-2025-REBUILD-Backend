@@ -43,177 +43,140 @@ class VerifikasiLapanganController extends Controller
                     'error_code' => 'INPUT_VALIDATION_ERROR',
                 ], 422);
             }
-            $offset = request()->get('offset', 0);
-            $limit = request()->get('limit', 10);
-            $search = request()->get('search', '');
-            $getOrder = request()->get('order', '');
-            $idProvinsi = request()->get('id_provinsi', '');
-            $idKab = request()->get('id_kabupaten_kota', '');
-            $idKec = request()->get('id_kecamatan', '');
-            $idKel = request()->get('id_kelurahan', '');
-            $tahun = request()->get('tahun', '');
-            $bulan = request()->get('bulan', '');
 
-            $defaultOrder = $getOrder ? $getOrder : "pencatatan_kantor.id_kelurahan ASC";
+            $offset     = (int) $request->get('offset', 0);
+            $limit      = (int) $request->get('limit', 10);
+            $search     = (string) $request->get('search', '');
+            $getOrder   = (string) $request->get('order', '');
+            $idProvinsi = $request->get('id_provinsi', '');
+            $idKab      = $request->get('id_kabupaten_kota', '');
+            $idKec      = $request->get('id_kecamatan', '');
+            $idKel      = $request->get('id_kelurahan', '');
+            $tahun      = $request->get('tahun', '');
+            $bulan      = $request->get('bulan', '');
+
+            $defaultOrder = $getOrder ?: "pencatatan_kantor.id_kelurahan ASC";
             $orderMappings = [
-                'namaASC' => 'kprk.nama ASC',
-                'namaDESC' => 'kprk.nama DESC',
-                'triwulanASC' => 'biaya_atribusi.triwulan ASC',
-                'triwulanDESC' => 'biaya_atribusi.triwulan DESC',
-                'tahunASC' => 'biaya_atribusi.tahun_anggaran ASC',
-                'tahunDESC' => 'biaya_atribusi.tahun_anggaran DESC',
+                'namaASC'       => 'kprk.nama ASC',                 // pastikan kolom ini valid kalau dipakai
+                'namaDESC'      => 'kprk.nama DESC',
+                'triwulanASC'   => 'biaya_atribusi.triwulan ASC',   // hati-hati: tabel/kolom ini tidak muncul di query kamu
+                'triwulanDESC'  => 'biaya_atribusi.triwulan DESC',
+                'tahunASC'      => 'biaya_atribusi.tahun_anggaran ASC',
+                'tahunDESC'     => 'biaya_atribusi.tahun_anggaran DESC',
             ];
-
-            // Set the order based on the mapping or use the default order if not found
             $order = $orderMappings[$getOrder] ?? $defaultOrder;
-            // Validation rules for input parameters
-            $validOrderitems = implode(',', array_keys($orderMappings));
-            $rules = [
-                'offset' => 'integer|min:0',
-                'limit' => 'integer|min:1',
-                'order' => "in:$validOrderitems",
-            ];
 
             $validator = Validator::make([
                 'offset' => $offset,
-                'limit' => $limit,
-                'order' => $getOrder,
-            ], $rules);
-
+                'limit'  => $limit,
+                'order'  => $getOrder,
+            ], [
+                'offset' => 'integer|min:0',
+                'limit'  => 'integer|min:1',
+                'order'  => 'in:' . implode(',', array_keys($orderMappings)),
+            ]);
             if ($validator->fails()) {
                 return response()->json([
-                    'status' => 'ERROR',
+                    'status'  => 'ERROR',
                     'message' => 'Invalid input parameters',
-                    'errors' => $validator->errors(),
+                    'errors'  => $validator->errors(),
                 ], 400);
             }
-            // dd($order);
-            $query = PencatatanKantor::select([
-                'pencatatan_kantor.*',
-                DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (1, 61, 4) THEN COALESCE(kj.skor,0)
-                            ELSE 0
-                            END), 2) AS aspek_operasional'),
-                DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (31, 36, 43, 67) THEN COALESCE(kj.skor,0)
-                            ELSE 0
-                            END), 2) AS aspek_sarana'),
-                DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya IN (17, 22, 25, 27) THEN COALESCE(kj.skor,0)
-                            ELSE 0
-                            END), 2) AS aspek_wilayah'),
-                DB::raw('ROUND(SUM(CASE
-                            WHEN kt.id_tanya = 15 THEN COALESCE(kj.skor,0)
-                            ELSE 0
-                            END), 2) AS aspek_pegawai'),
-            ])
-                // join('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
-                // join('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
-                // join('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
-                // gunakan LEFT JOIN agar pencatatan tanpa kuis tetap muncul
+
+            $base = PencatatanKantor::query()
                 ->leftJoin('pencatatan_kantor_kuis', 'pencatatan_kantor_kuis.id_parent', '=', 'pencatatan_kantor.id')
                 ->leftJoin('kuis_tanya_kantor as kt', 'pencatatan_kantor_kuis.id_tanya', '=', 'kt.id')
                 ->leftJoin('kuis_jawab_kantor as kj', 'pencatatan_kantor_kuis.id_jawab', '=', 'kj.id')
-                 // join lokasi supaya bisa search dan menampilkan nama
-                 ->leftJoin('kelurahan', 'pencatatan_kantor.id_kelurahan', '=', 'kelurahan.id')
-                 ->leftJoin('kecamatan', 'pencatatan_kantor.id_kecamatan', '=', 'kecamatan.id')
-                 ->leftJoin('kabupaten_kota', 'pencatatan_kantor.id_kabupaten', '=', 'kabupaten_kota.id')
-                 ->leftJoin('provinsi', 'pencatatan_kantor.id_provinsi', '=', 'provinsi.id')
-                // ->where('pencatatan_kantor.jenis', 'Verifikasi Lapangan')
-                // case-insensitive trim match supaya variasi 'survey' / spacing tidak mem-filter keluar data
-                ->whereRaw("LOWER(TRIM(pencatatan_kantor.jenis)) = ?", ['verifikasi lapangan'])
-                 // group by primary key (agregasi per pencatatan_kantor)
-                 ->groupBy('pencatatan_kantor.id');
+                ->leftJoin('kelurahan', 'pencatatan_kantor.id_kelurahan', '=', 'kelurahan.id')
+                ->leftJoin('kecamatan', 'pencatatan_kantor.id_kecamatan', '=', 'kecamatan.id')
+                ->leftJoin('kabupaten_kota', 'pencatatan_kantor.id_kabupaten', '=', 'kabupaten_kota.id')
+                ->leftJoin('provinsi', 'pencatatan_kantor.id_provinsi', '=', 'provinsi.id')
+                ->whereRaw("LOWER(TRIM(pencatatan_kantor.jenis)) = ?", ['verifikasi lapangan']);
 
-            if ($idProvinsi) {
-                $query->where('pencatatan_kantor.id_provinsi', $idProvinsi);
-            }
-            if ($idKab) {
-                $query->where('pencatatan_kantor.id_kabupaten', $idKab);
-            }
-            if ($idKec) {
-                $query->where('pencatatan_kantor.id_kecamatan', $idKec);
-            }
-            if ($idKel) {
-                $query->where('pencatatan_kantor.id_kelurahan', $idKel);
-            }
-            if ($tahun) {
-                $query->whereYear('pencatatan_kantor.created', $tahun);
-            }
-            if ($bulan) {
-                $query->whereMonth('pencatatan_kantor.created', $bulan);
-            }
+            if (!empty($idProvinsi)) $base->where('pencatatan_kantor.id_provinsi', $idProvinsi);
+            if (!empty($idKab))      $base->where('pencatatan_kantor.id_kabupaten', $idKab);
+            if (!empty($idKec))      $base->where('pencatatan_kantor.id_kecamatan', $idKec);
+            if (!empty($idKel))      $base->where('pencatatan_kantor.id_kelurahan', $idKel);
+            if (!empty($tahun))      $base->whereYear('pencatatan_kantor.created', $tahun); // pastikan kolom 'created' memang datetime
+            if (!empty($bulan))      $base->whereMonth('pencatatan_kantor.created', $bulan);
 
             if ($search !== '') {
-                $query->where(function ($query) use ($search) {
-                    $query->where('kelurahan.nama', 'like', "%$search%")
-                        ->orWhere('kecamatan.nama', 'like', "%$search%")
-                        ->orWhere('kabupaten_kota.nama', 'like', "%$search%")
-                        ->orWhere('provinsi.nama', 'like', "%$search%");
+                $base->where(function ($q) use ($search) {
+                    $q->where('kelurahan.nama', 'like', "%$search%")
+                    ->orWhere('kecamatan.nama', 'like', "%$search%")
+                    ->orWhere('kabupaten_kota.nama', 'like', "%$search%")
+                    ->orWhere('provinsi.nama', 'like', "%$search%");
                 });
             }
 
-            // hitung total setelah semua filter/search diterapkan
-            $total_data = $query->count();
+            $total_data = (clone $base)->distinct()->count('pencatatan_kantor.id');
 
-            $result = $query
-            ->orderByRaw($order)
-            ->offset($offset)
-            ->limit($limit)->get();
-            // dd($result);
+            $query = (clone $base)
+                ->select([
+                    'pencatatan_kantor.*',
+                    DB::raw('ROUND(SUM(CASE WHEN kt.id_tanya IN (1,61,4) THEN COALESCE(kj.skor,0) ELSE 0 END), 2) AS aspek_operasional'),
+                    DB::raw('ROUND(SUM(CASE WHEN kt.id_tanya IN (31,36,43,67) THEN COALESCE(kj.skor,0) ELSE 0 END), 2) AS aspek_sarana'),
+                    DB::raw('ROUND(SUM(CASE WHEN kt.id_tanya IN (17,22,25,27) THEN COALESCE(kj.skor,0) ELSE 0 END), 2) AS aspek_wilayah'),
+                    DB::raw('ROUND(SUM(CASE WHEN kt.id_tanya = 15 THEN COALESCE(kj.skor,0) ELSE 0 END), 2) AS aspek_pegawai'),
+                ])
+                ->groupBy('pencatatan_kantor.id')     // agregasi per pencatatan
+                ->orderByRaw($order)
+                ->offset($offset)
+                ->limit($limit);
+
+            $result = $query->get();
+
             $data = [];
             foreach ($result as $item) {
-                $kpc = Kpc::find($item->id_kpc);
-                $provinsi = Provinsi::find($item->id_provinsi);
-                // dd($provinsi);
+                $kpc       = Kpc::find($item->id_kpc);
+                $provinsi  = Provinsi::find($item->id_provinsi);
                 $kabupaten = KabupatenKota::find($item->id_kabupaten);
                 $kecamatan = Kecamatan::find($item->id_kecamatan);
                 $kelurahan = Kelurahan::find($item->id_kelurahan);
-                // dd($item->id_kelurahan);
-                $petugas = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
-                $nilai_akhir = (
-                    $item->aspek_operasional +
-                    $item->aspek_sarana +
-                    $item->aspek_wilayah +
-                    $item->aspek_pegawai
-                ) / 4; // Membagi dengan jumlah aspek (4)
-                $kesimpulan = ($nilai_akhir < 50 ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU' : 'Melanjutkan Mendapatkan Subsidi Operasional LPU');
-                $data[] = [
-                    'id' => $item->id,
-                    'tanggal' => $item->created,
-                    'petugas_list' => $petugas,
-                    'kode_pos' => $kpc->nomor_dirian ?? "",
-                    'provinsi' => $provinsi->nama ?? "",
-                    'kabupaten' => $kabupaten->nama ?? "",
-                    'kecamatan' => $kecamatan->nama ?? "",
-                    'kelurahan' => $kelurahan->nama ?? "",
-                    'kantor_lpu' => $kpc->nama ?? "",
-                    'aspek_operasional' => round($item->aspek_operasional),
-                    'aspek_sarana' => round($item->aspek_sarana),
-                    'aspek_wilayah' => round($item->aspek_wilayah),
-                    'aspek_pegawai' => round($item->aspek_pegawai),
-                    'nilai_akhir' => round($nilai_akhir),
-                    'kesimpulan' => $kesimpulan,
-                ];
+                $petugas   = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
 
+                $nilai_akhir = (
+                    ($item->aspek_operasional ?? 0) +
+                    ($item->aspek_sarana ?? 0) +
+                    ($item->aspek_wilayah ?? 0) +
+                    ($item->aspek_pegawai ?? 0)
+                ) / 4;
+
+                $data[] = [
+                    'id'               => $item->id,
+                    'tanggal'          => $item->created,
+                    'petugas_list'     => $petugas,
+                    'kode_pos'         => $kpc->nomor_dirian ?? "",
+                    'provinsi'         => $provinsi->nama ?? "",
+                    'kabupaten'        => $kabupaten->nama ?? "",
+                    'kecamatan'        => $kecamatan->nama ?? "",
+                    'kelurahan'        => $kelurahan->nama ?? "",
+                    'kantor_lpu'       => $kpc->nama ?? "",
+                    'aspek_operasional'=> round($item->aspek_operasional),
+                    'aspek_sarana'     => round($item->aspek_sarana),
+                    'aspek_wilayah'    => round($item->aspek_wilayah),
+                    'aspek_pegawai'    => round($item->aspek_pegawai),
+                    'nilai_akhir'      => round($nilai_akhir),
+                    'kesimpulan'       => ($nilai_akhir < 50
+                        ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU'
+                        : 'Melanjutkan Mendapatkan Subsidi Operasional LPU'),
+                ];
             }
 
-            // dd($data);
-
             return response()->json([
-                'status' => 'SUCCESS',
-                'offset' => $offset,
-                'limit' => $limit,
-                'order' => $getOrder,
-                'search' => $search,
+                'status'     => 'SUCCESS',
+                'offset'     => $offset,
+                'limit'      => $limit,
+                'order'      => $getOrder,
+                'search'     => $search,
                 'total_data' => $total_data,
-                'data' => $data,
+                'data'       => $data,
             ]);
         } catch (\Exception $e) {
-
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+
     public function export(Request $request)
     {
         try {
