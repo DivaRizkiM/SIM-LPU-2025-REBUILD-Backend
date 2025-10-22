@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Kpc;
+use App\Models\Mitra;
 use Illuminate\Http\Request;
-use App\Models\VerifikasiBiayaRutinDetail;
 use App\Models\ProduksiDetail;
 use Illuminate\Support\Facades\DB;
+use App\Models\VerifikasiBiayaRutinDetail;
 use App\Models\Produksi; // Pastikan untuk mengimpor model yang sesuai
 
 
@@ -347,6 +349,23 @@ class DashboardController extends Controller
         
         $datatargetanggaran = $this->getTargetAnggaran();
         $nominal = (float) ($datatargetanggaran->nominal ?? 0);
+        if($filterParams['id_regional'] || $filterParams['id_kprk'] || $filterParams['id_kpc']) {
+            $countLPU = Kpc::when($filterParams['id_regional'], function ($query, $id_regional) {
+                return $query->where('id_regional', $id_regional);
+            })
+            ->when($filterParams['id_kprk'], function ($query, $id_kprk) {
+                return $query->where('id_kprk', $id_kprk);
+            })
+            ->when($filterParams['id_kpc'], function ($query, $id_kpc) {
+                return $query->where('id', $id_kpc);
+            })
+            ->count();
+            if($countLPU > 0) {
+                $nominal = $nominal / Kpc::count() * $countLPU;
+            } else {
+                $nominal = 0;
+            }
+        }
 
         $sudahterealisasi = $nominal > 0 ? ($totalRealisasi / $nominal) * 100 : 0;
         $sudahterealisasi = round($sudahterealisasi, 2);
@@ -458,5 +477,54 @@ class DashboardController extends Controller
             3 => (float)$byMonth[7] + (float)$byMonth[8] + (float)$byMonth[9],
             4 => (float)$byMonth[10] + (float)$byMonth[11] + (float)$byMonth[12],
         ];
+    }
+    
+    public function countKPC(Request $request)
+    {
+        try {
+            $filterParams = [
+                'id_regional' => $request->get('id_regional', ''),
+                'id_kprk' => $request->get('id_kprk', ''),
+                'id' => $request->get('id_kpc', ''),
+                'id_provinsi' => $request->get('id_provinsi', ''),
+                'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
+                'id_kecamatan' => $request->get('id_kecamatan', '')
+            ];
+            $kpcQuery = Kpc::query();
+            foreach ($filterParams as $key => $value) {
+                if ($value) {
+                    $kpcQuery->where($key, $value);
+                }
+            }
+            $count = $kpcQuery->count();
+            return response()->json(['status' => 'SUCCESS', 'count' => $count]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function countMitra(Request $request)
+    {
+        try {
+            $filterParams = [
+                'id_regional' => $request->get('id_regional', ''),
+                'id_kprk' => $request->get('id_kprk', ''),
+                'id' => $request->get('id_kpc', ''),
+                'id_provinsi' => $request->get('id_provinsi', ''),
+                'id_kabupaten_kota' => $request->get('id_kabupaten_kota', ''),
+                'id_kecamatan' => $request->get('id_kecamatan', '')
+            ];
+            $kpcQuery = Kpc::whereNotNull('nomor_dirian');
+            foreach ($filterParams as $key => $value) {
+                if ($value) {
+                    $kpcQuery->where($key, $value);
+                }
+            }
+            $mitraQuery = Mitra::query()->whereIn('id_kpc', $kpcQuery->pluck('id'));
+            $count = $mitraQuery->count();
+            return response()->json(['status' => 'SUCCESS', 'count' => $count]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
     }
 }
