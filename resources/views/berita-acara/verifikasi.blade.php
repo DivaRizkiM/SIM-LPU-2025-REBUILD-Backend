@@ -67,7 +67,7 @@
     .signature-footer {
       position: fixed;
       left: 14mm; right: 14mm;
-      bottom: 18mm;                         /* sejajar margin bawah @page */
+      bottom: 17mm;                         /* sejajar margin bawah @page */
     }
     .signature-wrap {
       width: 100%;
