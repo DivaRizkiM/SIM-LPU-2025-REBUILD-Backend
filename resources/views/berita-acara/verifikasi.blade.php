@@ -1,582 +1,256 @@
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-   <head>
-      <title>BERITA ACARA VERIFIKASI</title>
-      <meta http-equiv="X-UA-Compatible" content="IE=edge">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style type="text/css">
-         #outlook a { padding:0; }
-         .ReadMsgBody { width:100%; }
-         .ExternalClass { width:100%; }
-         .ExternalClass * { line-height:100%; }
-         body { margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%; }
-         table, td { border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt; }
-         img { border:0;height:auto;line-height:100%; outline:none;text-decoration:none;-ms-interpolation-mode:bicubic; }
-         p { display:block;margin:13px 0; }
-      </style>
-      <style type="text/css">
-         @media only screen and (max-width:480px) {
-         @-ms-viewport { width:320px; }
-         @viewport { width:320px; }
-         }
-      </style>
-      <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">
-      <link href="https://fonts.googleapis.com/css?family=Cabin:400,700" rel="stylesheet" type="text/css">
-      <link href="https://fonts.googleapis.com/css?family=arial" rel="stylesheet" type="text/css">
-      <style type="text/css">
-         @import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);
-         @import url(https://fonts.googleapis.com/css?family=Cabin:400,700);
-         @import url(https://fonts.googleapis.com/css?family=arial);
-      </style>
-      <!--<![endif]-->
-      <style type="text/css">
-         @media only screen and (min-width:480px) {
-         .mj-column-per-100 { width:100% !important; max-width: 100%; }
-         .mj-column-per-50 { width:50% !important; max-width: 50%; }
-         }
-      </style>
-      <style type="text/css">
-      </style>
-      <style type="text/css">.hide_on_mobile { display: none !important;}
-         @media only screen and (min-width: 480px) { .hide_on_mobile { display: block !important;} }
-         .hide_section_on_mobile { display: none !important;}
-         @media only screen and (min-width: 480px) { .hide_section_on_mobile { display: table !important;} }
-         .hide_on_desktop { display: block !important;}
-         @media only screen and (min-width: 480px) { .hide_on_desktop { display: none !important;} }
-         .hide_section_on_desktop { display: table !important;}
-         @media only screen and (min-width: 480px) { .hide_section_on_desktop { display: none !important;} }
-         [owa] .mj-column-per-100 {
-         width: 100%!important;
-         }
-         [owa] .mj-column-per-50 {
-         width: 50%!important;
-         }
-         [owa] .mj-column-per-33 {
-         width: 33.333333333333336%!important;
-         }
-         p {
-         margin: 0px;
-         }
-         @media only print and (min-width:480px) {
-         .mj-column-per-100 { width:100%!important; }
-         .mj-column-per-40 { width:40%!important; }
-         .mj-column-per-60 { width:60%!important; }
-         .mj-column-per-50 { width: 50%!important; }
-         mj-column-per-33 { width: 33.333333333333336%!important; }
-         }
-      </style>
-   </head>
-   <body style="background-color:#FFFFFF;">
-      <div style="background-color:#FFFFFF;">
-         <div style="margin-top: 15px;">
-         </div>
-         <div style="Margin:0px auto;max-width:600px;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
-               <tbody>
-                  <tr>
-                     <td style="border:0px #080808 solid;direction:ltr;font-size:0px;padding:9px 0px 9px 0px;text-align:center;vertical-align:top;">
-                        <div class="mj-column-per-100 outlook-group-fix" style="font-size:13px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                           <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;"><span style="font-size: 12px; font-family: arial, sans-serif;"><strong>BERITA ACARA VERIFIKASI</strong></span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;"><span style="font-size: 12px; font-family: arial, sans-serif;"><strong>PENYELENGARAAN LAYANAN POS UNIVERSAL {{$identity}}</strong></span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;"><span style="font-size: 12px; font-family: arial, sans-serif;"><strong>TRIWULAN {{ $triwulan }} TAHUN ANGGARAN {{ $tahun_anggaran }}</strong></span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                           </table>
-                        </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
-         </div>
-         <div style="Margin:0px auto;max-width:600px;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
-               <tbody>
-                  <tr>
-                     <td style="border-left:0px #000000 solid;border-right:0px #000000 solid;border-top:1px #000000 solid;direction:ltr;font-size:0px;padding:9px 0px 9px 0px;text-align:center;vertical-align:top;">
-                        <div class="mj-column-per-100 outlook-group-fix" style="font-size:13px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                           <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-top:0px #000000 solid;vertical-align:top;" width="100%">
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:25px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: justify;">
-                                          <span style="font-size: 12px;"> &nbsp; &nbsp; &nbsp; &nbsp; Pada hari ini {{$tanggal_perjanjian_2_terbilang}}, Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos Indonesia (Persero) selaku pihak yang diverifikasi, telah menerima :</span></p>
-                                             <table border="0" style="margin-top: 10px;">
-                                                <tr>
-                                                   <td style="width:20px;height: 40px;font-size: 12px; font-family: arial, sans-serif;vertical-align: top;">
-                                                      1.
-                                                   </td>
-                                                   <td style="text-align: justify;vertical-align: top;">
-                                                      <span style="font-size: 12px; font-family: arial, sans-serif;">
-                                                         Berita Acara Pelaksanaan Tindak Lanjut Hasil Audit Internal PT Pos Indonesia ( Persero ) Nomor : {{ $nomor_verifikasi_2 }} Tanggal {{ substr($tanggal_kuasa, 8, 2) }} {{ $bulanKuasa }} {{ substr($tanggal_kuasa, 0, 4) }}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>BERITA ACARA VERIFIKASI</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* =========================================
+       HALAMAN / PRINT
+       ========================================= */
+    @page {
+      size: A4;
+      margin: 12mm 14mm;     /* margin luar halaman */
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      line-height: 1.35;
+      -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+    }
 
-                                                      </span>
-                                                   </td>
-                                                </tr>
-                                                <tr>
-                                                   <td style="width:20px;vertical-align: top;">
-                                                      <span style="font-size: 12px; font-family: arial, sans-serif;">
-                                                         2.
-                                                      </span>
-                                                   </td>
-                                                   <td style="vertical-align: top;">
-                                                      <span style="font-size: 12px; font-family: arial, sans-serif;">
-                                                      Hasil Verifikasi Penyelenggaraan Layanan Pos Universal Triwulan{{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} Nomor: {{$nomor_verifikasi }}/DJPPI.2/PI.01.01/{{ $bulannoverif }}/{{$tahun_anggaran }} Tanggal {{ substr($tanggal_perjanjian_2, 8, 2) }} {{ $bulan_perjanjian_2_terbilang }} {{ substr($tanggal_perjanjian_2, 0, 4) }}
-                                                      </span>
-                                                   </td>
-                                                </tr>
-                                             </table>
+    /* wadah halaman (sisakan ruang tanda tangan di bawah) */
+    .page {
+      width: 210mm;
+      margin: 0 auto;
+      padding: 0 0 85mm 0;   /* ruang untuk area tanda tangan (besar) */
+    }
 
-                                          </span>
-                                       </p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-                                       <p><span style="font-size: 12px;"><span style="font-family: arial, sans-serif;"> &nbsp; &nbsp; &nbsp; &nbsp; 1. SO LPU Berdasarkan Laporan</span></span></p>
-                                       <table style="margin-left: 40px;width: 90%;">
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>a. </td>
-                                             <td>Biaya Langsung</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($biaya_langsung, 0, ',', '.') }}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>b. </td>
-                                             <td>Biaya Atribusi</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($total_pelaporan_biaya_atribusi, 0, ',', '.') }}
-</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>c. </td>
-                                             <td>Pendapatan</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($totalpelaporanpendapatan, 0, ',', '.') }}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>d. </td>
-                                             <td>Total SO LPU Berdasarkan Laporan ( a + b - c)	</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td  style="text-align: right;">{{ number_format(round($total_biaya_pelaporan - $totalpelaporanpendapatan), 0, ',', '.') }}
-</td>
-                                           </tr>
-                                       </table>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-                                       <p><span style="font-size: 12px; font-family: arial, sans-serif;"> &nbsp; &nbsp; &nbsp; &nbsp; 2. Koreksi Biaya Hasil Verifikasi</span></p>
+    /* lebar konten disetel 600px mengikuti template awalmu */
+    .container { max-width: 600px; margin: 0 auto; }
 
+    /* =========================================
+       KOP SURAT / HEADER
+       ========================================= */
+    .kop {
+      padding-top: 6mm;             /* tambah ruang dari tepi atas */
+      margin-bottom: 4mm;
+    }
+    .title { text-align: center; font-size: 12px; font-weight: 700; margin: 2px 0; }
+    .divider {
+      border-bottom: 2px solid #000;     /* garis kop surat (tebal) */
+      margin: 6mm 0 3mm;                 /* jarak atas-bawah */
+    }
 
-                                       <table style="margin-left: 40px;width: 90%;">
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>a. </td>
-                                             <td>Biaya Langsung</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <td></td>
+    /* =========================================
+       UTILITAS LAYOUT
+       ========================================= */
+    p { margin: 6px 0; }
+    .mt-6 { margin-top: 6px; } .mt-8 { margin-top: 8px; } .mt-10{ margin-top:10px; }
+    .mt-12{ margin-top:12px; } .mt-15{ margin-top:15px; } .mt-20{ margin-top:20px; }
+    .ml-25{ margin-left:25px; } .ml-40{ margin-left:40px; }
+    .w-93{ width:93%; } .w-90{ width:90%; }
+    table { width: 100%; border-collapse: collapse; }
+    td { vertical-align: top; }
+    .table-compact td { padding: 0; }      /* hemat ruang */
+    .no-break { page-break-inside: avoid; break-inside: avoid; }
 
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi)), 0, ',', '.') }}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>b. </td>
-                                             <td>Biaya Atribusi</td>
+    /* =========================================
+       AREA TANDA TANGAN (FOOTER BESAR, FIXED)
+       ========================================= */
+    .signature-footer {
+      position: fixed;
+      left: 14mm; right: 14mm;
+      bottom: 14mm;                         /* sejajar margin bawah @page */
+    }
+    .signature-wrap {
+      width: 100%;
+      border-top: 1px solid #000;           /* garis pemisah dari konten */
+      padding-top: 8mm;                     /* ruang atas area TTD */
+    }
+    .sig-col {
+      width: 50%;
+      text-align: center;
+      padding: 0 8px;
+    }
+    .sig-role  { font-size: 12px; }
+    .sig-jab   { font-size: 12px; margin-bottom: 24mm; }  /* tinggi area tanda tangan */
+    .sig-nama  { font-size: 12px; font-weight: 600; text-decoration: underline; }
 
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <td></td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi, 0, ',', '.') }}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>c. </td>
-                                             <td>Pendapatan</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <td></td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{number_format($totalpelaporanpendapatan - $totalverifikasipendapatan, 0, ',', '.')}}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>d. </td>
-                                             <td>Total SO LPU Hasil Koreksi ( a + b - c)	</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <!-- <td>&nbsp;&nbsp;</td> -->
-                                             <td> </td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td  style="text-align: right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)), 0, ',', '.') }}
-</td>
-                                           </tr>
-                                        </table>
+    /* =========================================
+       PENYESUAI SPASI BLOK AGAR MUAT 1 HALAMAN
+       ========================================= */
+    .intro, .blok1, .blok2, .blok3, .faktor, .pernyataan, .nominal, .penutup {
+      margin-bottom: 6px;
+    }
+    /* daftar poin awal (1 & 2) dibuat tabel kecil agar rapat */
+    .list-awal td:first-child { width: 18px; }
+    .list-awal td { font-size: 12px; }
 
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-
-
-                                       <table style="margin-left: 25px;width: 93%;">
-                                       <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                          <td>3. </td>
-                                          <td>Total SO LPU Triwulan{{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} (1.d - 2.d)</td>
-                                          <td>&nbsp;</td>
-                                          <td>&nbsp;</td>
-                                          <td>&nbsp;</td>
-                                          <td>&nbsp; &nbsp; &nbsp; &nbsp; </td>
-                                          <!-- <td>&nbsp;</td> -->
-                                          <td>:</td>
-                                          <td>Rp. </td>
-                                          <td style="text-align: right;">{{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan) - (($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan))), 0, ',', '.') }}
-</td>
-                                          </tr>
-                                       </table>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-                                       <p>     <span style="font-family: arial, sans-serif;"> <span style="font-size: 12px;"> &nbsp; &nbsp; &nbsp; &nbsp; Namun ditemukenali faktor pengurang pembayaran Dana Penyelenggaraan Layanan Pos Universal sebagai berikut :</span></span></p>
-                                       <p> </p>
-                                       <table style="margin-left: 25px;width: 93%;padding-left: 15px;">
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>a. </td>
-                                             <td>Penalti penyediaan prasarana</td>
-                                             <td style="width: 30px;"></td>
-                                             <td>:</td>
-                                             <td>Rp.</td>
-                                             <td style="text-align: right;">{{ number_format($penalti_penyediaan_prasarana, 0, ',', '.') }}</td>
-                                          </tr>
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>b. </td>
-                                             <td>Penalti waktu tempuh kiriman surat</td>
-
-                                             <td style="width: 30px;"></td>
-                                             <td>:</td>
-                                             <td>Rp.</td>
-                                             <td style="text-align: right;">{{ number_format($penalti_waktu_tempuh_kiriman_surat, 0, ',', '.') }}</td>
-                                          </tr>
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>c. </td>
-                                             <td>Faktor pengurang atas pembayaran 80%</td>
-                                             <td style="width: 30px;"></td>
-                                             <td>:</td>
-                                             <td>Rp.</td>
-                                             <td style="text-align: right;">{{ number_format($totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.') }}</td>
-                                          </tr>
-                                          @php
-                                              $bulanArray = [
-                                                  1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                                                  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-                                              ];
-                                              $pembayaranBulan = [
-                                                  $bulan_pertama => $totalpembayaranbulanpertama ?? 0,
-                                                  $bulan_pertama + 1 => $totalpembayaranbulankedua ?? 0,
-                                                  $bulan_terakhir => $totalpembayaranbulanketiga ?? 0,
-                                              ];
-                                          @endphp
-                                          @for ($i = $bulan_pertama; $i <= $bulan_terakhir; $i++)
-                                              @php
-                                                  $namaBulan = $bulanArray[$i];
-                                                  $pembayaran = $pembayaranBulan[$i] ?? 0;
-                                              @endphp
-                                              @if($pembayaran > 0)
-                                                  <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                                      <td></td>
-                                                      <td style="padding-left: 30px;">{{ $namaBulan }}</td>
-                                                      <td style="width: 30px;"></td>
-                                                      <td>:</td>
-                                                      <td>Rp.</td>
-                                                      <td style="text-align: right;">{{ number_format($pembayaran, 0, ',', '.') }}</td>
-                                                  </tr>
-                                              @endif
-                                          @endfor
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>d. </td>
-                                             <td>Jumlah Faktor Pengurang</td>
-                                             <td style="width: 30px;"></td>
-                                             <td>:</td>
-                                             <td>Rp.</td>
-                                             <td style="text-align: right;">{{ number_format($total_faktor + $totalpembayaranbulankedua + $totalpembayaranbulanpertama, 0, ',', '.') }}</td>
-                                          </tr>
-                                       </table>
-                                       <p> </p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-<p style="text-align: justify;">
-    <span style="font-size: 12px; font-family: arial, sans-serif;">
-        &nbsp; &nbsp; &nbsp; &nbsp; Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos
-    </span>
-    <span style="font-family: arial, sans-serif; font-size: 12px;">
-        Indonesia (Persero) menyatakan Penyelenggaraan Layanan Pos Universal Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} telah dilaksanakan sesuai dengan Perjanjian Kerja Nomor : {{$no_perjanjian_kerja }} dan Nomor {{$no_perjanjian_kerja_2 }} tanggal {{ $tanggal }} jo Adendum Perjanjian Kerja Nomor : 3124/DJPP1.2/HK.04.02/11/2023 dan Nomor PKS293/DIRUT/1123 tanggal 14 November 2023, sehingga dapat dibayarkan Dana Penyelenggaraan Layanan Pos Universal untuk Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} sebesar:
-    </span>
-</p>
-
-                                       <p> </p>
-                                       <table style="margin-left: 25px;width: 93%;padding-left: 15px;">
-                                          <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>a. </td>
-                                             <td>SO LPU Berdasarkan Hasil Verifikasi</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
-
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan)) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)), 0, ',', '.') }}
-</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>b. </td>
-                                             <td>Faktor Pengurang</td>
-
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{number_format($total_faktor + $totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.')}}</td>
-                                           </tr>
-                                           <tr style="font-size: 12px; font-family: arial, sans-serif;">
-                                             <td>c. </td>
-                                             <td>SO LPU dibayarkan</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;&nbsp;</td>
-                                             <td>&nbsp;</td>
-                                             <td>:</td>
-                                             <td>Rp. </td>
-                                             <td style="text-align: right;">{{ number_format(round((($total_biaya_pelaporan - $totalpelaporanpendapatan)) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)) - ($total_faktor + $totalpembayaranbulanpertama + $totalpembayaranbulankedua)), 0, ',', '.') }}
-</td>
-                                           </tr>
-                                        </table>
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;"><strong>{{ $final_total_terbilang }} Rupiah</strong> </span></p>
-                                       <p> </p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:0px 15px 5px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p> </p>
-                                       <p style="text-align: justify;">
-    <span style="font-size: 12px; font-family: arial, sans-serif;">
-        &nbsp; &nbsp; &nbsp; &nbsp;  Demikian Berita Acara ini dibuat dalam dua rangkap untuk digunakan sebagai persyaratan pembayaran Dana Penyelenggaraan Layanan Pos Universal Triwulan {{$triwulan }} Tahun {{$tahun_anggaran }}.
-    </span>
-</p>
-
-                                       <p> </p>
-                                    </div>
-                                 </td>
-                              </tr>
-                           </table>
-                        </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
-         </div>
-         <div style="Margin:0px auto;max-width:600px;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
-               <tbody>
-                  <tr>
-                     <td style="border-bottom:0px #000000 solid;border-left:0px #000000 solid;border-right:0px #000000 solid;direction:ltr;font-size:0px;padding:9px 0px 9px 0px;text-align:center;vertical-align:top;">
-                        <div class="mj-column-per-50 outlook-group-fix" style="font-size:13px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                           <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">PIHAK KEDUA</span></p>
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">Direktur Utama</span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:35px 15px 15px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;margin-top:40px;"> </p>
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">{{$nama_pihak_kedua}}</span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                           </table>
-                        </div>
-                        <div class="mj-column-per-50 outlook-group-fix" style="font-size:13px;text-align:left;direction:ltr;display:inline-block;vertical-align:top;width:100%;">
-                           <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="vertical-align:top;" width="100%">
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:15px 15px 15px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">PIHAK PERTAMA</span></p>
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">Kuasa Pengguna Anggaran</span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                              <tr>
-                                 <td align="left" style="font-size:0px;padding:35px 15px 15px 15px;word-break:break-word;">
-                                    <div style="font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:11px;line-height:1.5;text-align:left;color:#000000;">
-                                       <p style="text-align: center; margin-top:40px;"> </p>
-                                       <p style="text-align: center;"><span style="font-family: arial, sans-serif; font-size: 12px;">{{$nama_pihak_pertama}}</span></p>
-                                    </div>
-                                 </td>
-                              </tr>
-                           </table>
-                        </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
-         </div>
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+      <!-- ===== KOP SURAT ===== -->
+      <div class="kop">
+        <div class="title">BERITA ACARA VERIFIKASI</div>
+        <div class="title">PENYELENGARAAN LAYANAN POS UNIVERSAL {{$identity}}</div>
+        <div class="title">TRIWULAN {{ $triwulan }} TAHUN ANGGARAN {{ $tahun_anggaran }}</div>
+        <div class="divider"></div>
       </div>
-   </body>
+
+      <!-- ===== PARAGRAF PEMBUKA ===== -->
+      <div class="intro no-break">
+        <p style="text-align: justify;">
+          &nbsp; &nbsp; &nbsp; &nbsp; Pada hari ini Tanggal {{ substr($tanggal_kuasa, 8, 2) }} {{ $bulanKuasa }} {{ substr($tanggal_kuasa, 0, 4) }}, Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos Indonesia (Persero) selaku pihak yang diverifikasi, telah menerima :
+        </p>
+        <table class="list-awal mt-10" style="width:auto;">
+          <tr>
+            <td>1.</td>
+            <td>Berita Acara Pelaksanaan Tindak Lanjut Hasil Audit Internal PT Pos Indonesia ( Persero ) Nomor : {{ $nomor_verifikasi_2 }} Tanggal {{ substr($tanggal_kuasa, 8, 2) }} {{ $bulanKuasa }} {{ substr($tanggal_kuasa, 0, 4) }}</td>
+          </tr>
+          <tr>
+            <td>2.</td>
+            <td>Hasil Verifikasi Penyelenggaraan Layanan Pos Universal Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} Nomor: {{$nomor_verifikasi }}/DJPPI.2/PI.01.01/{{ $bulannoverif }}/{{$tahun_anggaran }} Tanggal {{ substr($tanggal_perjanjian_2, 8, 2) }} {{ $bulan_perjanjian_2_terbilang }} {{ substr($tanggal_perjanjian_2, 0, 4) }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ===== 1. SO LPU Berdasarkan Laporan ===== -->
+      <div class="blok1">
+        <p><strong>&nbsp; &nbsp; &nbsp; &nbsp; 1. SO LPU Berdasarkan Laporan</strong></p>
+        <table class="ml-40 w-90 table-compact">
+          <tr><td>a.</td><td>Biaya Langsung</td><td style="width:10px;"></td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($biaya_langsung, 0, ',', '.') }}</td></tr>
+          <tr><td>b.</td><td>Biaya Atribusi</td><td></td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($total_pelaporan_biaya_atribusi, 0, ',', '.') }}</td></tr>
+          <tr><td>c.</td><td>Pendapatan</td><td></td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($totalpelaporanpendapatan, 0, ',', '.') }}</td></tr>
+          <tr><td>d.</td><td>Total SO LPU Berdasarkan Laporan ( a + b - c)</td><td></td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format(round($total_biaya_pelaporan - $totalpelaporanpendapatan), 0, ',', '.') }}</td></tr>
+        </table>
+      </div>
+
+      <!-- ===== 2. Koreksi Biaya Hasil Verifikasi ===== -->
+      <div class="blok2">
+        <p><strong>&nbsp; &nbsp; &nbsp; &nbsp; 2. Koreksi Biaya Hasil Verifikasi</strong></p>
+        <table class="ml-40 w-90 table-compact">
+          <tr><td>a.</td><td>Biaya Langsung</td><td></td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi)), 0, ',', '.') }}</td></tr>
+          <tr><td>b.</td><td>Biaya Atribusi</td><td></td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi, 0, ',', '.') }}</td></tr>
+          <tr><td>c.</td><td>Pendapatan</td><td></td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format($totalpelaporanpendapatan - $totalverifikasipendapatan, 0, ',', '.') }}</td></tr>
+          <tr><td>d.</td><td>Total SO LPU Hasil Koreksi ( a + b - c)</td><td></td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)), 0, ',', '.') }}</td></tr>
+        </table>
+      </div>
+
+      <!-- ===== 3. Total SO LPU & Faktor Pengurang ===== -->
+      <div class="blok3">
+        <table class="ml-25 w-93 table-compact">
+          <tr>
+            <td style="width:16px;">3.</td>
+            <td><strong>Total SO LPU Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} (1.d - 2.d)</strong></td>
+            <td style="width:10px;">:</td>
+            <td style="width:22px;">Rp.</td>
+            <td style="text-align:right;">
+              {{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan) - (($biaya_langsung - $total_biaya_verifikasi) + ($total_pelaporan_biaya_atribusi - $total_verifikasi_biaya_atribusi) - ($totalpelaporanpendapatan - $totalverifikasipendapatan))), 0, ',', '.') }}
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="faktor">
+        <p class="mt-8" style="text-align: justify;">
+          &nbsp; &nbsp; &nbsp; &nbsp; Namun ditemukenali faktor pengurang pembayaran Dana Penyelenggaraan Layanan Pos Universal sebagai berikut :
+        </p>
+        <table class="ml-25 w-93 table-compact">
+          <tr><td>a.</td><td>Penalti penyediaan prasarana</td><td style="width:10px;">:</td><td style="width:22px;">Rp.</td><td style="text-align:right;">{{ number_format($penalti_penyediaan_prasarana, 0, ',', '.') }}</td></tr>
+          <tr><td>b.</td><td>Penalti waktu tempuh kiriman surat</td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($penalti_waktu_tempuh_kiriman_surat, 0, ',', '.') }}</td></tr>
+          <tr><td>c.</td><td>Faktor pengurang atas pembayaran 80%</td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.') }}</td></tr>
+
+          @php
+            $bulanArray = [1 => 'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+            $pembayaranBulan = [
+              $bulan_pertama => $totalpembayaranbulanpertama ?? 0,
+              $bulan_pertama + 1 => $totalpembayaranbulankedua ?? 0,
+              $bulan_terakhir => $totalpembayaranbulanketiga ?? 0,
+            ];
+          @endphp
+          @for ($i = $bulan_pertama; $i <= $bulan_terakhir; $i++)
+            @php $namaBulan = $bulanArray[$i]; $p=$pembayaranBulan[$i] ?? 0; @endphp
+            @if($p > 0)
+              <tr><td></td><td style="padding-left:30px;">{{ $namaBulan }}</td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($p, 0, ',', '.') }}</td></tr>
+            @endif
+          @endfor
+
+          <tr><td>d.</td><td>Jumlah Faktor Pengurang</td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format($total_faktor + $totalpembayaranbulankedua + $totalpembayaranbulanpertama, 0, ',', '.') }}</td></tr>
+        </table>
+      </div>
+
+      <!-- ===== Pernyataan ===== -->
+      <div class="pernyataan">
+        <p style="text-align: justify;">
+          &nbsp; &nbsp; &nbsp; &nbsp; Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos Indonesia (Persero) menyatakan Penyelenggaraan Layanan Pos Universal Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} telah dilaksanakan sesuai dengan Perjanjian Kerja Nomor : {{$no_perjanjian_kerja }} dan Nomor {{$no_perjanjian_kerja_2 }} tanggal {{ $tanggal }} jo Adendum Perjanjian Kerja Nomor : 3124/DJPP1.2/HK.04.02/11/2023 dan Nomor PKS293/DIRUT/1123 tanggal 14 November 2023, sehingga dapat dibayarkan Dana Penyelenggaraan Layanan Pos Universal untuk Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} sebesar:
+        </p>
+      </div>
+
+      <!-- ===== Nominal Final ===== -->
+      <div class="nominal">
+        <table class="ml-25 w-93 table-compact">
+          <tr>
+            <td style="width:16px;">a.</td><td>SO LPU Berdasarkan Hasil Verifikasi</td><td style="width:10px;">:</td><td style="width:22px;">Rp.</td>
+            <td style="text-align:right;">
+              {{ number_format(round(($total_biaya_pelaporan - $totalpelaporanpendapatan)) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)), 0, ',', '.') }}
+            </td>
+          </tr>
+          <tr>
+            <td>b.</td><td>Faktor Pengurang</td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">{{ number_format($total_faktor + $totalpembayaranbulanpertama + $totalpembayaranbulankedua, 0, ',', '.') }}</td>
+          </tr>
+          <tr>
+            <td>c.</td><td>SO LPU dibayarkan</td><td>:</td><td>Rp.</td>
+            <td style="text-align:right;">
+              {{ number_format(round((($total_biaya_pelaporan - $totalpelaporanpendapatan)) - (($total_biaya_pelaporan - $total_pelaporan_biaya_atribusi) - ($verifikasi_biaya_rutin + $verifikasi_biaya_rutin_prognosa) + ($total_pelaporan_biaya_atribusi - ($verifikasi_biaya_atribusi + $verifikasi_biaya_atribusi_prognosa)) - ($totalpelaporanpendapatan - $totalverifikasipendapatan)) - ($total_faktor + $totalpembayaranbulanpertama + $totalpembayaranbulankedua)), 0, ',', '.') }}
+            </td>
+          </tr>
+        </table>
+        <p class="mt-10" style="text-align:center;"><strong>{{ $final_total_terbilang }} Rupiah</strong></p>
+      </div>
+
+      <div class="penutup">
+        <p style="text-align: justify;">
+          &nbsp; &nbsp; &nbsp; &nbsp; Demikian Berita Acara ini dibuat dalam dua rangkap untuk digunakan sebagai persyaratan pembayaran Dana Penyelenggaraan Layanan Pos Universal Triwulan {{$triwulan }} Tahun {{$tahun_anggaran }}.
+        </p>
+      </div>
+    </div>
+
+    <!-- ===== TANDA TANGAN: FOOTER BESAR & TETAP DI BAWAH ===== -->
+    <div class="signature-footer no-break">
+      <div class="">
+        <table>
+          <tr>
+            <td class="sig-col">
+              <div class="sig-role">PIHAK KEDUA</div>
+              <div class="sig-jab">Direktur Utama</div>
+              <div class="sig-nama">{{$nama_pihak_kedua}}</div>
+            </td>
+            <td class="sig-col">
+              <div class="sig-role">PIHAK PERTAMA</div>
+              <div class="sig-jab">Kuasa Pengguna Anggaran</div>
+              <div class="sig-nama">{{$nama_pihak_pertama}}</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</body>
 </html>
-<script>
-   window.print();
-</script>
-<style type="text/css" media="print">
-  @page
-  {
-    size:  auto;   /* auto is the initial value */
-    margin: 0mm;  /* this affects the margin in the printer settings */
- }
-
- html
- {
-    background-color: #FFFFFF;
-    margin: 0px;  /* this affects the margin on the html before sending to printer */
- }
-
-</style>
