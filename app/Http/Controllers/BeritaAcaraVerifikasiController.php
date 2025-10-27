@@ -341,6 +341,7 @@ class BeritaAcaraVerifikasiController extends Controller
                 'tanggal'                         => $tanggal,
                 'bulanKuasa'                      => $bulan_kuasa_terbilang,
                 'tanggal_kuasa'                   => $tanggal_kuasa,
+                'tanggal_kuasa_terbilang'         => $tanggal_kuasa_terbilang,
                 'nomor_verifikasi'                => $no_verifikasi,
                 'nomor_verifikasi_2'              => $no_verifikasi_2,
                 'triwulan'                        => $triwulan,

@@ -19,7 +19,7 @@
       background: #fff;
       color: #000;
       font-family: Arial, Helvetica, sans-serif;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.35;
       -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -29,7 +29,7 @@
     .page {
       width: 210mm;
       margin: 0 auto;
-      padding: 0 0 85mm 0;   /* ruang untuk area tanda tangan (besar) */
+      padding: 0 0 65mm 0;   /* ruang untuk area tanda tangan (besar) */
     }
 
     /* lebar konten disetel 600px mengikuti template awalmu */
@@ -39,12 +39,12 @@
        KOP SURAT / HEADER
        ========================================= */
     .kop {
-      padding-top: 6mm;             /* tambah ruang dari tepi atas */
+      padding-top: 10mm;             /* tambah ruang dari tepi atas */
       margin-bottom: 4mm;
     }
     .title { text-align: center; font-size: 12px; font-weight: 700; margin: 2px 0; }
     .divider {
-      border-bottom: 2px solid #000;     /* garis kop surat (tebal) */
+      border-bottom: 1px solid #000;     /* garis kop surat (tebal) */
       margin: 6mm 0 3mm;                 /* jarak atas-bawah */
     }
 
@@ -67,7 +67,7 @@
     .signature-footer {
       position: fixed;
       left: 14mm; right: 14mm;
-      bottom: 14mm;                         /* sejajar margin bawah @page */
+      bottom: 23mm;                         /* sejajar margin bawah @page */
     }
     .signature-wrap {
       width: 100%;
@@ -109,7 +109,7 @@
       <!-- ===== PARAGRAF PEMBUKA ===== -->
       <div class="intro no-break">
         <p style="text-align: justify;">
-          &nbsp; &nbsp; &nbsp; &nbsp; Pada hari ini Tanggal {{ substr($tanggal_kuasa, 8, 2) }} {{ $bulanKuasa }} {{ substr($tanggal_kuasa, 0, 4) }}, Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos Indonesia (Persero) selaku pihak yang diverifikasi, telah menerima :
+          &nbsp; &nbsp; &nbsp; &nbsp; Pada hari ini {{ $tanggal_kuasa_terbilang }}, Kuasa Pengguna Anggaran Subsidi Operasional Layanan Pos Universal dan Direktur Utama PT Pos Indonesia (Persero) selaku pihak yang diverifikasi, telah menerima :
         </p>
         <table class="list-awal mt-10" style="width:auto;">
           <tr>
@@ -125,7 +125,7 @@
 
       <!-- ===== 1. SO LPU Berdasarkan Laporan ===== -->
       <div class="blok1">
-        <p><strong>&nbsp; &nbsp; &nbsp; &nbsp; 1. SO LPU Berdasarkan Laporan</strong></p>
+        <p>&nbsp; &nbsp; &nbsp; &nbsp; 1. SO LPU Berdasarkan Laporan</p>
         <table class="ml-40 w-90 table-compact">
           <tr><td>a.</td><td>Biaya Langsung</td><td style="width:10px;"></td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($biaya_langsung, 0, ',', '.') }}</td></tr>
           <tr><td>b.</td><td>Biaya Atribusi</td><td></td><td>:</td><td>Rp.</td><td style="text-align:right;">{{ number_format($total_pelaporan_biaya_atribusi, 0, ',', '.') }}</td></tr>
@@ -137,7 +137,7 @@
 
       <!-- ===== 2. Koreksi Biaya Hasil Verifikasi ===== -->
       <div class="blok2">
-        <p><strong>&nbsp; &nbsp; &nbsp; &nbsp; 2. Koreksi Biaya Hasil Verifikasi</strong></p>
+        <p>&nbsp; &nbsp; &nbsp; &nbsp; 2. Koreksi Biaya Hasil Verifikasi</p>
         <table class="ml-40 w-90 table-compact">
           <tr><td>a.</td><td>Biaya Langsung</td><td></td><td>:</td><td>Rp.</td>
             <td style="text-align:right;">{{ number_format(round(($biaya_langsung - $total_biaya_verifikasi)), 0, ',', '.') }}</td></tr>
@@ -155,7 +155,7 @@
         <table class="ml-25 w-93 table-compact">
           <tr>
             <td style="width:16px;">3.</td>
-            <td><strong>Total SO LPU Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} (1.d - 2.d)</strong></td>
+            <td>Total SO LPU Triwulan {{$triwulan }} Tahun Anggaran {{$tahun_anggaran }} (1.d - 2.d)</td>
             <td style="width:10px;">:</td>
             <td style="width:22px;">Rp.</td>
             <td style="text-align:right;">
@@ -239,12 +239,12 @@
             <td class="sig-col">
               <div class="sig-role">PIHAK KEDUA</div>
               <div class="sig-jab">Direktur Utama</div>
-              <div class="sig-nama">{{$nama_pihak_kedua}}</div>
+              <div class="">{{$nama_pihak_kedua}}</div>
             </td>
             <td class="sig-col">
               <div class="sig-role">PIHAK PERTAMA</div>
               <div class="sig-jab">Kuasa Pengguna Anggaran</div>
-              <div class="sig-nama">{{$nama_pihak_pertama}}</div>
+              <div class="">{{$nama_pihak_pertama}}</div>
             </td>
           </tr>
         </table>
