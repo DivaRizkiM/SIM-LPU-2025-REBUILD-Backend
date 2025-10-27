@@ -29,7 +29,7 @@
     .page {
       width: 210mm;
       margin: 0 auto;
-      padding: 0 0 65mm 0;   /* ruang untuk area tanda tangan (besar) */
+      padding: 0 0 50mm 0;   /* ruang untuk area tanda tangan (besar) */
     }
 
     /* lebar konten disetel 600px mengikuti template awalmu */
