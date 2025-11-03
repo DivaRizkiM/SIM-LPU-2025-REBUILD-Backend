@@ -77,7 +77,7 @@ class NppController extends Controller
             }
 
             $nppQuery = Npp::orderByRaw($order)
-                ->select('id', 'bulan', 'tahun', 'bsu as nominal', 'id_status');
+                ->select('id', 'bulan', 'tahun', 'bsu as nominal', 'id_status', 'id_rekening_biaya');
             $total_data = $nppQuery->count();
             // Menambahkan kondisi WHERE berdasarkan variabel $tahun, $bulan, dan $status
             if ($tahun !== '') {
@@ -119,6 +119,9 @@ class NppController extends Controller
                         $isLockStatus = $isLock->status;
                     }
                     $item->isLock = $isLockStatus;
+                    $item->nama_rekening = $item->rekeningBiaya->nama ?? '-';  
+                    $item->kode_rekening = $item->rekeningBiaya->kode_rekening ?? '-'; 
+                    unset($item->rekeningBiaya);
                 }
             }
 
