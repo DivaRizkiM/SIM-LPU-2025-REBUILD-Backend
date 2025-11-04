@@ -17,11 +17,15 @@ class DashboardController extends Controller
     public function RealisasiBiaya(Request $request)
     {
         // Mendapatkan tahun sekarang
-        $tahunSekarang = $request->get('tahun', date('Y')   );
+        $tahunSekarang = $request->get('tahun', date('Y'));
 
         $id_regional = $request->get('id_regional');
         $id_kprk     = $request->get('id_kprk');
         $id_kpc      = $request->get('id_kpc');
+
+        // new: filter bulan / triwulan
+        $bulan     = $request->get('bulan');     // contoh ?bulan=11
+        $triwulan  = $request->get('triwulan');  // contoh ?triwulan=1
 
         // Menghitung total pelaporan berdasarkan kategori biaya
         $totalPelaporan = VerifikasiBiayaRutinDetail::select('kategori_biaya', DB::raw('SUM(verifikasi_biaya_rutin_detail.pelaporan) as total_pelaporan'))
@@ -35,6 +39,24 @@ class DashboardController extends Controller
             })
             ->when($id_kpc, function ($query, $id_kpc) {
                 return $query->where('verifikasi_biaya_rutin.id_kpc', $id_kpc);
+            })
+            // apply month filter if provided
+            ->when($bulan, function ($query, $bulan) {
+                return $query->whereRaw('CAST(verifikasi_biaya_rutin_detail.bulan AS UNSIGNED) = ?', [(int)$bulan]);
+            })
+            // apply triwulan only if bulan not provided and triwulan provided
+            ->when(!$bulan && $triwulan, function ($query) use ($triwulan) {
+                $ranges = [
+                    1 => [1,2,3],
+                    2 => [4,5,6],
+                    3 => [7,8,9],
+                    4 => [10,11,12],
+                ];
+                $months = $ranges[(int)$triwulan] ?? [];
+                if (count($months)) {
+                    return $query->whereIn(DB::raw('CAST(verifikasi_biaya_rutin_detail.bulan AS UNSIGNED)'), $months);
+                }
+                return $query;
             })
             ->groupBy('verifikasi_biaya_rutin_detail.kategori_biaya')
             ->get();
@@ -103,6 +125,10 @@ class DashboardController extends Controller
         $id_kprk     = $request->get('id_kprk');
         $id_kpc      = $request->get('id_kpc');
 
+        // new: filter bulan / triwulan
+        $bulan     = $request->get('bulan');     // contoh ?bulan=11
+        $triwulan  = $request->get('triwulan');  // contoh ?triwulan=1
+
         // Menghitung total pelaporan berdasarkan kategori biaya
         $totalPelaporan = ProduksiDetail::select('kategori_produksi', DB::raw('SUM(produksi_detail.pelaporan) as total_pelaporan'))
             ->leftjoin('produksi', 'produksi.id', '=', 'produksi_detail.id_produksi')
@@ -115,6 +141,24 @@ class DashboardController extends Controller
             })
             ->when($id_kpc, function ($query, $id_kpc) {
                 return $query->where('produksi.id_kpc', $id_kpc);
+            })
+            // apply month filter if provided
+            ->when($bulan, function ($query, $bulan) {
+                return $query->whereRaw('CAST(produksi.bulan AS UNSIGNED) = ?', [(int)$bulan]);
+            })
+            // apply triwulan only if bulan not provided and triwulan provided
+            ->when(!$bulan && $triwulan, function ($query) use ($triwulan) {
+                $ranges = [
+                    1 => [1,2,3],
+                    2 => [4,5,6],
+                    3 => [7,8,9],
+                    4 => [10,11,12],
+                ];
+                $months = $ranges[(int)$triwulan] ?? [];
+                if (count($months)) {
+                    return $query->whereIn(DB::raw('CAST(produksi.bulan AS UNSIGNED)'), $months);
+                }
+                return $query;
             })
             ->groupBy('produksi_detail.kategori_produksi')
             ->get();
