@@ -273,6 +273,7 @@ class LtkHelper
             ->sum('bilangan');
         $matraiLTK = $matraiLTK ? $matraiLTK / 10 : 0;
 
+        // Total Produksi LTK Kantor LPU (including meterai dibagi 10)
         $totalProduksiLtkKantorLpu = $ltk + $matraiLTK;
 
         // Total Produksi Jaskug Nasional (meterai dibagi 10)
@@ -312,8 +313,13 @@ class LtkHelper
 
         $rasio = ($produksiJaskugNasional > 0) ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional) : 0;
         $hasilFase2 = $rasio * $grandTotalFase1;
-
-        return $hasilFase2;
+        $data = [
+            'total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10' => $totalProduksiLtkKantorLpu,
+            'produksi_jaskug_nasional' => $produksiJaskugNasional,
+            'rasio' => $rasio,
+            'hasil_fase_2' => $hasilFase2
+        ];
+        return $data;
     }
 
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
@@ -337,6 +343,13 @@ class LtkHelper
         $rasio = ($produksiLtkKantorLpu > 0) ? ($produksiKcpLpuA / $produksiLtkKantorLpu) : 0;
         $hasilFase3 = $rasio * $hasilFase2;
 
-        return $hasilFase3;
+        $data = [
+            'produksi_kcp_lpu_a' => $produksiKcpLpuA,
+            'total_produksi_ltk_kantor_lpu' => $produksiLtkKantorLpu,
+            'rasio' => $rasio,
+            'hasil_fase_3' => $hasilFase3
+        ];
+        
+        return $data;
     }
 }

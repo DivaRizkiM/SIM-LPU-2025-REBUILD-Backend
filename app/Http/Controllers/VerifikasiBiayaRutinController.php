@@ -1391,16 +1391,23 @@ class VerifikasiBiayaRutinController extends Controller
             }
             $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
 
-            $hasilFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
-            $hasilFase3 = $this->ltkHelper->calculateFase3($hasilFase2, $tahun, $bulan, $id_kpc);
-            $hasilFase2 = "Rp " . number_format(round($hasilFase2), 0, '', '.');
-            $hasilFase3 = "Rp " . number_format(round($hasilFase3), 0, '', '.');
+            $perhitunganFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
+            $perhitunganFase3 = $this->ltkHelper->calculateFase3($perhitunganFase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
+            $hasilFase2 = "Rp " . number_format(round($perhitunganFase2['hasil_fase_2']), 0, '', '.');
+            $hasilFase3 = "Rp " . number_format(round($perhitunganFase3['hasil_fase_3']), 0, '', '.');
+            $total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10 = $perhitunganFase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] ?? 0;
+            $produksi_kcp_lpu_a = $perhitunganFase3['produksi_kcp_lpu_a'] ?? 0;
+            $total_produksi_ltk_kantor_lpu = $perhitunganFase3['total_produksi_ltk_kantor_lpu'] ?? 0;
+
             // Masukkan hasil perhitungan fase ke dalam setiap item rutin
             foreach ($rutin as $item) {
                 $item->hasil_perhitungan_fase_1 = $hasilFase1PerBulan;
                 $item->rumus_fase_2 = '(Total Produksi LTK Kantor LPU(prod meterai dibagi 10) / Total Produksi Jaskug Nasional(prod meterai dibagi 10)) x Hasil Perhitungan Fase 1';
+                $item->total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10 = $total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10;
                 $item->hasil_perhitungan_fase_2 = $hasilFase2;
                 $item->rumus_fase_3 = '(Produksi KCP LPU A / Total Produksi LTK Kantor LPU) x Hasil Perhitungan Fase 2';
+                $item->produksi_kcp_lpu_a = $produksi_kcp_lpu_a;
+                $item->total_produksi_ltk_kantor_lpu = $total_produksi_ltk_kantor_lpu;
                 $item->hasil_perhitungan_fase_3 = $hasilFase3;
             }
 
