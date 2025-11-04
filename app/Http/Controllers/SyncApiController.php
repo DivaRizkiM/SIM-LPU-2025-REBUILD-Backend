@@ -2143,22 +2143,14 @@ class SyncApiController extends Controller
 
                 if ($verifikasiLtk) {
                     $verifikasiLtk->update([
-                        'tahun'                => (int) $tahunData,
-                        'bulan'                => (int) $bulanData,
-                        'kode_rekening'        => $data['kode_rekening'],
-                        'nama_rekening'        => $data['nama_rekening'],
-                        'mtd_akuntansi'        => $data['bsu_mtd_akuntansi'] ?? 0,
-                        'verifikasi_akuntansi' => null,
-                        'biaya_pso'            => $data['biaya_pso'],
-                        'mtd_biaya_pos'        => null,
-                        'mtd_biaya_hasil'      => $data['bsu_mtd_ltk'] ?? 0,
-                        'proporsi_rumus'       => $data['keterangan'] ?? null,
-                        'verifikasi_proporsi'  => null,
-                        'id_status'            => 7,
-                        'nama_file'            => null,
-                        'catatan_pemeriksa'    => null,
-                        'kategori_cost'        => $data['jenis'] ?? null,
-                        'keterangan'           => $data['keterangan'] ?? null,
+                        'kode_rekening'    => $data['kode_rekening'],
+                        'nama_rekening'    => $data['nama_rekening'],
+                        'mtd_akuntansi'     => $data['bsu_mtd_akuntansi'] ?? 0,
+                        'mtd_biaya_hasil'   => $data['bsu_mtd_ltk'] ?? 0,
+                        'biaya_pso'          => $data['biaya_pso'],
+                        'proporsi_rumus'    => $data['keterangan'] ?? null,
+                        'jenis'             => $data['jenis'] ?? null,
+                        'id_status'         => 7,
                     ]);
                     $successful++;
                 } else {
