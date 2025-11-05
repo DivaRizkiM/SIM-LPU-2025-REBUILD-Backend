@@ -215,7 +215,7 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#636CCB'; // Warna default jika kategori tidak ditemukan
     }
 
-    public static function getRealisasiDanaLpu(array $filterParams = [], int $tahun = null)
+    public static function getRealisasiDanaLpu(array $filterParams = [], ?int $tahun = null)
     {
         $tahun = $tahun ?? date('Y');
 
@@ -449,7 +449,7 @@ class DashboardController extends Controller
         return $colors[$kategori] ?? '#374151'; // Warna default jika kategori tidak ditemukan
     }
 
-    private function getBiayaPerBulan(array $filterParams = [], int $tahun = null): array
+    private function getBiayaPerBulan(array $filterParams = [], ?int $tahun = null): array
     {
         $tahun = $tahun ?? date('Y');
 
@@ -480,7 +480,7 @@ class DashboardController extends Controller
         return $agg;
     }
 
-    private function getPendapatanPerBulan(array $filterParams = [], int $tahun = null): array
+    private function getPendapatanPerBulan(array $filterParams = [], ?int $tahun = null): array
     {
         $tahun = $tahun ?? date('Y');
 
