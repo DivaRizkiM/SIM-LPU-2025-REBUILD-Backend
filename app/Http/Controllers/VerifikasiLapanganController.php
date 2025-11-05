@@ -364,7 +364,7 @@ class VerifikasiLapanganController extends Controller
                 'pencatatan_kantor.id_provinsi' => 'nullable|numeric',
                 'pencatatan_kantor.id_kabupaten' => 'nullable|numeric',
                 'pencatatan_kantor.id_kecamatan' => 'nullable|numeric',
-                'pencatatan_kantor.id_kelurahan' => 'nullable|string',
+                'pencatatan_kantor.id_kelurahan' => 'nullable|numeric',
                 'pencatatan_kantor.jenis' => 'nullable|string',
                 'pencatatan_kantor.latitude' => 'nullable|numeric',
                 'pencatatan_kantor.longitude' => 'nullable|numeric',
@@ -418,79 +418,109 @@ class VerifikasiLapanganController extends Controller
             $pkUser = $payload['pencatatan_kantor_user'] ?? null;
              if (!empty($pkUser) && is_array($pkUser)) {
                  $insertUser = [
-                     'rowid_parent' => $pkUser['rowid_parent'] ?? null,
                      'id_parent' => $pencatatan->id,
                      'id_user' => $pkUser['id_user'] ?? $pk['id_user'],
                  ];
                  
-                if (!empty($pkUser['rowid_parent'])) {
-                    DB::table('pencatatan_kantor_user')->updateOrInsert(
-                        ['rowid_parent' => $pkUser['rowid_parent']],
-                        $insertUser
-                    );
-                } else {
-                    DB::table('pencatatan_kantor_user')->insert($insertUser);
-                }
+                DB::table('pencatatan_kantor_user')->insert($insertUser);
             }
 
             $kuisList = $payload['pencatatan_kantor_kuis'] ?? [];
-            foreach ($kuisList as $kuis) {
+
+            // ambil file multipart jika ada (indexed same structure)
+            $uploadedFiles = $request->file('pencatatan_kantor_kuis') ?? [];
+
+            foreach ($kuisList as $index => $kuis) {
                 $kuisInsert = [
-                    'rowid_parent' => $kuis['rowid_parent'] ?? null,
                     'id_parent' => $pencatatan->id,
                     'id_tanya' => $kuis['id_tanya'] ?? null,
                     'id_jawab' => $kuis['id_jawab'] ?? null,
                     'data' => $kuis['data'] ?? null,
                 ];
 
-                if (!empty($kuis['rowid_parent'])) {
-                    DB::table('pencatatan_kantor_kuis')->updateOrInsert(
-                        ['rowid_parent' => $kuis['rowid_parent']],
-                        $kuisInsert
-                    );
-                } else {
-                    DB::table('pencatatan_kantor_kuis')->insert($kuisInsert);
+                DB::table('pencatatan_kantor_kuis')->insert($kuisInsert);
+
+                // ===== new: handle UploadedFile first =====
+                $fileFromRequest = $uploadedFiles[$index]['file']['file'] ?? null;
+                if ($fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
+                    // store uploaded file
+                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
+                    $origName = $fileFromRequest->getClientOriginalName();
+                    $ext = $fileFromRequest->getClientOriginalExtension() ?: pathinfo($origName, PATHINFO_EXTENSION);
+                    $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . time() . '_' . Str::random(6) . '.' . ($ext ?: 'bin');
+
+                    // make directory and store
+                    Storage::disk('public')->makeDirectory($storePath);
+                    $fullPath = $fileFromRequest->storeAs($storePath, $storedName, 'public');
+
+                    $fileRecord = [
+                        'id_parent' => $pencatatan->id,
+                        'nama' => $kuis['file']['nama'] ?? $origName ?? $storedName,
+                        'file' => $fullPath,
+                        'file_name' => $origName ?? $storedName,
+                        'file_type' => $fileFromRequest->getClientMimeType() ?? ($kuis['file']['file_type'] ?? null),
+                        'created' => now(),
+                        'updated' => now(),
+                    ];
+
+                    DB::table('pencatatan_kantor_file')->insert($fileRecord);
+                    continue; // lanjut ke next kuis item
                 }
+                // ===== end UploadedFile handling =====
 
                 if (!empty($kuis['file']) && is_array($kuis['file']) && !empty($kuis['file']['file'])) {
                     $file = $kuis['file'];
                     $b64 = $file['file'];
                     if (strpos($b64, ';base64,') !== false) {
                         $parts = explode(';base64,', $b64);
-                        $b64 = $parts[1];
+                        $b64 = $parts[1] ?? '';
                     }
                     $decoded = base64_decode($b64);
-                    if ($decoded === false) {
+                    if ($decoded === false || $decoded === null || strlen($decoded) === 0) {
+                        // skip invalid base64
                         continue;
                     }
 
-                    $fileName = $file['file_name'] ?? ($file['nama'] ?? (Str::random(8) . '.bin'));
-                    $ext = pathinfo($fileName, PATHINFO_EXTENSION);
+                    // normalize original filename
+                    $origName = $file['file_name'] ?? $file['nama'] ?? null;
+                    if (!$origName || preg_match('/_?tmp(\.|$)/i', $origName)) {
+                        $origName = null;
+                    }
+
+                    // detect ext/mime
+                    $ext = $origName ? pathinfo($origName, PATHINFO_EXTENSION) : '';
+                    if (empty($ext)) {
+                        $finfoType = finfo_open(FILEINFO_MIME_TYPE);
+                        $detectedMime = finfo_buffer($finfoType, $decoded);
+                        finfo_close($finfoType);
+                        $map = [
+                            'image/jpeg' => 'jpg',
+                            'image/png' => 'png',
+                            'image/gif' => 'gif',
+                            'application/pdf' => 'pdf',
+                            'text/plain' => 'txt',
+                        ];
+                        $ext = $map[$detectedMime] ?? 'bin';
+                    }
+
                     $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
-                    $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . Str::random(8) . ($ext ? '.' . $ext : '');
+                    $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . time() . '_' . Str::random(6) . '.' . $ext;
                     $fullPath = $storePath . $storedName;
 
+                    Storage::disk('public')->makeDirectory($storePath);
                     Storage::disk('public')->put($fullPath, $decoded);
 
                     $fileRecord = [
-                        'rowid_parent' => $file['rowid_parent'] ?? null,
-                        'id_parent' => $kuis['id_tanya'] ?? $file['id_parent'] ?? $pencatatan->id,
-                        'nama' => $file['nama'] ?? $fileName,
+                        'id_parent' => $pencatatan->id,
+                        'nama' => $file['nama'] ?? ($origName ?? $storedName),
                         'file' => $fullPath,
-                        'file_name' => $fileName,
-                        'file_type' => $file['file_type'] ?? null,
+                        'file_name' => $origName ?? $storedName,
+                        'file_type' => $file['file_type'] ?? ($detectedMime ?? null),
                         'created' => $file['created'] ?? now(),
                         'updated' => $file['updated'] ?? now(),
                     ];
 
-                    if (!empty($file['rowid_parent'])) {
-                        DB::table('pencatatan_kantor_file')->updateOrInsert(
-                            ['rowid_parent' => $file['rowid_parent']],
-                            $fileRecord
-                        );
-                    } else {
-                        DB::table('pencatatan_kantor_file')->insert($fileRecord);
-                    }
+                    DB::table('pencatatan_kantor_file')->insert($fileRecord);
                 }
             }
 
