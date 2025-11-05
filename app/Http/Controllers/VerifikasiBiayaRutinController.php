@@ -1334,11 +1334,11 @@ class VerifikasiBiayaRutinController extends Controller
                 if (($produksi ?? 0) != 0 && ($produksi_nasional ?? 0) != 0 && ($npp->bsu ?? 0) != 0) {
                     $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
                     $roundProporsi = round($persentaseProporsiProduksi, 2);
-                    $npp_verifikasi = $npp->verifikasi ?? $npp->bsu;
+                    $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
                     $proporsi = $npp_verifikasi * $roundProporsi / 100;
                 }
 
-                $npp_verifikasi = $npp->verifikasi ?? $npp->bsu;
+                $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
                 $item->npp = "Rp " . number_format(($npp_verifikasi ?? 0), 0, '', '.');
                 $item->proporsi = "Rp " . number_format(($proporsi), 0, '', '.');
 
