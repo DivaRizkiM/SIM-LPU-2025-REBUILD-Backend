@@ -25,6 +25,8 @@ class ProduksiDetail extends Model
         'bsu_bruto',
         'bilangan',
         'pelaporan_prognosa',
+        'bsu_bruto_prognosa',
+        'bilangan_prognosa',
         'verifikasi',
         'total',
         'keterangan',

@@ -189,45 +189,47 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
                 'id_rekening_biaya' => $data['koderekening'],
                 'bulan' => $data['bulan'],
                 'pelaporan_prognosa' => $data['nominal'],
+                'bilangan_prognosa' => $data['bilangan'] ?? null,
                 'kategori_biaya' => $data['kategori_biaya'],
                 'keterangan_prognosa' => $data['keterangan'],
                 'lampiran' => $data['lampiran'],
             ]
         );
 
-        // if ($data['lampiran'] == 'Y') {
-        //     $apiControllerLapiran = new ApiController();
-        //     $url_request_lampiran = 'lampiran_biaya?id_biaya=' . $data['id'];
-        //     $request = request(); // Buat instance request
-        //     $request->merge(['end_point' => $url_request_lampiran]);
-        //     $response = $apiControllerLapiran->makeRequest($request);
-        //     $lampiran = $response['data'] ?? [];
-        //     if ($lampiran !== []) {
-        //         $detail_lampiran = VerifikasiBiayaRutinDetailLampiran::where('verifikasi_biaya_rutin_detail', $data['id'])->first();
-        //         if ($detail_lampiran) {
-        //             $detail_lampiran->update([
-        //                 'nama_file' => $lampiran['nama_file'],
-        //             ]);
-        //         } else {
-        //             VerifikasiBiayaRutinDetailLampiran::create([
-        //                 'verifikasi_biaya_rutin_detail' => $lampiran['id_biaya'],
-        //                 'nama_file' => $lampiran['nama_file'],
-        //                 'id' => $lampiran['id'],
-        //             ]);
-        //         }
-        //         foreach ($lampiran as $lmp) {
-        //             $namaFile = $lmp['nama_file'] ?? null;
-        //             $destinationPath = storage_path('/app/public/lampiran');
-        //             $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --delete rsync://kominfo2@103.123.39.227:/lpu/{$namaFile} {$destinationPath} 2>&1";
-        //             $output = shell_exec($rsyncCommand);
-        //             if (preg_match('/total size is (\d+)/', $output, $matches)) {
-        //                 $size = (int)$matches[1];
-        //             }
-        //             $data['size'] = $size; // Menyimpan ukuran file
-        //         }
+        $totalPelaporanPrognosa = VerifikasiBiayaRutinDetail::where('id_verifikasi_biaya_rutin', $idVerifikasiBiayaRutin)
+            ->sum('pelaporan_prognosa');
+        $biayaRutinTotal = VerifikasiBiayaRutin::where('id', $idVerifikasiBiayaRutin)
+            ->first();
+        $biayaRutinTotal->update([
+            'total_biaya_prognosa' => (float) ($totalPelaporanPrognosa ?? 0),
+            'id_status' => 7,
+            'id_status_kprk' => 7,
+        ]);
 
-        //     }
-        // }
+        if ($data['lampiran'] === 'Y') {
+            $apiControllerLapiran = new ApiController();
+            $url_request_lampiran = 'lampiran_biaya?id_biaya=' . $data['id'];
+            $request = request();
+            $request->merge(['end_point' => $url_request_lampiran]);
+            $response = $apiControllerLapiran->makeRequest($request);
+
+            $lampiranList = $response['data'] ?? [];
+
+            // Normalisasi: kalau yang datang single object, jadikan array satu elemen
+            if (!is_array($lampiranList) || (is_array($lampiranList) && array_is_list($lampiranList) === false && isset($lampiranList['id']))) {
+                $lampiranList = [$lampiranList];
+            }
+
+            foreach ($lampiranList as $lp) {
+                VerifikasiBiayaRutinDetailLampiran::updateOrCreate(
+                    ['id' => $lp['id']], 
+                    [
+                        'verifikasi_biaya_rutin_detail' => $data['id'],
+                        'nama_file' => $lp['nama_file'],
+                    ]
+                );
+            }
+        }
         // Update the payload with the current data
         $this->updatePayload($data, $payload);
     }

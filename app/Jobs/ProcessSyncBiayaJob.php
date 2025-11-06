@@ -175,18 +175,18 @@ class ProcessSyncBiayaJob implements ShouldQueue
                 'bulan' => $data['bulan'],
                 'id_verifikasi_biaya_rutin' => $idVerifikasiBiayaRutin,
                 'pelaporan' => $data['nominal'],
+                'bilangan' => $data['bilangan'] ?? null,
                 'kategori_biaya' => $data['kategori_biaya'],
                 'keterangan' => $data['keterangan'],
                 'lampiran' => $data['lampiran'],
             ]
         );
-        $biayaRutinDetail = VerifikasiBiayaRutinDetail::select(DB::raw('SUM(pelaporan) as total_pelaporan'))
-            ->where('id_verifikasi_biaya_rutin', $idVerifikasiBiayaRutin)
-            ->first();
-        $biayaRutinTotal = VerifikasiBiayaRutin::where('id', $idVerifikasiBiayaRutin)
-            ->first();
+        $totalPelaporan = VerifikasiBiayaRutinDetail::where('id_verifikasi_biaya_rutin', $idVerifikasiBiayaRutin)
+            ->sum('pelaporan');
+
+        $biayaRutinTotal = VerifikasiBiayaRutin::where('id', $idVerifikasiBiayaRutin)->first();
         $biayaRutinTotal->update([
-            'total_biaya' => $biayaRutinDetail->total_pelaporan,
+            'total_biaya' => (float) ($totalPelaporan ?? 0),
             'id_status' => 7,
             'id_status_kprk' => 7,
         ]);
