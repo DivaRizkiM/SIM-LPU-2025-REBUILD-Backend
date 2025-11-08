@@ -125,7 +125,6 @@ class LtkController extends Controller
                     $item->tahun,
                     $item->bulan
                 );
-                // Ambil hasil_perhitungan_fase_1, hilangkan format ribuan
                 $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1']) ? str_replace(['.', ','], ['', ''], $fase1['hasil_perhitungan_fase_1']) : 0;
                 $grand_total_fase_1 += (float) $hasilFase1;
             }
@@ -252,7 +251,6 @@ class LtkController extends Controller
             $ltk->mtd_biaya_hasil = "Rp " . number_format(round($mtd_biaya_hasil ?? 0), 0, ',', '.');
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
-            // Merge calculation results
             foreach ($proporsiCalculation as $key => $value) {
                 $ltk->$key = $value;
             }
@@ -317,8 +315,6 @@ class LtkController extends Controller
                     'id_status' => 9,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                 ]);
-
-                // Bagian update VerifikasiBiayaRutinDetail dihapus untuk mematikan link
 
                 $updatedData[] = $ltk->fresh();
             }
