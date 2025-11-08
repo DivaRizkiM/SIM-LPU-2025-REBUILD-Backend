@@ -223,8 +223,10 @@ class LtkController extends Controller
             }
 
             $kategoriCost = $ltk->keterangan;
+
+            // MTD AKUNTANSI & BIAYA PSO ASLI → untuk hitung MTD BIAYA FINAL di helper
             $mtdBiayaLtk = $ltk->mtd_akuntansi;
-            $biayaPso = $ltk->verifikasi_pso ?? $ltk->biaya_pso;
+            $biayaPso = $ltk->biaya_pso ?? 0;
 
             $proporsiCalculation = $this->ltkHelper->calculateProporsiByCategory(
                 $mtdBiayaLtk,
@@ -254,7 +256,10 @@ class LtkController extends Controller
             foreach ($proporsiCalculation as $key => $value) {
                 $ltk->$key = $value;
             }
-            $ltk->proporsi_rumus_fase_1 = $ltk->verifikasi_proporsi > 0 ? $ltk->verifikasi_proporsi : $proporsiCalculation['proporsi_rumus_fase_1'] ?? null;
+
+            $ltk->proporsi_rumus_fase_1 = $ltk->verifikasi_proporsi > 0
+                ? $ltk->verifikasi_proporsi
+                : ($proporsiCalculation['proporsi_rumus_fase_1'] ?? null);
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -268,6 +273,7 @@ class LtkController extends Controller
             ], 500);
         }
     }
+
 
     public function verifikasi(Request $request)
     {
