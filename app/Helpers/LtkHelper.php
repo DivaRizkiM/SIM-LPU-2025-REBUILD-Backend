@@ -14,60 +14,54 @@ class LtkHelper
 {
     public static function calculateJoinCost($periode, $tahun, $bulan)
     {
-        // 1. Produk Kurir - jumlah produksi layanan kurir dengan status OUTGOING
         $produksiKurir = DB::table('produksi_nasional')
             ->whereIn('produk', self::getLayananKurir())
             ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
-        // 2. Produk Jaskug calculations
-        // a. Meterai (divided by 10)
         $meterai = DB::table('produksi_nasional')
             ->where('produk', 'METERAI')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi');
         $meterai = $meterai ? $meterai / 10 : 0;
 
-        // b. Outgoing (layanan jaskug except meterai, weselpos, weselpos ln)
         $outgoing = DB::table('produksi_nasional')
             ->whereIn('produk', self::getLayananJaskug())
             ->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])
             ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
-        // c. Weselpos LN (incoming + outgoing)
         $weselposLN = DB::table('produksi_nasional')
             ->where('produk', 'WESELPOS LN')
             ->whereIn('status', ['INCOMING', 'OUTGOING'])
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
-        // d. Weselpos (OUTGOING only)
         $weselpos = DB::table('produksi_nasional')
             ->where('produk', 'WESELPOS')
             ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
         $produkJaskug = $meterai + $outgoing + $weselposLN + $weselpos;
 
         return [
-            'produksi_kurir' => $produksiKurir,
-            'produksi_jaskug' => $produkJaskug,
-            'total_produksi' => $produksiKurir + $produkJaskug,
-            'detail_jaskug' => [
-                'meterai' => $meterai,
-                'outgoing' => $outgoing,
+            'produksi_kurir'   => $produksiKurir,
+            'produksi_jaskug'  => $produkJaskug,
+            'total_produksi'   => $produksiKurir + $produkJaskug,
+            'detail_jaskug'    => [
+                'meterai'     => $meterai,
+                'outgoing'    => $outgoing,
                 'weselpos_ln' => $weselposLN,
-                'weselpos' => $weselpos
-            ]
+                'weselpos'    => $weselpos,
+            ],
         ];
     }
 
@@ -84,7 +78,7 @@ class LtkHelper
                 '4102010007',
                 '4202000001',
                 '4102020001',
-                '4103010002'
+                '4103010002',
             ];
 
             $kodeRekeningPendapatanKurir = [
@@ -103,8 +97,7 @@ class LtkHelper
                 '4101030002',
                 '4101030003',
                 '4101030004',
-                '4101030005'
-
+                '4101030005',
             ];
 
             $pendapatanKurir = DB::table('verifikasi_ltk')
@@ -122,15 +115,15 @@ class LtkHelper
                 ->sum('mtd_akuntansi') ?? 0;
 
             return [
-                'pendapatan_kurir' => $pendapatanKurir,
-                'pendapatan_ltk' => $pendapatanLTK,
-                'total_pendapatan' => $pendapatanKurir + $pendapatanLTK,
+                'pendapatan_kurir'    => $pendapatanKurir,
+                'pendapatan_ltk'      => $pendapatanLTK,
+                'total_pendapatan'    => $pendapatanKurir + $pendapatanLTK,
             ];
         } catch (\Exception $e) {
             return [
-                'produksi_kurir' => 0,
-                'pendapatan_jaskug' => 0,
-                'total_pendapatan' => 0,
+                'produksi_kurir'      => 0,
+                'pendapatan_jaskug'   => 0,
+                'total_pendapatan'    => 0,
             ];
         }
     }
@@ -143,6 +136,7 @@ class LtkHelper
                     ->where('tahun_anggaran', (string) $tahun);
             })
             ->sum('pelaporan') ?? 0;
+
         return $jaskugKcpLpu;
     }
 
@@ -152,6 +146,7 @@ class LtkHelper
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->where('tahun', (string) $tahun)
             ->sum('jml_produksi') ?? 0;
+
         return $jaskugKcpLpu;
     }
 
@@ -170,6 +165,8 @@ class LtkHelper
         $proporsiData = [];
 
         try {
+            $mtdBiayaLtk = (float) $mtdBiayaLtk;
+
             $produksiJaskugKCPLpuNasional = self::getJaskugKcpLpuNasional($tahun, $bulan);
             $produksiJaskugNasional = self::getJaskugNasional($tahun, $bulan);
             $totalKcpLPU = Kprk::sum('jumlah_kpc_lpu') ?? 1;
@@ -178,13 +175,13 @@ class LtkHelper
                 case 'FULLCOST':
                 case 'FULL':
                 case '100%':
-                    $proporsiBiayaJaskugNasional = $biayaPso * 1.0; // 100%
+                    $proporsiBiaya = $mtdBiayaLtk * 1.0;
 
                     $proporsiData = [
-                        'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => '100% (Proporsi Tetap)',
-                        'proporsi_rumus_fase_1' => '100',
-                        'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
+                        'keterangan'             => $kategoriCost,
+                        'rumus_fase_1'           => '100% MTD LTK',
+                        'proporsi_rumus_fase_1'  => '100',
+                        'hasil_perhitungan_fase_1' => number_format($proporsiBiaya, 0, ',', '.'),
                     ];
                     break;
 
@@ -196,17 +193,16 @@ class LtkHelper
                     $produksiKurir = $joinCost['produksi_kurir'] ?? 0;
                     $totalProduksi = $produksiJaskug + $produksiKurir;
 
-                    // FASE 1: Joint Cost allocation based on production ratio
                     $rumusFase1 = $totalProduksi > 0 ? ($produksiJaskug / $totalProduksi) : 0;
-                    $proporsiBiayaJaskugNasional = $biayaPso * $rumusFase1;
+                    $proporsiBiaya = $mtdBiayaLtk * $rumusFase1;
 
                     $proporsiData = [
-                        'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => 'Biaya Pso * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
-                        'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
-                        'total_produksi_jaskug_nasional' => number_format($produksiJaskug, 0, ',', '.'),
-                        'total_produksi' => number_format($totalProduksi, 0, ',', '.'),
-                        'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
+                        'keterangan'                        => $kategoriCost,
+                        'rumus_fase_1'                      => 'MTD LTK * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
+                        'proporsi_rumus_fase_1'             => number_format($rumusFase1 * 100, 2, ',', '.'),
+                        'total_produksi_jaskug_nasional'    => number_format($produksiJaskug, 0, ',', '.'),
+                        'total_produksi'                    => number_format($totalProduksi, 0, ',', '.'),
+                        'hasil_perhitungan_fase_1'          => number_format($proporsiBiaya, 0, ',', '.'),
                     ];
                     break;
 
@@ -218,18 +214,17 @@ class LtkHelper
                     $pendapatanKurir = $commonCost['pendapatan_kurir'] ?? 0;
                     $totalPendapatan = $pendapatanLTK + $pendapatanKurir;
 
-                    // FASE 1: Common Cost allocation based on revenue ratio
                     $rumusFase1 = $totalPendapatan > 0 ? ($pendapatanLTK / $totalPendapatan) : 0;
-                    $proporsiBiayaJaskugNasional = $biayaPso * $rumusFase1;
+                    $proporsiBiaya = $mtdBiayaLtk * $rumusFase1;
 
                     $proporsiData = [
-                        'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => 'Biaya Pso * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
-                        'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
-                        'pendapatan_ltk' => number_format($pendapatanLTK, 0, ',', '.'),
-                        'pendapatan_kurir' => number_format($pendapatanKurir, 0, ',', '.'),
-                        'total_pendapatan' => number_format($totalPendapatan, 0, ',', '.'),
-                        'hasil_perhitungan_fase_1' => number_format($proporsiBiayaJaskugNasional, 0, ',', '.')
+                        'keterangan'             => $kategoriCost,
+                        'rumus_fase_1'           => 'MTD LTK * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
+                        'proporsi_rumus_fase_1'  => number_format($rumusFase1 * 100, 2, ',', '.'),
+                        'pendapatan_ltk'         => number_format($pendapatanLTK, 0, ',', '.'),
+                        'pendapatan_kurir'       => number_format($pendapatanKurir, 0, ',', '.'),
+                        'total_pendapatan'       => number_format($totalPendapatan, 0, ',', '.'),
+                        'hasil_perhitungan_fase_1' => number_format($proporsiBiaya, 0, ',', '.'),
                     ];
                     break;
 
@@ -257,55 +252,49 @@ class LtkHelper
     public static function calculateFase2($grandTotalFase1, $tahun, $bulan)
     {
         $ltk = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-            ->whereNotIn('kode_rekening', ['2101010006']) // Exclude meterai
+            ->whereNotIn('kode_rekening', ['2101010006'])
             ->whereHas('produksi', function ($query) use ($tahun) {
-                $query->where('tahun_anggaran', (string)$tahun);
+                $query->where('tahun_anggaran', (string) $tahun);
             })
             ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('bilangan');
 
-        // Total Produksi LTK Kantor LPU (meterai dibagi 10)
         $matraiLTK = ProduksiDetail::where('kode_rekening', '2101010006')
             ->whereHas('produksi', function ($query) use ($tahun) {
-                $query->where('tahun_anggaran', (string)$tahun);
+                $query->where('tahun_anggaran', (string) $tahun);
             })
             ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('bilangan');
         $matraiLTK = $matraiLTK ? $matraiLTK / 10 : 0;
 
-        // Total Produksi LTK Kantor LPU (including meterai dibagi 10)
         $totalProduksiLtkKantorLpu = $ltk + $matraiLTK;
 
-        // Total Produksi Jaskug Nasional (meterai dibagi 10)
         $meterai = DB::table('produksi_nasional')
             ->where('produk', 'METERAI')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi');
         $meterai = $meterai ? $meterai / 10 : 0;
 
-        // b. Outgoing (layanan jaskug except meterai, weselpos, weselpos ln)
         $outgoing = DB::table('produksi_nasional')
             ->whereIn('produk', self::getLayananJaskug())
             ->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])
             ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
-        // c. Weselpos LN (incoming + outgoing)
         $weselposLN = DB::table('produksi_nasional')
             ->where('produk', 'WESELPOS LN')
             ->whereIn('status', ['INCOMING', 'OUTGOING'])
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
-        // d. Weselpos (OUTGOING only)
         $weselpos = DB::table('produksi_nasional')
             ->where('produk', 'WESELPOS')
             ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
+            ->where('tahun', (string) $tahun)
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('jml_produksi') ?? 0;
 
@@ -313,29 +302,29 @@ class LtkHelper
 
         $rasio = ($produksiJaskugNasional > 0) ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional) : 0;
         $hasilFase2 = $rasio * $grandTotalFase1;
+
         $data = [
             'total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10' => $totalProduksiLtkKantorLpu,
-            'produksi_jaskug_nasional' => $produksiJaskugNasional,
-            'rasio' => $rasio,
-            'hasil_fase_2' => $hasilFase2
+            'produksi_jaskug_nasional'                             => $produksiJaskugNasional,
+            'rasio'                                                => $rasio,
+            'hasil_fase_2'                                         => $hasilFase2,
         ];
+
         return $data;
     }
 
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
     {
-        // Produksi KCP LPU A
         $produksiKcpLpuA = ProduksiDetail::whereHas('produksi', function ($query) use ($tahun, $id_kcp) {
-                $query->where('tahun_anggaran', (string)$tahun)
+            $query->where('tahun_anggaran', (string) $tahun)
                 ->where('id_kpc', $id_kcp);
-            })
+        })
             ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('bilangan');
 
-        // Total Produksi LTK Kantor LPU (meterai dibagi 10)
         $produksiLtkKantorLpu = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->whereHas('produksi', function ($query) use ($tahun) {
-                $query->where('tahun_anggaran', (string)$tahun);
+                $query->where('tahun_anggaran', (string) $tahun);
             })
             ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('bilangan');
@@ -344,12 +333,12 @@ class LtkHelper
         $hasilFase3 = $rasio * $hasilFase2;
 
         $data = [
-            'produksi_kcp_lpu_a' => $produksiKcpLpuA,
-            'total_produksi_ltk_kantor_lpu' => $produksiLtkKantorLpu,
-            'rasio' => $rasio,
-            'hasil_fase_3' => $hasilFase3
+            'produksi_kcp_lpu_a'             => $produksiKcpLpuA,
+            'total_produksi_ltk_kantor_lpu'  => $produksiLtkKantorLpu,
+            'rasio'                          => $rasio,
+            'hasil_fase_3'                   => $hasilFase3,
         ];
-        
+
         return $data;
     }
 }
