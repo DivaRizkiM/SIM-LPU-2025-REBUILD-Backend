@@ -125,7 +125,6 @@ class LtkController extends Controller
                     $item->tahun,
                     $item->bulan
                 );
-                // Ambil hasil_perhitungan_fase_1, hilangkan format ribuan
                 $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1']) ? str_replace(['.', ','], ['', ''], $fase1['hasil_perhitungan_fase_1']) : 0;
                 $grand_total_fase_1 += (float) $hasilFase1;
             }
@@ -224,8 +223,10 @@ class LtkController extends Controller
             }
 
             $kategoriCost = $ltk->keterangan;
+
+            // MTD AKUNTANSI & BIAYA PSO ASLI → untuk hitung MTD BIAYA FINAL di helper
             $mtdBiayaLtk = $ltk->mtd_akuntansi;
-            $biayaPso = $ltk->verifikasi_pso ?? $ltk->biaya_pso;
+            $biayaPso = $ltk->biaya_pso ?? 0;
 
             $proporsiCalculation = $this->ltkHelper->calculateProporsiByCategory(
                 $mtdBiayaLtk,
@@ -252,11 +253,13 @@ class LtkController extends Controller
             $ltk->mtd_biaya_hasil = "Rp " . number_format(round($mtd_biaya_hasil ?? 0), 0, ',', '.');
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
-            // Merge calculation results
             foreach ($proporsiCalculation as $key => $value) {
                 $ltk->$key = $value;
             }
-            $ltk->proporsi_rumus_fase_1 = $ltk->verifikasi_proporsi > 0 ? $ltk->verifikasi_proporsi : $proporsiCalculation['proporsi_rumus_fase_1'] ?? null;
+
+            $ltk->proporsi_rumus_fase_1 = $ltk->verifikasi_proporsi > 0
+                ? $ltk->verifikasi_proporsi
+                : ($proporsiCalculation['proporsi_rumus_fase_1'] ?? null);
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -270,6 +273,7 @@ class LtkController extends Controller
             ], 500);
         }
     }
+
 
     public function verifikasi(Request $request)
     {
@@ -317,8 +321,6 @@ class LtkController extends Controller
                     'id_status' => 9,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                 ]);
-
-                // Bagian update VerifikasiBiayaRutinDetail dihapus untuk mematikan link
 
                 $updatedData[] = $ltk->fresh();
             }
