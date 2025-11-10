@@ -105,14 +105,14 @@ class LtkHelper
                 ->where('kategori_cost', 'PENDAPATAN')
                 ->where('tahun', $tahun)
                 ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
-                ->sum('verifikasi_akuntansi') ?? 0;
+                ->sum('mtd_akuntansi') ?? 0;
 
             $pendapatanLTK = DB::table('verifikasi_ltk')
                 ->whereIn('kode_rekening', $kodeRekeningPendapatanLTK)
                 ->where('kategori_cost', 'PENDAPATAN')
                 ->where('tahun', $tahun)
                 ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
-                ->sum('verifikasi_akuntansi') ?? 0;
+                ->sum('mtd_akuntansi') ?? 0;
 
             return [
                 'pendapatan_kurir' => $pendapatanKurir,
