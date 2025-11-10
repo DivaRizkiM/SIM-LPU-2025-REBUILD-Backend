@@ -1576,51 +1576,103 @@ class SyncApiController extends Controller
             $validatedData = $request->validate([
                 'tahun' => 'nullable|integer',
                 'bulan' => 'nullable|integer|min:1|max:12',
+                'source' => 'nullable|in:verifikasi,npp,all',
             ]);
 
             $tahun = $validatedData['tahun'] ?? null;
             $bulan = str_pad($validatedData['bulan'] ?? null, 2, '0', STR_PAD_LEFT);
+            $source = $validatedData['source'] ?? 'all';
             $endpoint = 'lampiran_biaya';
 
             $userAgent = $request->header('User-Agent');
             $agent = new Agent();
             $agent->setUserAgent($userAgent);
-            $platform = $agent->platform();
-            $browser = $agent->browser();
 
-            $query = VerifikasiBiayaRutinDetail::leftJoin('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin.id', '=', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin')
+            $list = collect();
+
+            // Ambil dari verifikasi_biaya_rutin_detail yang punya lampiran
+            if ($source === 'verifikasi' || $source === 'all') {
+                $queryVerifikasi = VerifikasiBiayaRutinDetail::leftJoin(
+                    'verifikasi_biaya_rutin', 
+                    'verifikasi_biaya_rutin.id', 
+                    '=', 
+                    'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin'
+                )
+                ->leftJoin(
+                    'verifikasi_biaya_rutin_detail_lampiran',
+                    'verifikasi_biaya_rutin_detail.id',
+                    '=',
+                    'verifikasi_biaya_rutin_detail_lampiran.verifikasi_biaya_rutin_detail'
+                )
                 ->where('verifikasi_biaya_rutin_detail.lampiran', 'Y')
-                ->select('verifikasi_biaya_rutin_detail.id');
+                ->whereNotNull('verifikasi_biaya_rutin_detail_lampiran.nama_file')
+                ->where('verifikasi_biaya_rutin_detail_lampiran.nama_file', '!=', '')
+                ->select('verifikasi_biaya_rutin_detail.id', DB::raw("'verifikasi' as source_type"));
 
-            // Tambahkan kondisi berdasarkan tahun jika ada
-            if (!empty($tahun)) {
-                $query->where('verifikasi_biaya_rutin.tahun', $tahun);
+                if (!empty($tahun)) {
+                    $queryVerifikasi->where('verifikasi_biaya_rutin.tahun', $tahun);
+                }
+
+                if (!empty($bulan)) {
+                    $queryVerifikasi->where('verifikasi_biaya_rutin_detail.bulan', $bulan);
+                }
+
+                $list = $list->merge($queryVerifikasi->get());
             }
 
-            if (!empty($bulan)) {
-                $query->where('verifikasi_biaya_rutin_detail.bulan', $bulan);
+            // Ambil dari npp
+            if ($source === 'npp' || $source === 'all') {
+                $queryNpp = Npp::whereNotNull('nama_file')
+                    ->where('nama_file', '!=', '')
+                    ->whereRaw('TRIM(nama_file) != ""')
+                    ->select('id', DB::raw("'npp' as source_type"));
+
+                if (!empty($tahun)) {
+                    $queryNpp->where('tahun', $tahun);
+                }
+
+                if (!empty($bulan)) {
+                    $queryNpp->where('bulan', $bulan);
+                }
+
+                $list = $list->merge($queryNpp->get());
             }
 
-            $list = $query->get();
             $totalData = $list->count();
 
-            $userLog = [
+            if ($totalData === 0) {
+                return response()->json([
+                    'status' => 'WARNING',
+                    'message' => 'Tidak ada data lampiran yang perlu disinkronisasi',
+                ], 200);
+            }
+
+            UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Sinkronisasi Lampiran Biaya',
                 'modul' => 'Lampiran',
                 'id_user' => auth()->id(),
-            ];
+            ]);
 
-            UserLog::create($userLog);
             RsyncJob::dispatch($list, $endpoint, $totalData, $userAgent);
 
-            // Mengembalikan respons JSON
             return response()->json([
                 'status' => 'IN_PROGRESS',
                 'message' => 'Sinkronisasi sedang diproses',
+                'data' => [
+                    'total_records' => $totalData,
+                    'source' => $source,
+                ]
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+            \Log::error('syncLampiran error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
     }
     public function syncKategoriPendapatan(Request $request)
@@ -1921,6 +1973,7 @@ class SyncApiController extends Controller
                     $successful++;
                 } else {
                     LayananJasaKeuangan::create([
+
                         'nama' => $data['nama_layanan'],
                     ]);
                     $successful++;
