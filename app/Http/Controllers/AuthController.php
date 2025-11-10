@@ -31,19 +31,31 @@ class AuthController extends Controller
             $password_hash = $request->input('password_hash');
 
             $user = User::where('username', $username)->first();
-            $role = UserGrup::find($user->id_grup);
 
             if (!$user) {
-                return response()->json(['error' => 'User not found'], 404);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'User not found',
+                    'error_code' => 'USER_NOT_FOUND',
+                ], 404);
             }
-            $verificator = User::select('id','id_grup','username','nip')->where('id_grup',8)->get();
+
+            $role = UserGrup::find($user->id_grup);
+            $verificator = User::select('id', 'id_grup', 'username', 'nip')
+                ->where('id_grup', 8)
+                ->get();
 
             if (!password_verify($password_hash, $user->password_hash)) {
-                return response()->json(['error' => 'Invalid credentials'], 401);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid credentials',
+                    'error_code' => 'INVALID_CREDENTIALS',
+                ], 401);
             }
 
             $token = JWTAuth::fromUser($user);
             $expiration_time = auth()->factory()->getTTL();
+            
             $user->password_hash = null;
             $user->password_reset_token = null;
             $user->auth_key = null;
@@ -51,7 +63,7 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'verificator'=>$verificator,
+                    'verificator' => $verificator,
                     'id' => $user->id,
                     'user' => $user->name,
                     'username' => $user->username,
@@ -63,7 +75,11 @@ class AuthController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'error_code' => 'SERVER_ERROR',
+            ], 500);
         }
     }
 
