@@ -84,8 +84,8 @@ class LtkController extends Controller
             }
 
             $verifikasiLtkQuery = VerifikasiLtk::orderByRaw($order)
-                ->select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'rekening_biaya.nama as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
-                ->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')->whereNot('kategori_cost', 'PENDAPATAN');
+                ->select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
+                ->whereNot('kategori_cost', 'PENDAPATAN');
             $total_data = $verifikasiLtkQuery->count();
             if ($tahun !== '') {
                 $verifikasiLtkQuery->where('verifikasi_ltk.tahun', $tahun);
@@ -193,25 +193,24 @@ class LtkController extends Controller
             ];
 
             $ltk = VerifikasiLtk::select(
-                'verifikasi_ltk.id',
-                'verifikasi_ltk.kode_rekening',
-                'rekening_biaya.nama as nama_rekening',
-                'verifikasi_ltk.bulan',
-                'verifikasi_ltk.tahun',
-                'verifikasi_ltk.mtd_akuntansi',
-                'verifikasi_ltk.verifikasi_akuntansi',
-                'verifikasi_ltk.biaya_pso',
-                'verifikasi_ltk.verifikasi_pso',
-                'verifikasi_ltk.mtd_biaya_pos',
-                'verifikasi_ltk.mtd_biaya_hasil',
-                'verifikasi_ltk.proporsi_rumus',
-                'verifikasi_ltk.verifikasi_proporsi',
-                'verifikasi_ltk.keterangan',
-                'verifikasi_ltk.catatan_pemeriksa',
-                'verifikasi_ltk.nama_file',
-                'verifikasi_ltk.kategori_cost',
-            )->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')
-                ->where('verifikasi_ltk.id', $request->id_ltk)
+                    'verifikasi_ltk.id',
+                    'verifikasi_ltk.kode_rekening',
+                    'verifikasi_ltk.nama_rekening as nama_rekening',
+                    'verifikasi_ltk.bulan',
+                    'verifikasi_ltk.tahun',
+                    'verifikasi_ltk.mtd_akuntansi',
+                    'verifikasi_ltk.verifikasi_akuntansi',
+                    'verifikasi_ltk.biaya_pso',
+                    'verifikasi_ltk.verifikasi_pso',
+                    'verifikasi_ltk.mtd_biaya_pos',
+                    'verifikasi_ltk.mtd_biaya_hasil',
+                    'verifikasi_ltk.proporsi_rumus',
+                    'verifikasi_ltk.verifikasi_proporsi',
+                    'verifikasi_ltk.keterangan',
+                    'verifikasi_ltk.catatan_pemeriksa',
+                    'verifikasi_ltk.nama_file',
+                    'verifikasi_ltk.kategori_cost',
+                )->where('verifikasi_ltk.id', $request->id_ltk)
                 ->where('verifikasi_ltk.keterangan', $request->proporsi_rumus ?? '!=', '0%')
                 ->first();
 
