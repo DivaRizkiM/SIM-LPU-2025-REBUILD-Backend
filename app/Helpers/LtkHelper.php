@@ -232,9 +232,9 @@ class LtkHelper
                         'mtd_biaya_final' => $mtdBiayaFinal,
                         'proporsi_rumus_fase_1_raw' => $rumusFase1,
                         'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
-                        'pendapatan_ltk' => number_format($pendapatanLTK, 0, ',', '.'),
-                        'pendapatan_kurir' => number_format($pendapatanKurir, 0, ',', '.'),
-                        'total_pendapatan' => number_format($totalPendapatan, 0, ',', '.'),
+                        'pendapatan_ltk' => $pendapatanLTK,
+                        'pendapatan_kurir' => $pendapatanKurir,
+                        'total_pendapatan' => $totalPendapatan,
                         'hasil_perhitungan_fase_1_raw' => $proporsiBiaya,
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiaya, 0, ',', '.')
                     ];

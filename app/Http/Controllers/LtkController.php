@@ -126,7 +126,7 @@ class LtkController extends Controller
                     $item->tahun,
                     $item->bulan
                 );
-                $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1']) ? str_replace(['.', ','], ['', ''], $fase1['hasil_perhitungan_fase_1']) : 0;
+                $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1_raw']) ? str_replace(['.', ','], ['', ''], $fase1['hasil_perhitungan_fase_1_raw']) : 0;
                 $grand_total_fase_1 += (float) $hasilFase1;
             }
             $grand_total = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
