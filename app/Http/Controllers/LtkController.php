@@ -117,7 +117,7 @@ class LtkController extends Controller
             $grand_total_fase_1 = 0;
             foreach ($verifikasiLtk as $item) {
                 $kategoriCost = $item->keterangan;
-                $mtdBiayaLtk = $item->mtd_akuntansi;
+                $mtdBiayaLtk = $item->verifikasi_akuntansi ?? 0;
                 $biayaPso = $item->verifikasi_pso ?? 0;
                 $fase1 = $this->ltkHelper->calculateProporsiByCategory(
                     $mtdBiayaLtk,
@@ -225,7 +225,7 @@ class LtkController extends Controller
             $kategoriCost = $ltk->keterangan;
 
             // MTD AKUNTANSI & BIAYA PSO ASLI → untuk hitung MTD BIAYA FINAL di helper
-            $mtdBiayaLtk = $ltk->mtd_akuntansi;
+            $mtdBiayaLtk = $ltk->verifikasi_akuntansi ?? 0;
             $biayaPso = $ltk->verifikasi_pso ?? 0;
 
             $proporsiCalculation = $this->ltkHelper->calculateProporsiByCategory(
