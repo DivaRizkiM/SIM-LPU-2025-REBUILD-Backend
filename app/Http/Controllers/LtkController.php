@@ -102,6 +102,7 @@ class LtkController extends Controller
                 ->offset($offset)
                 ->limit($limit)->get();
             $verifikasiLtk = $verifikasiLtk->map(function ($verifikasiLtk) {
+                $verifikasiLtk->id = (string) $verifikasiLtk->id;
                 $verifikasiLtk->nominal = (int) $verifikasiLtk->nominal;
                 $verifikasiLtk->proporsi_rumus = (float) $verifikasiLtk->proporsi_rumus ?? "0.00";
                 $verifikasiLtk->verifikasi_pso = (float) $verifikasiLtk->verifikasi_pso ?? "0.00";
