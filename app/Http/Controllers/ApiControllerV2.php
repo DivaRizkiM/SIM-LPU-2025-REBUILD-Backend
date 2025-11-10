@@ -21,7 +21,7 @@ class ApiControllerV2 extends Controller
     public function getProfileRegional(Request $request)
     {
         $tahunbulan = $request->input('tahunbulan', '202503');
-        $endpoint = "rekening_ biaya";
+        $endpoint = "rekening_biaya";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
