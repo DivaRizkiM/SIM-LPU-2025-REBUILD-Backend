@@ -161,11 +161,11 @@ class ProcessSyncProduksiPrognosaJob implements ShouldQueue
                 'id_kprk' => $data['id_kprk'],
                 'id_kpc' => $data['id_kpc'],
                 'tahun_anggaran' => $data['tahun_anggaran'],
+                'triwulan' => $data['triwulan'],
                 'tgl_singkronisasi' => now(),
                 'status_regional' => 7,
                 'status_kprk' => 7,
                 'bulan' => $data['nama_bulan'],
-                'triwulan' => $data['triwulan'],
             ]
         );
 
@@ -182,7 +182,8 @@ class ProcessSyncProduksiPrognosaJob implements ShouldQueue
                 'rtarif' => $data['rtarif'],
                 'tpkirim' => $data['tpkirim'],
                 'pelaporan_prognosa' => $data['bsu_pso'],
-                'bsu_bruto' => $data['bsu_bruto'] ?? null,
+                'bsu_bruto_prognosa' => $data['bsu_bruto'] ?? null,
+                'bilangan_prognosa' => $data['bilangan'] ?? null,
                 'jenis_produksi' => $data['jenis'],
                 'kategori_produksi' => $data['kategori_produksi'],
                 'keterangan' => $data['keterangan'],
@@ -192,7 +193,7 @@ class ProcessSyncProduksiPrognosaJob implements ShouldQueue
 
         $this->updateProduksiTotals($produksi);
 
-        if ($data['lampiran']) {
+        if (!empty($data['lampiran'])) {
             $this->syncLampiran($data['lampiran']);
         }
 
