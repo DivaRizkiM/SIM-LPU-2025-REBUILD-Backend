@@ -208,8 +208,8 @@ class LtkHelper
                         'mtd_biaya_final' => $mtdBiayaFinal,
                         'proporsi_rumus_fase_1_raw' => $rumusFase1,
                         'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
-                        'total_produksi_jaskug_nasional' => number_format($produksiJaskug, 0, ',', '.'),
-                        'total_produksi' => number_format($totalProduksi, 0, ',', '.'),
+                        'total_produksi_jaskug_nasional' => $produksiJaskug,
+                        'total_produksi' => $totalProduksi,
                         'hasil_perhitungan_fase_1_raw' => $proporsiBiaya,
                         'hasil_perhitungan_fase_1' => number_format($proporsiBiaya, 0, ',', '.')
                     ];
