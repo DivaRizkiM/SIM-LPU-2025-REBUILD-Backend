@@ -1350,8 +1350,8 @@ class VerifikasiBiayaRutinController extends Controller
             if ($isLockStatus) {
                 $rutin = [];
             }
-            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'rekening_biaya.nama as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
-                ->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')->whereNot('kategori_cost', 'PENDAPATAN');
+            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
+                ->whereNot('kategori_cost', 'PENDAPATAN');
 
             if ($tahun !== '') {
                 $verifikasiLtkQuery->where('verifikasi_ltk.tahun', $tahun);

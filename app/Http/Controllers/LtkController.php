@@ -226,7 +226,7 @@ class LtkController extends Controller
 
             // MTD AKUNTANSI & BIAYA PSO ASLI → untuk hitung MTD BIAYA FINAL di helper
             $mtdBiayaLtk = $ltk->mtd_akuntansi;
-            $biayaPso = $ltk->biaya_pso ?? 0;
+            $biayaPso = $ltk->verifikasi_pso ?? 0;
 
             $proporsiCalculation = $this->ltkHelper->calculateProporsiByCategory(
                 $mtdBiayaLtk,
