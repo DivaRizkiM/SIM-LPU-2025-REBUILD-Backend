@@ -242,6 +242,7 @@ class LtkController extends Controller
             $lastTwoDigits = substr($ltk->kode_rekening, -2);
             $mtd_biaya_hasil = $ltk->verifikasi_akuntansi - $ltk->verifikasi_pso;
 
+            $ltk->id = (string) $ltk->id;
             $ltk->last_two_digits = $lastTwoDigits;
             $ltk->periode = $bulanIndonesia[$ltk->bulan - 1];
             $ltk->url_file = 'https://lpu.komdigi.go.id/backend/view_image/lampiranltk/' . $ltk->nama_file;
