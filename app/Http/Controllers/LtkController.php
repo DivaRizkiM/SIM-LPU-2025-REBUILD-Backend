@@ -242,12 +242,12 @@ class LtkController extends Controller
             $ltk->last_two_digits = $lastTwoDigits;
             $ltk->periode = $bulanIndonesia[$ltk->bulan - 1];
             $ltk->url_file = 'https://lpu.komdigi.go.id/backend/view_image/lampiranltk/' . $ltk->nama_file;
-            $ltk->verifikasi_pso = round($ltk->verifikasi_pso ?? 0);
+            $ltk->verifikasi_pso = (string) number_format(round($ltk->verifikasi_pso ?? 0), 0, ',', '.');
             $ltk->mtd_akuntansi = "Rp " . number_format(round($ltk->mtd_akuntansi ?? 0), 0, ',', '.');
-            $ltk->verifikasi_akuntansi = round($ltk->verifikasi_akuntansi ?? 0);
+            $ltk->verifikasi_akuntansi = (string) number_format(round($ltk->verifikasi_akuntansi ?? 0), 0, ',', '.');
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
             $ltk->mtd_ltk_pelaporan = "Rp " . number_format(round($ltk->mtd_ltk_pelaporan ?? 0), 0, ',', '.');
-            $ltk->mtd_ltk_verifikasi = round($ltk->mtd_ltk_verifikasi ?? 0);
+            $ltk->mtd_ltk_verifikasi = (string) number_format(round($ltk->mtd_ltk_verifikasi ?? 0), 0, ',', '.');
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
             foreach ($proporsiCalculation as $key => $value) {
