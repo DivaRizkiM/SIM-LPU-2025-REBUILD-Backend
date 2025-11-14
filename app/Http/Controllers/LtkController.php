@@ -242,9 +242,9 @@ class LtkController extends Controller
             $ltk->last_two_digits = $lastTwoDigits;
             $ltk->periode = $bulanIndonesia[$ltk->bulan - 1];
             $ltk->url_file = 'https://lpu.komdigi.go.id/backend/view_image/lampiranltk/' . $ltk->nama_file;
-            $ltk->verifikasi_pso = "Rp " . number_format(round($ltk->verifikasi_pso ?? 0), 0, ',', '.');
+            $ltk->verifikasi_pso = $ltk->verifikasi_pso ?? 0;
             $ltk->mtd_akuntansi = "Rp " . number_format(round($ltk->mtd_akuntansi ?? 0), 0, ',', '.');
-            $ltk->verifikasi_akuntansi = "Rp " . number_format(round($ltk->verifikasi_akuntansi ?? 0), 0, ',', '.');
+            $ltk->verifikasi_akuntansi = $ltk->verifikasi_akuntansi ?? 0;
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
             $ltk->mtd_ltk_pelaporan = "Rp " . number_format(round($ltk->mtd_ltk_pelaporan ?? 0), 0, ',', '.');
             $ltk->mtd_ltk_verifikasi = "Rp " . number_format((int) round($ltk->mtd_ltk_verifikasi ?? 0), 0, ',', '.');
