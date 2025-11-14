@@ -84,7 +84,7 @@ class LtkController extends Controller
             }
 
             $verifikasiLtkQuery = VerifikasiLtk::orderByRaw($order)
-                ->select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
+                ->select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan', 'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
                 ->whereNot('kategori_cost', 'PENDAPATAN');
             $total_data = $verifikasiLtkQuery->count();
             if ($tahun !== '') {
@@ -108,7 +108,8 @@ class LtkController extends Controller
                 $verifikasiLtk->verifikasi_pso = (float) $verifikasiLtk->verifikasi_pso ?? "0.00";
                 $verifikasiLtk->verifikasi_akuntansi = (float) $verifikasiLtk->verifikasi_akuntansi ?? "0.00";
                 $verifikasiLtk->verifikasi_proporsi = (float) $verifikasiLtk->verifikasi_proporsi ?? "0.00";
-                $verifikasiLtk->mtd_biaya = (float) $verifikasiLtk->mtd_biaya ?? "0.00";
+                $verifikasiLtk->mtd_ltk_pelaporan = (float) $verifikasiLtk->mtd_ltk_pelaporan ?? "0.00";
+                $verifikasiLtk->mtd_ltk_verifikasi = (float) $verifikasiLtk->mtd_ltk_verifikasi ?? "0.00";
                 $verifikasiLtk->proporsi_rumus = $verifikasiLtk->keterangan;
                 $verifikasiLtk->tahun = $verifikasiLtk->tahun ?? '';
                 $verifikasiLtk->bulan = $verifikasiLtk->bulan ?? '';
@@ -117,12 +118,10 @@ class LtkController extends Controller
             $grand_total_fase_1 = 0;
             foreach ($verifikasiLtk as $item) {
                 $kategoriCost = $item->keterangan;
-                $mtdBiayaLtk = $item->verifikasi_akuntansi ?? 0;
-                $biayaPso = $item->verifikasi_pso ?? 0;
+                $mtd_ltk_verifikasi = $item->mtd_ltk_verifikasi ?? 0;
                 $fase1 = $this->ltkHelper->calculateProporsiByCategory(
-                    $mtdBiayaLtk,
+                    $mtd_ltk_verifikasi,
                     $kategoriCost,
-                    $biayaPso,
                     $item->tahun,
                     $item->bulan
                 );
@@ -203,8 +202,8 @@ class LtkController extends Controller
                     'verifikasi_ltk.verifikasi_akuntansi',
                     'verifikasi_ltk.biaya_pso',
                     'verifikasi_ltk.verifikasi_pso',
-                    'verifikasi_ltk.mtd_biaya_pos',
-                    'verifikasi_ltk.mtd_biaya_hasil',
+                    'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan',
+                    'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi',
                     'verifikasi_ltk.proporsi_rumus',
                     'verifikasi_ltk.verifikasi_proporsi',
                     'verifikasi_ltk.keterangan',
@@ -225,13 +224,11 @@ class LtkController extends Controller
             $kategoriCost = $ltk->keterangan;
 
             // MTD AKUNTANSI & BIAYA PSO ASLI → untuk hitung MTD BIAYA FINAL di helper
-            $mtdBiayaLtk = $ltk->verifikasi_akuntansi ?? 0;
-            $biayaPso = $ltk->verifikasi_pso ?? 0;
+            $mtd_ltk_verifikasi = $ltk->mtd_ltk_verifikasi ?? 0;
 
             $proporsiCalculation = $this->ltkHelper->calculateProporsiByCategory(
-                $mtdBiayaLtk,
+                $mtd_ltk_verifikasi,
                 $kategoriCost,
-                $biayaPso,
                 $ltk->tahun,
                 $ltk->bulan
             );
@@ -240,7 +237,6 @@ class LtkController extends Controller
             $isLockStatus = $isLock->status ?? false;
 
             $lastTwoDigits = substr($ltk->kode_rekening, -2);
-            $mtd_biaya_hasil = $ltk->verifikasi_akuntansi - $ltk->verifikasi_pso;
 
             $ltk->id = (string) $ltk->id;
             $ltk->last_two_digits = $lastTwoDigits;
@@ -250,8 +246,8 @@ class LtkController extends Controller
             $ltk->mtd_akuntansi = "Rp " . number_format(round($ltk->mtd_akuntansi ?? 0), 0, ',', '.');
             $ltk->verifikasi_akuntansi = "Rp " . number_format(round($ltk->verifikasi_akuntansi ?? 0), 0, ',', '.');
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
-            $ltk->mtd_biaya_pos = "Rp " . number_format(round($ltk->mtd_biaya_pos ?? 0), 0, ',', '.');
-            $ltk->mtd_biaya_hasil = "Rp " . number_format(round($mtd_biaya_hasil ?? 0), 0, ',', '.');
+            $ltk->mtd_ltk_pelaporan = "Rp " . number_format(round($ltk->mtd_ltk_pelaporan ?? 0), 0, ',', '.');
+            $ltk->mtd_ltk_verifikasi = "Rp " . number_format((int) round($ltk->mtd_ltk_verifikasi ?? 0), 0, ',', '.');
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
             foreach ($proporsiCalculation as $key => $value) {
@@ -283,6 +279,7 @@ class LtkController extends Controller
                 'data.*.id_ltk' => 'required|numeric|exists:verifikasi_ltk,id',
                 'data.*.verifikasi_akuntansi' => 'required|string',
                 'data.*.verifikasi_pso' => 'required|string',
+                'data.*.mtd_ltk_verifikasi' => 'required|string',
                 'data.*.verifikasi_proporsi' => 'required|string',
                 'data.*.catatan_pemeriksa' => 'nullable|string',
             ]);
@@ -312,12 +309,14 @@ class LtkController extends Controller
                 $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
                 $verifikasiAkuntansi = (float) str_replace(['Rp', '.', ','], '', $data['verifikasi_akuntansi']);
                 $verifikasiPso = (float) str_replace(['Rp', '.', ','], '', $data['verifikasi_pso']);
+                $verifikasiMTDLTK = (float) str_replace(['Rp', '.', ','], '', $data['mtd_ltk_verifikasi']);
                 $verifikasiProporsi = (float) str_replace(['%', ','], ['', '.'], $data['verifikasi_proporsi']);
                 $tahun = $ltk->tahun;
 
                 $ltk->update([
                     'verifikasi_akuntansi' => $verifikasiAkuntansi,
                     'verifikasi_pso' => $verifikasiPso,
+                    'mtd_biaya_hasil' => $verifikasiMTDLTK,
                     'verifikasi_proporsi' => $verifikasiProporsi,
                     'id_status' => 9,
                     'catatan_pemeriksa' => $catatan_pemeriksa,

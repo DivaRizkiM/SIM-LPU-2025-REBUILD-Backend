@@ -158,17 +158,11 @@ class LtkHelper
         }
     }
 
-    public static function calculateProporsiByCategory($mtdBiayaLtk, $kategoriCost, $biayaPso, $tahun, $bulan)
+    public static function calculateProporsiByCategory($mtdLTKVerifikasi, $kategoriCost, $tahun, $bulan)
     {
         $proporsiData = [];
 
         try {
-            $mtdBiayaLtk = (float) $mtdBiayaLtk;
-            $biayaPso = (float) $biayaPso;
-
-            // MTD BIAYA FINAL = MTD AKUNTANSI - BIAYA PSO (tanpa pembulatan)
-            $mtdBiayaFinal = $mtdBiayaLtk - $biayaPso;
-
             $produksiJaskugKCPLpuNasional = self::getJaskugKcpLpuNasional($tahun, $bulan);
             $produksiJaskugNasional = self::getJaskugNasional($tahun, $bulan);
             $totalKcpLPU = Kprk::sum('jumlah_kpc_lpu') ?? 1;
@@ -178,12 +172,11 @@ class LtkHelper
                 case 'FULL':
                 case '100%':
                     $rumusFase1 = 1.0;
-                    $proporsiBiaya = $mtdBiayaFinal * $rumusFase1;
+                    $proporsiBiaya = $mtdLTKVerifikasi * $rumusFase1;
 
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => '100% MTD Biaya Final',
-                        'mtd_biaya_final' => $mtdBiayaFinal,
+                        'rumus_fase_1' => '100% MTD LTK Verifikasi',
                         'proporsi_rumus_fase_1_raw' => $rumusFase1,
                         'proporsi_rumus_fase_1' => '100',
                         'hasil_perhitungan_fase_1_raw' => $proporsiBiaya,
@@ -200,12 +193,11 @@ class LtkHelper
                     $totalProduksi = $produksiJaskug + $produksiKurir;
 
                     $rumusFase1 = $totalProduksi > 0 ? ($produksiJaskug / $totalProduksi) : 0.0;
-                    $proporsiBiaya = $mtdBiayaFinal * $rumusFase1;
+                    $proporsiBiaya = $mtdLTKVerifikasi * $rumusFase1;
 
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => 'MTD Biaya Final * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
-                        'mtd_biaya_final' => $mtdBiayaFinal,
+                        'rumus_fase_1' => 'MTD LTK Verifikasi * Produksi Produk Jaskug / (Produksi Produk Jaskug + Produksi Produk Kurir)',
                         'proporsi_rumus_fase_1_raw' => $rumusFase1,
                         'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
                         'total_produksi_jaskug_nasional' => $produksiJaskug,
@@ -224,12 +216,11 @@ class LtkHelper
                     $totalPendapatan = $pendapatanLTK + $pendapatanKurir;
 
                     $rumusFase1 = $totalPendapatan > 0 ? ($pendapatanLTK / $totalPendapatan) : 0.0;
-                    $proporsiBiaya = $mtdBiayaFinal * $rumusFase1;
+                    $proporsiBiaya = $mtdLTKVerifikasi * $rumusFase1;
 
                     $proporsiData = [
                         'keterangan' => $kategoriCost,
-                        'rumus_fase_1' => 'MTD Biaya Final * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
-                        'mtd_biaya_final' => $mtdBiayaFinal,
+                        'rumus_fase_1' => 'MTD LTK Verifikasi * Pendapatan Produk Jaskug / (Pendapatan Produk Jaskug + Pendapatan Produk Kurir)',
                         'proporsi_rumus_fase_1_raw' => $rumusFase1,
                         'proporsi_rumus_fase_1' => number_format($rumusFase1 * 100, 2, ',', '.'),
                         'pendapatan_ltk' => $pendapatanLTK,
