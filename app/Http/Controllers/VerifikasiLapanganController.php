@@ -135,6 +135,21 @@ class VerifikasiLapanganController extends Controller
                 $kelurahan = Kelurahan::find($item->id_kelurahan);
                 $petugas   = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
 
+                // ✅ Tambahkan: Ambil semua foto dari pencatatan_kantor_file
+                $fotos = DB::table('pencatatan_kantor_file')
+                    ->where('id_parent', $item->id)
+                    ->select('file', 'file_name', 'file_type')
+                    ->get();
+
+                $fotoLinks = [];
+                foreach ($fotos as $foto) {
+                    $fotoLinks[] = [
+                        'url' => url('storage/' . $foto->file),
+                        'file_name' => $foto->file_name,
+                        'file_type' => $foto->file_type,
+                    ];
+                }
+
                 $nilai_akhir = (
                     ($item->aspek_operasional ?? 0) +
                     ($item->aspek_sarana ?? 0) +
@@ -160,6 +175,7 @@ class VerifikasiLapanganController extends Controller
                     'kesimpulan'       => ($nilai_akhir < 50
                         ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU'
                         : 'Melanjutkan Mendapatkan Subsidi Operasional LPU'),
+                    'foto'             => $fotoLinks, // ✅ Tambahkan kolom foto
                 ];
             }
 
@@ -293,8 +309,7 @@ class VerifikasiLapanganController extends Controller
                         ->orWhere('provinsi.nama', 'like', "%$search%");
                 });
             }
-            $result = $query
-            ->orderByRaw($order)->get();
+            $result = $query->orderByRaw($order)->get();
 
             $data = [];
             foreach ($result as $item) {
@@ -304,13 +319,29 @@ class VerifikasiLapanganController extends Controller
                 $kecamatan = Kecamatan::find($item->id_kecamatan);
                 $kelurahan = Kelurahan::find($item->id_kelurahan);
                 $petugas = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
+
+                // ✅ Tambahkan: Ambil semua foto dari pencatatan_kantor_file
+                $fotos = DB::table('pencatatan_kantor_file')
+                    ->where('id_parent', $item->id)
+                    ->select('file', 'file_name', 'file_type')
+                    ->get();
+
+                $fotoLinks = [];
+                foreach ($fotos as $foto) {
+                    $fotoLinks[] = url('storage/' . $foto->file);
+                }
+
                 $nilai_akhir = (
                     $item->aspek_operasional +
                     $item->aspek_sarana +
                     $item->aspek_wilayah +
                     $item->aspek_pegawai
-                ) / 4; // Membagi dengan jumlah aspek (4)
-                $kesimpulan = ($nilai_akhir < 50 ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU' : 'Melanjutkan Mendapatkan Subsidi Operasional LPU');
+                ) / 4;
+
+                $kesimpulan = ($nilai_akhir < 50 
+                    ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU' 
+                    : 'Melanjutkan Mendapatkan Subsidi Operasional LPU');
+
                 $data[] = [
                     'id' => $item->id,
                     'tanggal' => $item->created,
@@ -327,17 +358,18 @@ class VerifikasiLapanganController extends Controller
                     'aspek_pegawai' => round($item->aspek_pegawai),
                     'nilai_akhir' => round($nilai_akhir),
                     'kesimpulan' => $kesimpulan,
+                    'foto' => implode(', ', $fotoLinks), // ✅ Tambahkan kolom foto (untuk Excel)
                 ];
-
             }
 
-            $userLog=[
+            $userLog = [
                 'timestamp' => now(),
                 'aktifitas' =>'Cetak Verifikasi Lapangan',
                 'modul' => 'Verifikasi Lapangan',
-                'id_user' => Auth::user(),
+                'id_user' => Auth::id(), // ✅ Perbaiki: gunakan Auth::id() bukan Auth::user()
             ];
-            $userLog = UserLog::create($userLog);
+            UserLog::create($userLog);
+
             $export = new VerifikasiLapanganExport($data);
             $spreadsheet = $export->getSpreadsheet();
             $writer = new WriterXlsx($spreadsheet);
@@ -349,7 +381,6 @@ class VerifikasiLapanganController extends Controller
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]);
         } catch (\Exception $e) {
-
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
