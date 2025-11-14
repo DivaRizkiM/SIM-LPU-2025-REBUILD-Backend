@@ -247,7 +247,7 @@ class LtkController extends Controller
             $ltk->verifikasi_akuntansi = $ltk->verifikasi_akuntansi ?? 0;
             $ltk->biaya_pso = "Rp " . number_format(round($ltk->biaya_pso ?? 0), 0, ',', '.');
             $ltk->mtd_ltk_pelaporan = "Rp " . number_format(round($ltk->mtd_ltk_pelaporan ?? 0), 0, ',', '.');
-            $ltk->mtd_ltk_verifikasi = $ltk->mtd_ltk_verifikasi ?? 0;
+            $ltk->mtd_ltk_verifikasi = (int) round($ltk->mtd_ltk_verifikasi ?? 0);
             $ltk->proporsi_rumus = $ltk->keterangan ?? $ltk->proporsi_rumus;
 
             foreach ($proporsiCalculation as $key => $value) {
