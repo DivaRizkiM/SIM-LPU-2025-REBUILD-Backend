@@ -1057,7 +1057,7 @@ class VerifikasiBiayaRutinController extends Controller
             if ($isLockStatus) {
                 $rutin = [];
             }
-            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_biaya', 'verifikasi_ltk.mtd_biaya_hasil', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
+            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan', 'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
                 ->whereNot('kategori_cost', 'PENDAPATAN');
 
             if ($tahun !== '') {
@@ -1075,7 +1075,8 @@ class VerifikasiBiayaRutinController extends Controller
                 $verifikasiLtk->verifikasi_pso = (float) $verifikasiLtk->verifikasi_pso ?? "0.00";
                 $verifikasiLtk->verifikasi_akuntansi = (float) $verifikasiLtk->verifikasi_akuntansi ?? "0.00";
                 $verifikasiLtk->verifikasi_proporsi = (float) $verifikasiLtk->verifikasi_proporsi ?? "0.00";
-                $verifikasiLtk->mtd_biaya = (float) $verifikasiLtk->mtd_biaya ?? "0.00";
+                $verifikasiLtk->mtd_ltk_pelaporan = (float) $verifikasiLtk->mtd_ltk_pelaporan ?? "0.00";
+                $verifikasiLtk->mtd_ltk_verifikasi = (float) $verifikasiLtk->mtd_ltk_verifikasi ?? "0.00";
                 $verifikasiLtk->proporsi_rumus = $verifikasiLtk->keterangan;
                 $verifikasiLtk->tahun = $verifikasiLtk->tahun ?? '';
                 $verifikasiLtk->bulan = $verifikasiLtk->bulan ?? '';
@@ -1085,12 +1086,10 @@ class VerifikasiBiayaRutinController extends Controller
             $grand_total_fase_1 = 0;
             foreach ($verifikasiLtk as $item) {
                 $kategoriCost = $item->keterangan;
-                $mtdBiayaLtk = $item->verifikasi_akuntansi ?? 0;
-                $biayaPso = $item->verifikasi_pso ?? 0;
+                $mtdLTKVerifikasi = $item->mtd_ltk_verifikasi;
                 $fase1 = $this->ltkHelper->calculateProporsiByCategory(
-                    $mtdBiayaLtk,
+                    $mtdLTKVerifikasi,
                     $kategoriCost,
-                    $biayaPso,
                     $item->tahun,
                     $item->bulan
                 );
