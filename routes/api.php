@@ -333,3 +333,7 @@ Route::middleware('auth:api')->group(function () {
     });
 });
 // });
+
+Route::get('/cek-memory', function () {
+    return ini_get('memory_limit');
+});
