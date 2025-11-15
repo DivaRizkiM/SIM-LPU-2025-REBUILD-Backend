@@ -310,9 +310,9 @@ class RsyncJob implements ShouldQueue
             Storage::makeDirectory('public/lampiran');
         }
 
-        // Konfigurasi rsync dari ENV atau hardcode
+        // Konfigurasi rsync dari ENV atau hardcode (SESUAIKAN PORT!)
         $rsyncHost = env('RSYNC_HOST', '147.139.133.1');
-        $rsyncPort = env('RSYNC_PORT', 8732);
+        $rsyncPort = env('RSYNC_PORT', 8732); // ✅ PERBAIKAN: Port 8732 seperti SSH
         $rsyncUser = env('RSYNC_USER', 'kominfo2');
         $rsyncPassword = env('RSYNC_PASSWORD', 'k0minf0!');
         $rsyncModule = env('RSYNC_MODULE', 'lpu');
@@ -330,9 +330,12 @@ class RsyncJob implements ShouldQueue
             return ['size' => 0, 'filename' => null];
         }
 
-        // Sanitasi nama file
+        // ✅ PERBAIKAN: Validasi nama file lebih ketat
         $namaFile = trim($namaFile);
-        if ($namaFile === '' || preg_match('/[\x00-\x1F\x7F]/', $namaFile)) {
+        if ($namaFile === '' || 
+            preg_match('/[\x00-\x1F\x7F]/', $namaFile) ||
+            strlen($namaFile) < 3 || // Minimal 3 karakter
+            strpos($namaFile, '_') === 0) { // Tidak boleh dimulai dengan underscore saja
             Log::warning('Invalid filename pattern', ['nama_file' => $namaFile]);
             return ['size' => 0, 'filename' => null];
         }
@@ -346,12 +349,10 @@ class RsyncJob implements ShouldQueue
         $candidates = [];
 
         if ($currentExt !== '') {
-            // Jika ada ekstensi, coba variasi case
             $candidates[] = $filenameWithoutExt . '.' . $currentExt;
             $candidates[] = $filenameWithoutExt . '.' . strtolower($currentExt);
             $candidates[] = $filenameWithoutExt . '.' . strtoupper($currentExt);
         } else {
-            // Jika TIDAK ada ekstensi, coba semua ekstensi allowed
             foreach ($allowed as $ext) {
                 $candidates[] = $filenameWithoutExt . '.' . $ext;
             }
@@ -360,13 +361,36 @@ class RsyncJob implements ShouldQueue
         $candidates = array_values(array_unique($candidates));
 
         foreach ($candidates as $fileToSync) {
+            // ✅ PERBAIKAN: Tambahkan pre-check dengan rsync --dry-run
             $remote = "{$rsyncUser}@{$rsyncHost}::{$rsyncModule}/{$fileToSync}";
             
+            // Check jika file ada di remote (dry-run)
+            $checkCmd = 'RSYNC_PASSWORD=' . escapeshellarg($rsyncPassword)
+                . ' rsync -n' // dry-run
+                . ' --port=' . (int) $rsyncPort
+                . ' --timeout=10'
+                . ' ' . escapeshellarg($remote)
+                . ' /dev/null 2>&1';
+            
+            $checkLines = [];
+            $checkCode = 0;
+            @exec($checkCmd, $checkLines, $checkCode);
+            
+            // Jika file tidak ada di remote, skip
+            if ($checkCode !== 0) {
+                Log::debug('File not found in remote', [
+                    'file' => $fileToSync,
+                    'exit_code' => $checkCode
+                ]);
+                continue;
+            }
+
+            // ✅ PERBAIKAN: Command rsync sesuai SSH script
             $cmd = 'RSYNC_PASSWORD=' . escapeshellarg($rsyncPassword)
                 . ' rsync -avz'
                 . ' --timeout=' . (int) $timeout
                 . ' --port=' . (int) $rsyncPort
-                . ' --no-perms --omit-dir-times'
+                . ' --no-perms --omit-dir-times' // Sesuai SSH
                 . ' ' . escapeshellarg($remote)
                 . ' ' . escapeshellarg($destinationPath . DIRECTORY_SEPARATOR)
                 . ' 2>&1';
@@ -378,6 +402,7 @@ class RsyncJob implements ShouldQueue
 
             while ($attempt < $maxRetry) {
                 $attempt++;
+                $lines = []; // Reset output
                 @exec($cmd, $lines, $code);
 
                 if ($code === 0) {
@@ -397,7 +422,6 @@ class RsyncJob implements ShouldQueue
                     'size' => filesize($local),
                     'attempts' => $attempt,
                 ]);
-                // Return size DAN nama file yang berhasil
                 return ['size' => filesize($local), 'filename' => $fileToSync];
             }
 
@@ -406,10 +430,16 @@ class RsyncJob implements ShouldQueue
                     'file' => $fileToSync,
                     'attempts' => $attempt,
                     'exit_code' => $code,
+                    'output' => implode("\n", array_slice($lines, -5)) // Last 5 lines
                 ]);
             }
         }
 
+        Log::error('All rsync candidates failed', [
+            'original_file' => $namaFile,
+            'tried' => $candidates
+        ]);
+        
         return ['size' => 0, 'filename' => null];
     }
 
