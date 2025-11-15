@@ -171,7 +171,9 @@ Route::post('/reset-first-password', [ResetPasswordController::class, 'resetFirs
 // Route::get('/chatList', [PusherController::class, 'chatList']);
 // Route::get('/chatList/{penerima_id}', [PusherController::class, 'chatDetail']);
 // Route::get('/test', [PusherController::class, 'test'])->name('test');
-
+Route::get('/cek-memory', function () {
+    return ini_get('memory_limit');
+});
 Route::middleware('auth:api')->group(function () {
     Route::post('api-keys', [ApiKeyController::class, 'generateKey'])->name('api-keys.generate');
     Route::get('api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
