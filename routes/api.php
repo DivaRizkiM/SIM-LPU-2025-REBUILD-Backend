@@ -103,9 +103,6 @@ use App\Http\Controllers\BeritaAcaraVerifikasiBulananController;
 
 
 Route::get('/profile-regional-test', [ApiControllerV2::class, 'getProfileRegional']);
-Route::get('/cek-memory', function () {
-    return ini_get('memory_limit');
-});
 Route::get('/get-token', [ApiController::class, 'getToken']);
 Route::get('/get-signature', [ApiController::class, 'generateSignature']);
 Route::get('/makeRequest', [ApiController::class, 'makeRequest']);
