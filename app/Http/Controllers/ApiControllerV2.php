@@ -49,20 +49,34 @@ class ApiControllerV2 extends Controller
 
             $signature = $this->generateSignature($httpMethod, $relativeUrl, $accessToken, $timestamp, $requestBody);
 
-            // ✅ PERBAIKAN: Decode API_KEY jika perlu
-            $apiKeyParts = explode('==', self::API_KEY);
+            // ✅ PERBAIKAN: Decode API_KEY dengan benar
+            // Format: 'a29taW5mbw==dEpUaDhDRXg3dw=='
+            // Ini sepertinya 2 bagian base64 yang digabung dengan '=='
+            
+            // Cara 1: Decode setiap bagian terpisah
+            $apiKeyRaw = str_replace('==', '==|', self::API_KEY); // Tambah delimiter
+            $apiKeyParts = explode('|', $apiKeyRaw);
             $decodedApiKey = '';
+            
             foreach ($apiKeyParts as $part) {
-                if (!empty($part)) {
-                    $decodedApiKey .= base64_decode($part);
+                $cleanPart = str_replace('==', '', $part);
+                if (!empty($cleanPart)) {
+                    $decodedApiKey .= base64_decode($cleanPart);
                 }
             }
+
+            // Debug: Lihat hasil decode
+            Log::debug('API Key Decoded', [
+                'original' => self::API_KEY,
+                'decoded' => $decodedApiKey,
+                'decoded_length' => strlen($decodedApiKey)
+            ]);
 
             $response = Http::withHeaders([
                 'Authorization'   => 'Bearer ' . $accessToken,
                 'Accept'          => 'application/json',
                 'Content-Type'    => 'application/json',
-                'X-POS-Key'       => $decodedApiKey, // ✅ Gunakan decoded key
+                'X-POS-Key'       => $decodedApiKey,
                 'X-POS-Signature' => $signature,
                 'X-POS-Timestamp' => $timestamp,
             ])->get(self::BASE_URL . $relativeUrl);
@@ -112,17 +126,32 @@ class ApiControllerV2 extends Controller
 
     private function generateSignature(string $httpMethod, string $relativeUrl, string $accessToken, string $timestamp, string $requestBody): string
     {
-        // ✅ Gunakan SECRET_KEY langsung
+        // ✅ PERBAIKAN: Decode SECRET_KEY dengan cara yang sama seperti API_KEY
+        $secretKeyRaw = str_replace('==', '==|', self::SECRET_KEY);
+        $secretKeyParts = explode('|', $secretKeyRaw);
+        $decodedSecret = '';
+        
+        foreach ($secretKeyParts as $part) {
+            $cleanPart = str_replace('==', '', $part);
+            if (!empty($cleanPart)) {
+                $decodedSecret .= base64_decode($cleanPart);
+            }
+        }
+        
         $hash = hash('sha256', $requestBody);
         $stringToSign = $httpMethod . ":" . $relativeUrl . ":" . $accessToken . ":" . $hash . ":" . $timestamp;
         
-        // Coba kedua cara ini:
-        // Cara 1: Gunakan SECRET_KEY langsung
-        $signature = hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
+        $signature = hash_hmac('sha256', $stringToSign, $decodedSecret);
         
-        // Cara 2: Decode SECRET_KEY dulu (uncomment jika cara 1 gagal)
-        // $secretKey = base64_decode(str_replace('==', '', self::SECRET_KEY));
-        // $signature = hash_hmac('sha256', $stringToSign, $secretKey);
+        // Debug logging
+        Log::debug('Signature Generation', [
+            'http_method' => $httpMethod,
+            'relative_url' => $relativeUrl,
+            'timestamp' => $timestamp,
+            'body_hash' => $hash,
+            'secret_decoded' => $decodedSecret,
+            'signature' => $signature
+        ]);
         
         return $signature;
     }
