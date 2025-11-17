@@ -20,16 +20,14 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        
-    phpinfo(); // sementara
-    exit;
-        // $tahunbulan = $request->input('tahunbulan', '202503');
-        // $endpoint = "mtd_ltk?tahunbulan=$tahunbulan";
+        $bulan = $request->input('bulan', '12');
+        $tahun = $request->input('tahun', '2022');
+        $endpoint = "produksi_bulanan?bulan=$bulan&tahun=$tahun";
 
-        // // Untuk contoh, ambil endpoint pertama
-        // $request->merge(['end_point' => $endpoint]);
+        // Untuk contoh, ambil endpoint pertama
+        $request->merge(['end_point' => $endpoint]);
 
-        // return $this->makeRequest($request);
+        return $this->makeRequest($request);
     }
 
 
