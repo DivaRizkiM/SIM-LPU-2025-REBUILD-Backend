@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('produksi_detail', function (Blueprint $table) {
+        Schema::table('verifikasi_biaya_rutin_detail', function (Blueprint $table) {
             $table->decimal('pelaporan', 30, 10)->change();
             $table->decimal('pelaporan_prognosa', 30, 10)->change();
             $table->decimal('verifikasi', 30, 10)->change();
@@ -23,6 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::table('verifikasi_biaya_rutin_detail', function (Blueprint $table) {
+            $table->decimal('pelaporan', 18, 2)->change();
+            $table->decimal('pelaporan_prognosa', 18, 2)->change();
+            $table->decimal('verifikasi', 18, 2)->change();
+        });
     }
 };
