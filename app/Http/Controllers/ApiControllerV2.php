@@ -22,7 +22,9 @@ class ApiControllerV2 extends Controller
     {
         $bulan = $request->input('bulan', '12');
         $tahun = $request->input('tahun', '2022');
-        $endpoint = "produksi_bulanan?bulan=$bulan&tahun=$tahun";
+        $nopend = $request->input('nopend', '');
+        $kd_bisnis = $request->input('kd_bisnis', '');
+        $endpoint = "produksi_bulanan?bulan=$bulan&tahun=$tahun&nopend=$nopend&kd_bisnis=$kd_bisnis";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
