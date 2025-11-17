@@ -118,11 +118,11 @@ class ApiControllerV2 extends Controller
         
         // Coba kedua cara ini:
         // Cara 1: Gunakan SECRET_KEY langsung
-        $signature = hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
+        // $signature = hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
         
         // Cara 2: Decode SECRET_KEY dulu (uncomment jika cara 1 gagal)
-        // $secretKey = base64_decode(str_replace('==', '', self::SECRET_KEY));
-        // $signature = hash_hmac('sha256', $stringToSign, $secretKey);
+        $secretKey = base64_decode(str_replace('==', '', self::SECRET_KEY));
+        $signature = hash_hmac('sha256', $stringToSign, $secretKey);
         
         return $signature;
     }
