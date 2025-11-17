@@ -49,14 +49,31 @@ class ApiControllerV2 extends Controller
 
             $signature = $this->generateSignature($httpMethod, $relativeUrl, $accessToken, $timestamp, $requestBody);
 
+            // ✅ PERBAIKAN: Decode API_KEY jika perlu
+            $apiKeyParts = explode('==', self::API_KEY);
+            $decodedApiKey = '';
+            foreach ($apiKeyParts as $part) {
+                if (!empty($part)) {
+                    $decodedApiKey .= base64_decode($part);
+                }
+            }
+
             $response = Http::withHeaders([
                 'Authorization'   => 'Bearer ' . $accessToken,
                 'Accept'          => 'application/json',
                 'Content-Type'    => 'application/json',
-                'X-POS-Key'       => self::API_KEY,
+                'X-POS-Key'       => $decodedApiKey, // ✅ Gunakan decoded key
                 'X-POS-Signature' => $signature,
                 'X-POS-Timestamp' => $timestamp,
             ])->get(self::BASE_URL . $relativeUrl);
+
+            // ✅ Tambahkan logging untuk debugging
+            Log::debug('API Request', [
+                'url' => self::BASE_URL . $relativeUrl,
+                'status' => $response->status(),
+                'headers' => $response->headers(),
+                'body' => $response->body()
+            ]);
 
             if ($response->successful()) {
                 return response()->json($response->json());
@@ -95,9 +112,19 @@ class ApiControllerV2 extends Controller
 
     private function generateSignature(string $httpMethod, string $relativeUrl, string $accessToken, string $timestamp, string $requestBody): string
     {
+        // ✅ Gunakan SECRET_KEY langsung
         $hash = hash('sha256', $requestBody);
         $stringToSign = $httpMethod . ":" . $relativeUrl . ":" . $accessToken . ":" . $hash . ":" . $timestamp;
-        return hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
+        
+        // Coba kedua cara ini:
+        // Cara 1: Gunakan SECRET_KEY langsung
+        $signature = hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
+        
+        // Cara 2: Decode SECRET_KEY dulu (uncomment jika cara 1 gagal)
+        // $secretKey = base64_decode(str_replace('==', '', self::SECRET_KEY));
+        // $signature = hash_hmac('sha256', $stringToSign, $secretKey);
+        
+        return $signature;
     }
 
     private function getTimestamp(): string
