@@ -20,11 +20,11 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $bulan = $request->input('bulan', '12');
-        $tahun = $request->input('tahun', '2022');
-        $nopend = $request->input('nopend', '');
+        $bulan = $request->input('bulan', '10');
+        $tahun = $request->input('tahun', '2025');
         $kd_bisnis = $request->input('kd_bisnis', '');
-        $endpoint = "produksi_bulanan?bulan=$bulan&tahun=$tahun&nopend=$nopend&kd_bisnis=$kd_bisnis";
+        $nopend = $request->input('nopend', '');
+        $endpoint = "produksi_bulanan?bulan=10&kd_bisnis=4&nopend=14520B1&tahun=2025";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
@@ -49,45 +49,14 @@ class ApiControllerV2 extends Controller
 
             $signature = $this->generateSignature($httpMethod, $relativeUrl, $accessToken, $timestamp, $requestBody);
 
-            // ✅ PERBAIKAN: Decode API_KEY dengan benar
-            // Format: 'a29taW5mbw==dEpUaDhDRXg3dw=='
-            // Ini sepertinya 2 bagian base64 yang digabung dengan '=='
-            
-            // Cara 1: Decode setiap bagian terpisah
-            $apiKeyRaw = str_replace('==', '==|', self::API_KEY); // Tambah delimiter
-            $apiKeyParts = explode('|', $apiKeyRaw);
-            $decodedApiKey = '';
-            
-            foreach ($apiKeyParts as $part) {
-                $cleanPart = str_replace('==', '', $part);
-                if (!empty($cleanPart)) {
-                    $decodedApiKey .= base64_decode($cleanPart);
-                }
-            }
-
-            // Debug: Lihat hasil decode
-            Log::debug('API Key Decoded', [
-                'original' => self::API_KEY,
-                'decoded' => $decodedApiKey,
-                'decoded_length' => strlen($decodedApiKey)
-            ]);
-
             $response = Http::withHeaders([
                 'Authorization'   => 'Bearer ' . $accessToken,
                 'Accept'          => 'application/json',
                 'Content-Type'    => 'application/json',
-                'X-POS-Key'       => $decodedApiKey,
+                'X-POS-Key'       => self::API_KEY,
                 'X-POS-Signature' => $signature,
                 'X-POS-Timestamp' => $timestamp,
             ])->get(self::BASE_URL . $relativeUrl);
-
-            // ✅ Tambahkan logging untuk debugging
-            Log::debug('API Request', [
-                'url' => self::BASE_URL . $relativeUrl,
-                'status' => $response->status(),
-                'headers' => $response->headers(),
-                'body' => $response->body()
-            ]);
 
             if ($response->successful()) {
                 return response()->json($response->json());
@@ -126,34 +95,9 @@ class ApiControllerV2 extends Controller
 
     private function generateSignature(string $httpMethod, string $relativeUrl, string $accessToken, string $timestamp, string $requestBody): string
     {
-        // ✅ PERBAIKAN: Decode SECRET_KEY dengan cara yang sama seperti API_KEY
-        $secretKeyRaw = str_replace('==', '==|', self::SECRET_KEY);
-        $secretKeyParts = explode('|', $secretKeyRaw);
-        $decodedSecret = '';
-        
-        foreach ($secretKeyParts as $part) {
-            $cleanPart = str_replace('==', '', $part);
-            if (!empty($cleanPart)) {
-                $decodedSecret .= base64_decode($cleanPart);
-            }
-        }
-        
         $hash = hash('sha256', $requestBody);
         $stringToSign = $httpMethod . ":" . $relativeUrl . ":" . $accessToken . ":" . $hash . ":" . $timestamp;
-        
-        $signature = hash_hmac('sha256', $stringToSign, $decodedSecret);
-        
-        // Debug logging
-        Log::debug('Signature Generation', [
-            'http_method' => $httpMethod,
-            'relative_url' => $relativeUrl,
-            'timestamp' => $timestamp,
-            'body_hash' => $hash,
-            'secret_decoded' => $decodedSecret,
-            'signature' => $signature
-        ]);
-        
-        return $signature;
+        return hash_hmac('sha256', $stringToSign, self::SECRET_KEY);
     }
 
     private function getTimestamp(): string
