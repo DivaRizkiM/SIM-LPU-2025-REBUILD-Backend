@@ -179,6 +179,8 @@ class ProcessSyncAtribusiJob implements ShouldQueue
                 'id_biaya_atribusi' =>  $idBiayaAtribusi,
                 'id_rekening_biaya' => $data['koderekening'],
                 'bulan' => $data['bulan'],
+                'bilangan' => $data['bilangan'],
+                'kode_petugas' => $data['kode_petugas'],
                 'pelaporan' => $data['nominal'],
                 'keterangan' => $data['keterangan'],
                 'lampiran' => $data['lampiran'],

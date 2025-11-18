@@ -15,6 +15,8 @@ class BiayaAtribusiDetail extends Model
         'id_biaya_atribusi',
         'id_rekening_biaya',
         'bulan',
+        'bilangan',
+        'kode_petugas',
         'pelaporan',
         'verifikasi',
         'keterangan',
