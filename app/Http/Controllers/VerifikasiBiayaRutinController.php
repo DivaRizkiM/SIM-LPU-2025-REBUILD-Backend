@@ -1135,137 +1135,6 @@ class VerifikasiBiayaRutinController extends Controller
         }
     }
 
-    // public function getDetail(Request $request)
-    // {
-    //     try {
-    //         // Ambil parameter dari request
-    //         $id_verifikasi_biaya_rutin = $request->get('id_verifikasi_biaya_rutin', '');
-    //         $kode_rekening = $request->get('kode_rekening', '');
-    //         $bulan = str_pad($request->get('bulan', ''), 2, '0', STR_PAD_LEFT);
-    //         $id_kcu = $request->get('id_kcu', '');
-    //         $id_kpc = $request->get('id_kpc', '');
-
-    //         // Validasi input
-    //         $validator = Validator::make($request->all(), [
-    //             'bulan' => 'required|numeric|max:12',
-    //             'kode_rekening' => 'required|numeric|exists:rekening_biaya,id',
-    //             'id_verifikasi_biaya_rutin' => 'required|string|exists:verifikasi_biaya_rutin,id',
-    //             'id_kpc' => 'required|string|exists:kpc,id',
-    //             'id_kcu' => 'required|string|exists:kprk,id',
-    //         ]);
-
-    //         if ($validator->fails()) {
-    //             return response()->json([
-    //                 'status' => 'ERROR',
-    //                 'message' => 'Invalid input parameters',
-    //                 'errors' => $validator->errors(),
-    //             ], 400);
-    //         }
-
-    //         // Array bulan dalam Bahasa Indonesia
-    //         $bulanIndonesia = [
-    //             'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    //             'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-    //         ];
-
-    //         // Query data rutin dengan Eager Loading untuk mengurangi query tambahan
-    //         $rutin = VerifikasiBiayaRutinDetail::select(
-    //             'kpc.nama as nama_kcp',
-    //             'verifikasi_biaya_rutin_detail.kategori_biaya',
-    //             'verifikasi_biaya_rutin_detail.id as id_verifikasi_biaya_rutin_detail',
-    //             'rekening_biaya.kode_rekening',
-    //             'rekening_biaya.nama as nama_rekening',
-    //             'verifikasi_biaya_rutin.tahun',
-    //             DB::raw("'" . $bulanIndonesia[$bulan - 1] . "' AS periode"),
-    //             'verifikasi_biaya_rutin_detail.keterangan',
-    //             'verifikasi_biaya_rutin_detail.lampiran',
-    //             'verifikasi_biaya_rutin_detail.pelaporan',
-    //             'verifikasi_biaya_rutin_detail.verifikasi',
-    //             'verifikasi_biaya_rutin_detail.catatan_pemeriksa',
-    //             'verifikasi_biaya_rutin_detail_lampiran.nama_file'
-    //         )
-    //         ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
-    //         ->join('rekening_biaya', 'verifikasi_biaya_rutin_detail.id_rekening_biaya', '=', 'rekening_biaya.id')
-    //         ->join('kprk', 'verifikasi_biaya_rutin.id_kprk', '=', 'kprk.id')
-    //         ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
-    //         ->leftJoin('verifikasi_biaya_rutin_detail_lampiran', 'verifikasi_biaya_rutin_detail.id', '=', 'verifikasi_biaya_rutin_detail_lampiran.verifikasi_biaya_rutin_detail')
-    //         ->where('verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', $id_verifikasi_biaya_rutin)
-    //         ->where('verifikasi_biaya_rutin_detail.id_rekening_biaya', $kode_rekening)
-    //         ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
-    //         ->where('verifikasi_biaya_rutin.id_kprk', $id_kcu)
-    //         ->where('verifikasi_biaya_rutin.id_kpc', $id_kpc)
-    //         ->get();
-
-    //         if ($rutin->isEmpty()) {
-    //             return response()->json([
-    //                 'status' => 'SUCCESS',
-    //                 'data' => [],
-    //             ]);
-    //         }
-
-    //         $tahun = $rutin->first()->tahun;
-
-    //         // Check lock status and retrieve produksi_nasional in parallel
-    //         $isLockStatus = LockVerifikasi::where('tahun', $tahun)
-    //             ->where('bulan', $bulan)
-    //             ->value('status') ?? false;
-
-    //         $produksi_nasional = ProduksiNasional::where([
-    //             ['tahun', $tahun],
-    //             ['bulan', $bulan],
-    //             ['status', 'OUTGOING'],
-    //         ])->sum('jml_pendapatan');
-
-    //         // Optimasi looping: ambil data NPP sekaligus untuk semua kode rekening
-    //         $nppMap = Npp::whereIn('id_rekening_biaya', $rutin->pluck('kode_rekening')->unique())
-    //             ->where('tahun', $tahun)
-    //             ->where('bulan', $bulan)
-    //             ->get()
-    //             ->keyBy('id_rekening_biaya');
-
-    //         // Looping untuk setiap item
-    //         foreach ($rutin as $item) {
-    //             $item->pelaporan = "Rp " . number_format(round($item->pelaporan), 0, '', '.');
-    //             $item->verifikasi = "Rp " . number_format(round($item->verifikasi), 0, '', '.');
-    //             $item->url_lampiran = config('app.env_config_path') . $item->nama_file;
-
-    //             $npp = $nppMap->get($item->kode_rekening);
-    //             $produksi = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
-    //                 ->where([
-    //                     ['produksi.tahun_anggaran', $item->tahun],
-    //                     ['produksi_detail.nama_bulan', $bulan],
-    //                     ['jenis_produksi', 'PENERIMAAN/OUTGOING'],
-    //                 ])
-    //                 ->sum('produksi_detail.pelaporan');
-
-    //             $proporsi = ($produksi > 0 && $produksi_nasional > 0 && ($npp->bsu ?? 0) > 0)
-    //                 ? ($produksi / $produksi_nasional) * $npp->bsu
-    //                 : 0;
-
-    //             $item->npp = "Rp " . number_format(($npp->bsu ?? 0), 0, '', '.');
-    //             $item->proporsi = "Rp " . number_format($proporsi, 0, '', '.');
-    //         }
-
-    //         if ($isLockStatus) {
-    //             $rutin = [];
-    //         }
-
-    //         return response()->json([
-    //             'status' => 'SUCCESS',
-    //             'isLock' => $isLockStatus,
-    //             'link' => config('app.env_config_path'),
-    //             'data' => $rutin,
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => 'ERROR',
-    //             'message' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString(),
-    //         ], 500);
-    //     }
-    // }
-
-
     public function downloadLampiran(Request $request)
     {
         try {
@@ -1425,6 +1294,114 @@ class VerifikasiBiayaRutinController extends Controller
             return response()->json(['status' => 'SUCCESS', 'data' => $rutin]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function index(Request $request)
+    {
+        try {
+            // Validasi parameter input
+            $validator = Validator::make($request->all(), [
+                'bulan' => 'required|integer|min:1|max:12',
+                'tahun' => 'required|integer',
+                'nopend' => 'required|string|exists:kpc,nomor_dirian',
+                'kategoribiaya' => 'nullable|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $bulan = str_pad($request->bulan, 2, '0', STR_PAD_LEFT);
+            $tahun = $request->tahun;
+            $nopend = $request->nopend;
+            $kategoribiaya = $request->kategoribiaya;
+
+            // Mapping kategori biaya
+            $kategoriMapping = [
+                1 => 'BIAYA PENJUALAN',
+                2 => 'BIAYA OPERASI',
+                3 => 'BIAYA UMUM',
+            ];
+
+            // Query data
+            $query = VerifikasiBiayaRutinDetail::select(
+                'verifikasi_biaya_rutin_detail.id',
+                'verifikasi_biaya_rutin.id_regional',
+                'verifikasi_biaya_rutin.id_kprk',
+                'verifikasi_biaya_rutin.id_kpc',
+                'verifikasi_biaya_rutin.tahun as tahun_anggaran',
+                'verifikasi_biaya_rutin.triwulan',
+                'verifikasi_biaya_rutin_detail.kategori_biaya',
+                'rekening_biaya.kode_rekening as koderekening',
+                'rekening_biaya.nama as nama_rekening',
+                'verifikasi_biaya_rutin_detail.bulan',
+                'verifikasi_biaya_rutin_detail.bilangan',
+                'verifikasi_biaya_rutin_detail.verifikasi',
+                'verifikasi_biaya_rutin_detail.pelaporan as nominal',
+                'verifikasi_biaya_rutin.id_status as status',
+                'verifikasi_biaya_rutin_detail.keterangan',
+                'verifikasi_biaya_rutin_detail.lampiran'
+            )
+            ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+            ->join('rekening_biaya', 'verifikasi_biaya_rutin_detail.id_rekening_biaya', '=', 'rekening_biaya.id')
+            ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
+            ->where('verifikasi_biaya_rutin.tahun', $tahun)
+            ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
+            ->where('kpc.nomor_dirian', $nopend);
+
+            // Filter kategori biaya jika ada
+            if ($kategoribiaya && isset($kategoriMapping[$kategoribiaya])) {
+                $query->where('verifikasi_biaya_rutin_detail.kategori_biaya', $kategoriMapping[$kategoribiaya]);
+            }
+
+            $data = $query->get();
+
+            // Format response
+            $formattedData = $data->map(function ($item) {
+                return [
+                    'id' => (string) $item->id,
+                    'id_regional' => (string) $item->id_regional,
+                    'id_kprk' => (string) $item->id_kprk,
+                    'id_kpc' => (string) $item->id_kpc,
+                    'tahun_anggaran' => (string) $item->tahun_anggaran,
+                    'triwulan' => (string) $item->triwulan,
+                    'kategori_biaya' => $item->kategori_biaya,
+                    'koderekening' => (string) $item->koderekening,
+                    'nama_rekening' => $item->nama_rekening,
+                    'bulan' => (string) $item->bulan,
+                    'bilangan' => (string) $item->bilangan,
+                    'nominal' => (string) round($item->nominal),
+                    'verifikasi' => (string) round($item->verifikasi),
+                    'status' => (string) $item->status,
+                    'keterangan' => $item->keterangan ?? '',
+                    'lampiran' => $item->lampiran,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => $formattedData->isEmpty() ? 'Data tidak tersedia' : 'Data Tersedia',
+                'total_data' => $formattedData->count(),
+                'data' => $formattedData,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('getPerBulan error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'total_data' => 0,
+                'data' => [],
+            ], 500);
         }
     }
 }
