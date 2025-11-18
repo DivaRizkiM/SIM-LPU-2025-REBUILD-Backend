@@ -751,7 +751,7 @@ class BiayaAtribusiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'data.*.id_biaya_atribusi_detail' => 'required|string|exists:biaya_atribusi_detail,id',
-                'data.*.verifikasi' => 'required|string',
+                'data.*.verifikasi' => 'nullable|numeric',
                 'data.*.catatan_pemeriksa' => 'nullable|string',
             ]);
 
@@ -763,19 +763,13 @@ class BiayaAtribusiController extends Controller
             $updatedData = [];
 
             foreach ($verifikasiData as $data) {
-                if (!isset($data['id_biaya_atribusi_detail']) || !isset($data['verifikasi'])) {
+                if (!isset($data['id_biaya_atribusi_detail'])) {
                     DB::rollBack();
                     return response()->json(['status' => 'ERROR', 'message' => 'Invalid data structure'], 400);
                 }
 
                 $id_biaya_atribusi_detail = $data['id_biaya_atribusi_detail'];
-
-                $verifikasi = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
-                $verifikasiFloat = round((float)$verifikasi);
-                $verifikasiFormatted = (string)$verifikasiFloat;
-                $catatan_pemeriksa = isset($data['catatan_pemeriksa']) ? $data['catatan_pemeriksa'] : '';
-                $id_validator = Auth::user()->id;
-                $tanggal_verifikasi = now();
+                
                 $biaya_atribusi_detail = BiayaAtribusiDetail::with('biayaAtribusi')->find($id_biaya_atribusi_detail);
 
                 if (!$biaya_atribusi_detail) {
@@ -783,31 +777,69 @@ class BiayaAtribusiController extends Controller
                     return response()->json(['status' => 'ERROR', 'message' => 'Detail biaya atribusi tidak ditemukan'], 404);
                 }
 
-                // Hanya update biaya atribusi detail, tidak update rutin detail
+                $verifikasiInput = $data['verifikasi'] ?? null;
+                
+                if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
+                    $verifikasiValue = $biaya_atribusi_detail->pelaporan;
+                } else {
+                    // Jika ada nilai, proses sesuai format
+                    if (is_numeric($verifikasiInput)) {
+                        // Format numeric: 3353438.574866114
+                        $verifikasiValue = (float) $verifikasiInput;
+                    } elseif (is_string($verifikasiInput)) {
+                        // Format string: "Rp 3.353.438" atau "3.353.438,57"
+                        $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
+                        
+                        if (strpos($cleaned, ',') !== false) {
+                            $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
+                            $verifikasiValue = (float) $cleaned;
+                        } else {
+                            $cleaned = str_replace(',', '', $cleaned);
+                            $verifikasiValue = (float) $cleaned;
+                        }
+                    } else {
+                        $verifikasiValue = $biaya_atribusi_detail->pelaporan;
+                    }
+                }
+                
+                $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
+                $id_validator = Auth::user()->id;
+                $tanggal_verifikasi = now();
+
                 $biaya_atribusi_detail->update([
-                    'verifikasi' => $verifikasiFormatted,
+                    'verifikasi' => $verifikasiValue,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                     'id_validator' => $id_validator,
                     'tgl_verifikasi' => $tanggal_verifikasi,
                 ]);
 
-                $updatedData[] = $biaya_atribusi_detail;
+                $updatedData[] = [
+                    'id' => $biaya_atribusi_detail->id,
+                    'verifikasi' => "Rp " . number_format($verifikasiValue, 0, '', '.'),
+                    'verifikasi_raw' => $verifikasiValue,
+                    'pelaporan' => "Rp " . number_format(round($biaya_atribusi_detail->pelaporan), 0, '', '.'),
+                    'catatan_pemeriksa' => $catatan_pemeriksa,
+                    'source' => ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0) ? 'pelaporan' : 'input',
+                ];
             }
 
-            $userLog = [
+            UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Verifikasi Atribusi',
                 'modul' => 'Atribusi',
-                'id_user' => Auth::user(),
-            ];
+                'id_user' => Auth::user()->id,
+            ]);
 
-            UserLog::create($userLog);
             DB::commit();
             Artisan::call('cache:clear');
 
             return response()->json(['status' => 'SUCCESS', 'data' => $updatedData]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Verifikasi Atribusi error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
