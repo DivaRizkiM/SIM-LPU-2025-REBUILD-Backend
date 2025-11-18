@@ -341,3 +341,4 @@ Route::get('/cek-memory', function () {
 Route::get('/phpinfo', function () {
     phpinfo();
 });
+Route::get('biaya-rutin', [VerifikasiBiayaRutinController::class, 'index'])->name('biaya-rutin');
