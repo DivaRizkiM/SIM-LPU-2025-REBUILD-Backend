@@ -1048,6 +1048,7 @@ class VerifikasiBiayaRutinController extends Controller
                 // Prevent division by zero
                 $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
                 $item->biaya_per_npp = "Rp " . number_format($biayaPerNpp, 0, '', '.');
+                $item->biaya_per_npp_raw = $biayaPerNpp;
             }
 
             if ($isLockStatus) {
