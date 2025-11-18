@@ -1300,7 +1300,6 @@ class VerifikasiBiayaRutinController extends Controller
     public function index(Request $request)
     {
         try {
-            // Validasi parameter input
             $validator = Validator::make($request->all(), [
                 'bulan' => 'required|integer|min:1|max:12',
                 'tahun' => 'required|integer',
@@ -1320,8 +1319,8 @@ class VerifikasiBiayaRutinController extends Controller
             $tahun = $request->tahun;
             $nopend = $request->nopend;
             $kategoribiaya = $request->kategoribiaya;
+            $koderekening = $request->kode_rekening;
 
-            // Mapping kategori biaya
             $kategoriMapping = [
                 1 => 'BIAYA PENJUALAN',
                 2 => 'BIAYA OPERASI',
@@ -1352,16 +1351,17 @@ class VerifikasiBiayaRutinController extends Controller
             ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
             ->where('verifikasi_biaya_rutin.tahun', $tahun)
             ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
-            ->where('kpc.nomor_dirian', $nopend);
+            ->where('kpc.nomor_dirian', $nopend)
+            ->when($koderekening, function ($q) use ($koderekening) {
+                $q->where('rekening_biaya.kode_rekening', $koderekening);
+            });
 
-            // Filter kategori biaya jika ada
             if ($kategoribiaya && isset($kategoriMapping[$kategoribiaya])) {
                 $query->where('verifikasi_biaya_rutin_detail.kategori_biaya', $kategoriMapping[$kategoribiaya]);
             }
 
             $data = $query->get();
 
-            // Format response
             $formattedData = $data->map(function ($item) {
                 return [
                     'id' => (string) $item->id,
