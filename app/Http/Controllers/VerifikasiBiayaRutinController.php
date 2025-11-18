@@ -440,10 +440,7 @@ class VerifikasiBiayaRutinController extends Controller
                 'data' => $rutin,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'ERROR',
-                'message' => $e->getMessage(),
-            ], 500);
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -1209,7 +1206,7 @@ class VerifikasiBiayaRutinController extends Controller
             // Validasi input dari request
             $validator = Validator::make($request->all(), [
                 'data.*.id_verifikasi_biaya_rutin_detail' => 'required|string|exists:verifikasi_biaya_rutin_detail,id',
-                'data.*.verifikasi' => 'required|string',
+                'data.*.verifikasi' => 'nullable|string', // ✅ Ubah jadi nullable
                 'data.*.catatan_pemeriksa' => 'nullable|string',
             ]);
 
@@ -1224,19 +1221,12 @@ class VerifikasiBiayaRutinController extends Controller
             // Iterasi melalui data yang diverifikasi
             foreach ($verifikasiData as $data) {
                 // Cek struktur data yang benar
-                if (!isset($data['id_verifikasi_biaya_rutin_detail']) || !isset($data['verifikasi'])) {
+                if (!isset($data['id_verifikasi_biaya_rutin_detail'])) {
                     return response()->json(['status' => 'ERROR', 'message' => 'Invalid data structure'], 400);
                 }
 
-                // Proses nilai verifikasi
                 $id_verifikasi_biaya_rutin_detail = $data['id_verifikasi_biaya_rutin_detail'];
-                $verifikasi = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
-                $verifikasiFloat = round((float) $verifikasi);  // Membulatkan nilai float
-                $verifikasiFormatted = (string) $verifikasiFloat; // Hilangkan pemisah ribuan (titik)
-                $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
-                $id_validator = Auth::user()->id;
-                $tanggal_verifikasi = now();
-
+                
                 // Temukan entri VerifikasiBiayaRutinDetail
                 $biaya_rutin_detail = VerifikasiBiayaRutinDetail::find($id_verifikasi_biaya_rutin_detail);
 
@@ -1245,29 +1235,52 @@ class VerifikasiBiayaRutinController extends Controller
                     return response()->json(['status' => 'ERROR', 'message' => 'Detail biaya rutin tidak ditemukan'], 404);
                 }
 
+                $verifikasiInput = $data['verifikasi'] ?? null;
+                
+                if (empty($verifikasiInput) || trim($verifikasiInput) === '' || $verifikasiInput === '0' || $verifikasiInput === 'Rp 0') {
+                    $verifikasiValue = $biaya_rutin_detail->pelaporan;
+                } else {
+                    $verifikasiValue = str_replace(['Rp.', 'Rp', ',', '.', ' '], '', $verifikasiInput);
+                    $verifikasiValue = (float) $verifikasiValue;
+                }
+                
+                $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
+                $id_validator = Auth::user()->id;
+                $tanggal_verifikasi = now();
+
                 // Update entri
                 $biaya_rutin_detail->update([
-                    'verifikasi' => $verifikasiFormatted,
+                    'verifikasi' => $verifikasiValue,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                     'id_validator' => $id_validator,
                     'tgl_verifikasi' => $tanggal_verifikasi,
                 ]);
 
                 // Tambahkan entri yang diperbarui ke array hasil
-                $updatedData[] = $biaya_rutin_detail;
+                $updatedData[] = [
+                    'verifikasi' => "Rp " . number_format($verifikasiValue, 0, '', '.'),
+                    'catatan_pemeriksa' => $catatan_pemeriksa,
+                    'id_validator' => $id_validator,
+                    'pelaporan' => "Rp " . number_format(round($biaya_rutin_detail->pelaporan), 0, '', '.'),
+
+                ];
             }
 
             // Kembalikan respon sukses
-            $userLog = [
+            UserLog::create([
                 'timestamp' => now(),
                 'aktifitas' => 'Verifikasi Biaya Rutin',
                 'modul' => 'Biaya Rutin',
-                'id_user' => Auth::user(),
-            ];
+                'id_user' => Auth::user()->id,
+            ]);
 
-            $userLog = UserLog::create($userLog);
             return response()->json(['status' => 'SUCCESS', 'data' => $updatedData]);
         } catch (\Exception $e) {
+            Log::error('Verifikasi error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
             // Kembalikan respon error
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
