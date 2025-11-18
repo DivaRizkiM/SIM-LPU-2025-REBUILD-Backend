@@ -731,7 +731,7 @@ class VerifikasiProduksiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'data.*.id_produksi_detail' => 'required|string|exists:produksi_detail,id',
-                'data.*.verifikasi'         => 'required|string',
+                'data.*.verifikasi'         => 'nullable|numeric', 
                 'data.*.catatan_pemeriksa'  => 'nullable|string',
             ]);
 
@@ -745,25 +745,45 @@ class VerifikasiProduksiController extends Controller
             }
 
             $data = $verifikasiData[0];
-            if (!isset($data['id_produksi_detail']) || !isset($data['verifikasi'])) {
+            if (!isset($data['id_produksi_detail'])) {
                 return response()->json(['status' => 'ERROR', 'message' => 'Invalid data structure'], 400);
             }
 
             $id_produksi_detail = $data['id_produksi_detail'];
-            $verifikasi         = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
-            $verifikasiFloat    = round((float) $verifikasi);
-            $verifikasiFormatted = (string) $verifikasiFloat;
-            $catatan_pemeriksa  = $data['catatan_pemeriksa'] ?? '';
-            $id_validator       = Auth::user()->id;
-            $tanggal_verifikasi = now();
 
             $produksi_detail = ProduksiDetail::find($id_produksi_detail);
             if (!$produksi_detail) {
                 return response()->json(['status' => 'ERROR', 'message' => 'Detail produksi tidak ditemukan'], 404);
             }
+            $verifikasiInput = $data['verifikasi'] ?? null;
+            
+            if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
+                $verifikasiValue = $produksi_detail->pelaporan;
+            } else {
+                if (is_numeric($verifikasiInput)) {
+                    $verifikasiValue = (float) $verifikasiInput;
+                } elseif (is_string($verifikasiInput)) {
+                    $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
+                    
+                    if (strpos($cleaned, ',') !== false) {
+                        $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
+                        $verifikasiValue = (float) $cleaned;
+                    } else {
+                        $cleaned = str_replace(',', '', $cleaned);
+                        $verifikasiValue = (float) $cleaned;
+                    }
+                } else {
+                    $verifikasiValue = $produksi_detail->pelaporan;
+                }
+            }
+
+            
+            $catatan_pemeriksa  = $data['catatan_pemeriksa'] ?? '';
+            $id_validator       = Auth::user()->id;
+            $tanggal_verifikasi = now();
 
             $produksi_detail->update([
-                'verifikasi'        => $verifikasiFormatted,
+                'verifikasi'        => $verifikasiValue,
                 'catatan_pemeriksa' => $catatan_pemeriksa,
                 'id_validator'      => $id_validator,
                 'tgl_verifikasi'    => $tanggal_verifikasi,
@@ -773,12 +793,27 @@ class VerifikasiProduksiController extends Controller
                 'timestamp' => now(),
                 'aktifitas' => 'Verifikasi Produksi',
                 'modul'     => 'Produksi',
-                'id_user'   => Auth::user(),
+                'id_user'   => Auth::user()->id
             ];
             UserLog::create($userLog);
 
-            return response()->json(['status' => 'SUCCESS', 'data' => $produksi_detail]);
+            return response()->json([
+                'status' => 'SUCCESS',
+                'data' => [
+                    'id' => $produksi_detail->id,
+                    'verifikasi' => "Rp " . number_format($verifikasiValue, 0, '', '.'),
+                    'verifikasi_raw' => $verifikasiValue,
+                    'pelaporan' => "Rp " . number_format(round($produksi_detail->pelaporan), 0, '', '.'),
+                    'catatan_pemeriksa' => $catatan_pemeriksa,
+                    'source' => ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0) ? 'pelaporan' : 'input',
+                ]
+            ]);
         } catch (\Exception $e) {
+            Log::error('Verifikasi Produksi error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
