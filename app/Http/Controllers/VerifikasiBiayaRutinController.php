@@ -397,17 +397,19 @@ class VerifikasiBiayaRutinController extends Controller
                     'regional.nama'
                 );
 
-            $rutinQuery->where(function ($query) use ($search) {
-                $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
-                    ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
-                    ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
-                    ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
-                    ->orWhere('verifikasi_biaya_rutin.total_biaya', 'like', "%$search%")
-                    ->orWhere('verifikasi_biaya_rutin.id_status', 'like', "%$search%")
-                    ->orWhere('regional.nama', 'like', "%$search%")
-                    ->orWhere('kpc.nama', 'like', "%$search%")
-                    ->orWhere('kprk.nama', 'like', "%$search%");
-            });
+            if ($search !== '') {
+                $rutinQuery->where(function ($query) use ($search) {
+                    $query->where('verifikasi_biaya_rutin.id', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.id_regional', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.triwulan', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.tahun', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.total_biaya', 'like', "%$search%")
+                        ->orWhere('verifikasi_biaya_rutin.id_status', 'like', "%$search%")
+                        ->orWhere('regional.nama', 'like', "%$search%")
+                        ->orWhere('kpc.nama', 'like', "%$search%")
+                        ->orWhere('kprk.nama', 'like', "%$search%");
+                });
+            }
 
             if ($id_kcu !== '') {
                 $rutinQuery->where('verifikasi_biaya_rutin.id_kprk', $id_kcu);
@@ -788,10 +790,7 @@ class VerifikasiBiayaRutinController extends Controller
                 'data' => $groupedCollection,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'ERROR',
-                'message' => $e->getMessage()
-            ], 500);
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -1206,7 +1205,7 @@ class VerifikasiBiayaRutinController extends Controller
             // Validasi input dari request
             $validator = Validator::make($request->all(), [
                 'data.*.id_verifikasi_biaya_rutin_detail' => 'required|string|exists:verifikasi_biaya_rutin_detail,id',
-                'data.*.verifikasi' => 'nullable|string', // ✅ Ubah jadi nullable
+                'data.*.verifikasi' => 'nullable|numeric', // ✅ Ubah ke numeric untuk handle float
                 'data.*.catatan_pemeriksa' => 'nullable|string',
             ]);
 
@@ -1235,13 +1234,41 @@ class VerifikasiBiayaRutinController extends Controller
                     return response()->json(['status' => 'ERROR', 'message' => 'Detail biaya rutin tidak ditemukan'], 404);
                 }
 
+                // ✅ LOGIKA BARU: Handle float dan format Indonesia/internasional
                 $verifikasiInput = $data['verifikasi'] ?? null;
                 
-                if (empty($verifikasiInput) || trim($verifikasiInput) === '' || $verifikasiInput === '0' || $verifikasiInput === 'Rp 0') {
+                if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
+                    // Jika kosong/null, gunakan pelaporan
                     $verifikasiValue = $biaya_rutin_detail->pelaporan;
                 } else {
-                    $verifikasiValue = str_replace(['Rp.', 'Rp', ',', '.', ' '], '', $verifikasiInput);
-                    $verifikasiValue = (float) $verifikasiValue;
+                    // ✅ Deteksi format dan convert ke float
+                    if (is_numeric($verifikasiInput)) {
+                        // Jika sudah numeric (string atau number), langsung convert ke float
+                        // Contoh: "3353438.574866114" atau 3353438.574866114
+                        $verifikasiValue = (float) $verifikasiInput;
+                    } elseif (is_string($verifikasiInput)) {
+                        // Jika string dengan format Indonesia (Rp, koma, titik)
+                        // Contoh: "Rp 3.353.438,57" atau "3.353.438,57"
+                        
+                        // Hapus prefix Rp dan spasi
+                        $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
+                        
+                        // Deteksi format: cek apakah ada koma
+                        if (strpos($cleaned, ',') !== false) {
+                            // Format Indonesia: 3.353.438,57
+                            // Hapus titik (pemisah ribuan), ganti koma dengan titik (desimal)
+                            $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
+                            $verifikasiValue = (float) $cleaned;
+                        } else {
+                            // Format internasional: 3353438.574866114 atau 3,353,438.57
+                            // Hapus koma (pemisah ribuan)
+                            $cleaned = str_replace(',', '', $cleaned);
+                            $verifikasiValue = (float) $cleaned;
+                        }
+                    } else {
+                        // Fallback: gunakan pelaporan
+                        $verifikasiValue = $biaya_rutin_detail->pelaporan;
+                    }
                 }
                 
                 $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
@@ -1258,11 +1285,15 @@ class VerifikasiBiayaRutinController extends Controller
 
                 // Tambahkan entri yang diperbarui ke array hasil
                 $updatedData[] = [
-                    'verifikasi' => "Rp " . number_format($verifikasiValue, 0, '', '.'),
+                    'id' => $biaya_rutin_detail->id,
+                    'verifikasi' => "Rp " . number_format($verifikasiValue, 2, ',', '.'),
+
+                    'verifikasi_raw' => $verifikasiValue,
                     'catatan_pemeriksa' => $catatan_pemeriksa,
                     'id_validator' => $id_validator,
-                    'pelaporan' => "Rp " . number_format(round($biaya_rutin_detail->pelaporan), 0, '', '.'),
+                    'pelaporan' => "Rp " . number_format($biaya_rutin_detail->pelaporan, 2, ',', '.'),
 
+                    'source' => ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0) ? 'pelaporan' : 'input',
                 ];
             }
 
@@ -1279,6 +1310,7 @@ class VerifikasiBiayaRutinController extends Controller
             Log::error('Verifikasi error: ' . $e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             // Kembalikan respon error
