@@ -235,7 +235,6 @@ Route::middleware('auth:api')->group(function () {
         Route::get('atribusi-detail', [BiayaAtribusiController::class, 'getDetail'])->name('atribusi-detail');
         Route::post('atribusi-verifikasi', [BiayaAtribusiController::class, 'verifikasi'])->name('atribusi-verifikasi');
 
-        Route::get('biaya-rutin', [VerifikasiBiayaRutinController::class, 'index'])->name('biaya-rutin');
         Route::get('rutin-tahun', [VerifikasiBiayaRutinController::class, 'getPerTahun'])->name('rutin-tahun');
         Route::get('rutin-regional', [VerifikasiBiayaRutinController::class, 'getPerRegional'])->name('rutin-regional');
         Route::get('rutin-kcu', [VerifikasiBiayaRutinController::class, 'getPerKCU'])->name('rutin-kcu');
@@ -342,3 +341,4 @@ Route::get('/cek-memory', function () {
 Route::get('/phpinfo', function () {
     phpinfo();
 });
+Route::get('biaya-rutin', [VerifikasiBiayaRutinController::class, 'index'])->name('biaya-rutin');
