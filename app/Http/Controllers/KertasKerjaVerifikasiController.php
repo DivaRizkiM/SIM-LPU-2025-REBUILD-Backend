@@ -312,13 +312,13 @@ class KertasKerjaVerifikasiController extends Controller
                 $data[] = [
                     'id_kprk'                     => $item->id_kprk,
                     'nama_kprk'                   => $item->nama_kprk,
-                    'hasil_pelaporan_biaya'       => round($item->hasil_pelaporan_biaya ?? 0),
-                    'hasil_pelaporan_pendapatan'  => round($item->hasil_pelaporan_pendapatan ?? 0),
-                    'hasil_verifikasi_biaya'      => round($item->hasil_verifikasi_biaya ?? 0),
-                    'hasil_verifikasi_pendapatan' => round($item->hasil_verifikasi_pendapatan ?? 0),
-                    'deviasi_biaya'               => round(($item->hasil_pelaporan_biaya ?? 0) - ($item->hasil_verifikasi_biaya ?? 0)),
-                    'deviasi_produksi'            => round(($item->hasil_pelaporan_pendapatan ?? 0) - ($item->hasil_verifikasi_pendapatan ?? 0)),
-                    'deviasi_akhir'               => round(($item->hasil_verifikasi_biaya ?? 0) - ($item->hasil_verifikasi_pendapatan ?? 0)),
+                    'hasil_pelaporan_biaya'       => $item->hasil_pelaporan_biaya ?? 0,
+                    'hasil_pelaporan_pendapatan'  => $item->hasil_pelaporan_pendapatan ?? 0,
+                    'hasil_verifikasi_biaya'      => $item->hasil_verifikasi_biaya ?? 0,
+                    'hasil_verifikasi_pendapatan' => $item->hasil_verifikasi_pendapatan ?? 0,
+                    'deviasi_biaya'               => ($item->hasil_pelaporan_biaya ?? 0) - ($item->hasil_verifikasi_biaya ?? 0),
+                    'deviasi_produksi'            => ($item->hasil_pelaporan_pendapatan ?? 0) - ($item->hasil_verifikasi_pendapatan ?? 0),
+                    'deviasi_akhir'               => ($item->hasil_verifikasi_biaya ?? 0) - ($item->hasil_verifikasi_pendapatan ?? 0),
                 ];
             }
 
