@@ -283,4 +283,56 @@ class RegionalController extends Controller
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+    public function apiList(Request $request)
+    {
+        try {
+            $query = Regional::query();
+            
+            // Filter jika ada
+            if ($request->has('kode')) {
+                $query->where('kode', $request->kode);
+            }
+            
+            $data = $query->select('id', 'kode', 'nama')
+                ->orderBy('kode')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'total_data' => $data->count(),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function apiDetail($id)
+    {
+        try {
+            $data = Regional::select('id', 'kode', 'nama')->where('id', $id)->first();
+            
+            if (!$data) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak ditemukan',
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

@@ -27,4 +27,9 @@ class Kprk extends Model
         'jumlah_kpc_lpu',
         'jumlah_kpc_lpk'
     ];
+
+    public function regional()
+    {
+        return $this->belongsTo(Regional::class, 'id_regional');
+    }
 }

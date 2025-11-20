@@ -154,4 +154,47 @@ class KategoriBiayaController extends Controller
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+    public function apiList(Request $request)
+    {
+        try {            
+            $data = KategoriBiaya::get();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'total_data' => $data->count(),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function apiDetail($id)
+    {
+        try {
+            $data = KategoriBiaya::find($id);
+            
+            if (!$data) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak ditemukan',
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

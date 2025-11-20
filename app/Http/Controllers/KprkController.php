@@ -323,4 +323,53 @@ class KprkController extends Controller
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+    public function apiList(Request $request)
+    {
+        try {
+            $query = Kprk::with('regional:id,nama');
+            
+            if ($request->has('id_regional')) {
+                $query->where('id_regional', $request->id_regional);
+            }
+            
+            $data = $query->select('id', 'kode', 'nama', 'id_regional')->orderBy('kode')->get();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'total_data' => $data->count(),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function apiDetail($id)
+    {
+        try {
+            $data = Kprk::with('regional')->find($id);
+            
+            if (!$data) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak ditemukan',
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

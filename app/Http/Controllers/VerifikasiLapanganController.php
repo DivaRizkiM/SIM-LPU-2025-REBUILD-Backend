@@ -135,20 +135,25 @@ class VerifikasiLapanganController extends Controller
                 $kelurahan = Kelurahan::find($item->id_kelurahan);
                 $petugas   = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
 
-                // ✅ Tambahkan: Ambil semua foto dari pencatatan_kantor_file
+                // ✅ Ambil semua foto dari pencatatan_kantor_file
                 $fotos = DB::table('pencatatan_kantor_file')
                     ->where('id_parent', $item->id)
-                    ->select('file', 'file_name', 'file_type')
+                    ->select('file', 'file_name', 'nama')
                     ->get();
 
-                $fotoLinks = [];
-                foreach ($fotos as $foto) {
-                    $fotoLinks[] = [
-                        'url' => url('storage/' . $foto->file),
-                        'file_name' => $foto->file_name,
-                        'file_type' => $foto->file_type,
-                    ];
-                }
+                // ✅ Filter foto berdasarkan nama
+                $fotoTampakDepan = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Depan #1') !== false;
+                });
+                $fotoTampakBelakang = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Belakang #1') !== false;
+                });
+                $fotoTampakSamping = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Samping #1') !== false;
+                });
+                $fotoTampakDalam = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Dalam #1') !== false;
+                });
 
                 $nilai_akhir = (
                     ($item->aspek_operasional ?? 0) +
@@ -158,24 +163,28 @@ class VerifikasiLapanganController extends Controller
                 ) / 4;
 
                 $data[] = [
-                    'id'               => $item->id,
-                    'tanggal'          => $item->created,
-                    'petugas_list'     => $petugas,
-                    'kode_pos'         => $kpc->nomor_dirian ?? "",
-                    'provinsi'         => $provinsi->nama ?? "",
-                    'kabupaten'        => $kabupaten->nama ?? "",
-                    'kecamatan'        => $kecamatan->nama ?? "",
-                    'kelurahan'        => $kelurahan->nama ?? "",
-                    'kantor_lpu'       => $kpc->nama ?? "",
-                    'aspek_operasional'=> round($item->aspek_operasional),
-                    'aspek_sarana'     => round($item->aspek_sarana),
-                    'aspek_wilayah'    => round($item->aspek_wilayah),
-                    'aspek_pegawai'    => round($item->aspek_pegawai),
-                    'nilai_akhir'      => round($nilai_akhir),
-                    'kesimpulan'       => ($nilai_akhir < 50
+                    'id'                    => $item->id,
+                    'tanggal'               => $item->created,
+                    'petugas_list'          => $petugas,
+                    'kode_pos'              => $kpc->nomor_dirian ?? "",
+                    'provinsi'              => $provinsi->nama ?? "",
+                    'kabupaten'             => $kabupaten->nama ?? "",
+                    'kecamatan'             => $kecamatan->nama ?? "",
+                    'kelurahan'             => $kelurahan->nama ?? "",
+                    'kantor_lpu'            => $kpc->nama ?? "",
+                    'aspek_operasional'     => round($item->aspek_operasional),
+                    'aspek_sarana'          => round($item->aspek_sarana),
+                    'aspek_wilayah'         => round($item->aspek_wilayah),
+                    'aspek_pegawai'         => round($item->aspek_pegawai),
+                    'nilai_akhir'           => round($nilai_akhir),
+                    'kesimpulan'            => ($nilai_akhir < 50
                         ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU'
                         : 'Melanjutkan Mendapatkan Subsidi Operasional LPU'),
-                    'foto'             => $fotoLinks, // ✅ Tambahkan kolom foto
+                    // ✅ 4 Kolom foto terpisah
+                    'foto_tampak_depan'     => $fotoTampakDepan ? url('storage/' . $fotoTampakDepan->file) : null,
+                    'foto_tampak_belakang'  => $fotoTampakBelakang ? url('storage/' . $fotoTampakBelakang->file) : null,
+                    'foto_tampak_samping'   => $fotoTampakSamping ? url('storage/' . $fotoTampakSamping->file) : null,
+                    'foto_tampak_dalam'     => $fotoTampakDalam ? url('storage/' . $fotoTampakDalam->file) : null,
                 ];
             }
 
@@ -320,16 +329,25 @@ class VerifikasiLapanganController extends Controller
                 $kelurahan = Kelurahan::find($item->id_kelurahan);
                 $petugas = PetugasKPC::select('nama_petugas')->where('id_kpc', $item->id_kpc)->get();
 
-                // ✅ Tambahkan: Ambil semua foto dari pencatatan_kantor_file
+                // ✅ Ambil semua foto dari pencatatan_kantor_file
                 $fotos = DB::table('pencatatan_kantor_file')
                     ->where('id_parent', $item->id)
-                    ->select('file', 'file_name', 'file_type')
+                    ->select('file', 'file_name', 'nama')
                     ->get();
 
-                $fotoLinks = [];
-                foreach ($fotos as $foto) {
-                    $fotoLinks[] = url('storage/' . $foto->file);
-                }
+                // ✅ Filter foto berdasarkan nama
+                $fotoTampakDepan = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Depan #1') !== false;
+                });
+                $fotoTampakBelakang = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Belakang #1') !== false;
+                });
+                $fotoTampakSamping = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Samping #1') !== false;
+                });
+                $fotoTampakDalam = $fotos->first(function($f) {
+                    return stripos($f->nama, 'Tampak Dalam #1') !== false;
+                });
 
                 $nilai_akhir = (
                     $item->aspek_operasional +
@@ -358,7 +376,11 @@ class VerifikasiLapanganController extends Controller
                     'aspek_pegawai' => round($item->aspek_pegawai),
                     'nilai_akhir' => round($nilai_akhir),
                     'kesimpulan' => $kesimpulan,
-                    'foto' => implode(', ', $fotoLinks), // ✅ Tambahkan kolom foto (untuk Excel)
+                    // ✅ 4 Kolom foto terpisah (untuk Excel)
+                    'foto_tampak_depan' => $fotoTampakDepan ? url('storage/' . $fotoTampakDepan->file) : '',
+                    'foto_tampak_belakang' => $fotoTampakBelakang ? url('storage/' . $fotoTampakBelakang->file) : '',
+                    'foto_tampak_samping' => $fotoTampakSamping ? url('storage/' . $fotoTampakSamping->file) : '',
+                    'foto_tampak_dalam' => $fotoTampakDalam ? url('storage/' . $fotoTampakDalam->file) : '',
                 ];
             }
 
@@ -366,7 +388,7 @@ class VerifikasiLapanganController extends Controller
                 'timestamp' => now(),
                 'aktifitas' =>'Cetak Verifikasi Lapangan',
                 'modul' => 'Verifikasi Lapangan',
-                'id_user' => Auth::id(), // ✅ Perbaiki: gunakan Auth::id() bukan Auth::user()
+                'id_user' => Auth::id(),
             ];
             UserLog::create($userLog);
 

@@ -536,4 +536,58 @@ class KpcController extends Controller
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function apiList(Request $request)
+    {
+        try {
+            $query = Kpc::with(['regional:id,nama', 'kprk:id,nama']);
+            
+            if ($request->has('id_regional')) {
+                $query->where('id_regional', $request->id_regional);
+            }
+            
+            if ($request->has('id_kprk')) {
+                $query->where('id_kprk', $request->id_kprk);
+            }
+            
+            $data = $query->orderBy('nomor_dirian')->get();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'total_data' => $data->count(),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function apiDetail($id)
+    {
+        try {
+            $data = Kpc::with(['regional', 'kprk'])->find($id);
+            
+            if (!$data) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data tidak ditemukan',
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Tersedia',
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

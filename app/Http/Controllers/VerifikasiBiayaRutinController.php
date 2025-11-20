@@ -1361,7 +1361,7 @@ class VerifikasiBiayaRutinController extends Controller
                 ], 422);
             }
 
-            $bulan = str_pad($request->bulan, 2, '0', STR_PAD_LEFT);
+            $bulan = $request->bulan;
             $tahun = $request->tahun;
             $nopend = $request->nopend;
             $kategoribiaya = $request->kategoribiaya;
@@ -1395,9 +1395,15 @@ class VerifikasiBiayaRutinController extends Controller
             ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
             ->join('rekening_biaya', 'verifikasi_biaya_rutin_detail.id_rekening_biaya', '=', 'rekening_biaya.id')
             ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
-            ->where('verifikasi_biaya_rutin.tahun', $tahun)
-            ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
-            ->where('kpc.nomor_dirian', $nopend)
+            ->when($tahun, function ($q) use ($tahun) {
+                $q->where('verifikasi_biaya_rutin.tahun', $tahun);
+            })
+            ->when($bulan, function ($q) use ($bulan) {
+                $q->where('verifikasi_biaya_rutin_detail.bulan', $bulan);
+            })
+            ->when($nopend, function ($q) use ($nopend) {
+                $q->where('kpc.nomor_dirian', $nopend);
+            })
             ->when($koderekening, function ($q) use ($koderekening) {
                 $q->where('rekening_biaya.kode_rekening', $koderekening);
             });
@@ -1447,6 +1453,89 @@ class VerifikasiBiayaRutinController extends Controller
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
                 'total_data' => 0,
                 'data' => [],
+            ], 500);
+        }
+    }
+
+    public function apiLampiran(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'bulan' => 'required|integer|min:1|max:12',
+                'tahun' => 'required|integer',
+                'nopend' => 'required|string|exists:kpc,nomor_dirian',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validasi gagal',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $bulan = str_pad($request->bulan, 2, '0', STR_PAD_LEFT);
+            $tahun = $request->tahun;
+            $nopend = $request->nopend;
+
+            $data = VerifikasiBiayaRutinDetailLampiran::select(
+                'verifikasi_biaya_rutin_detail_lampiran.id',
+                'verifikasi_biaya_rutin_detail_lampiran.verifikasi_biaya_rutin_detail as id_biaya_detail',
+                'verifikasi_biaya_rutin_detail_lampiran.nama_file',
+                'verifikasi_biaya_rutin_detail.bulan',
+                'kpc.nomor_dirian',
+                'kpc.nama'
+            )
+            ->join('verifikasi_biaya_rutin_detail', 'verifikasi_biaya_rutin_detail_lampiran.verifikasi_biaya_rutin_detail', '=', 'verifikasi_biaya_rutin_detail.id')
+            ->join('verifikasi_biaya_rutin', 'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin', '=', 'verifikasi_biaya_rutin.id')
+            ->join('kpc', 'verifikasi_biaya_rutin.id_kpc', '=', 'kpc.id')
+            ->where('verifikasi_biaya_rutin.tahun', $tahun)
+            ->where('verifikasi_biaya_rutin_detail.bulan', $bulan)
+            ->where('kpc.nomor_dirian', $nopend)
+            ->whereNotNull('verifikasi_biaya_rutin_detail_lampiran.nama_file')
+            ->where('verifikasi_biaya_rutin_detail_lampiran.nama_file', '!=', '')
+            ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => $data->isEmpty() ? 'Data tidak tersedia' : 'Data Tersedia',
+                'total_data' => $data->count(),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function apiDownloadLampiran($id)
+    {
+        try {
+            $lampiran = VerifikasiBiayaRutinDetailLampiran::find($id);
+            
+            if (!$lampiran || !$lampiran->nama_file) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lampiran tidak ditemukan',
+                ], 404);
+            }
+
+            $filePath = storage_path('app/public/lampiran/' . $lampiran->nama_file);
+            
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan',
+                ], 404);
+            }
+
+            return response()->download($filePath, $lampiran->nama_file);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
