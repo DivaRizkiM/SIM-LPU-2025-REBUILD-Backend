@@ -139,6 +139,24 @@ class VerifikasiProduksiController extends Controller
             });
             $grand_total = "Rp " . number_format(round($grand_total_val), 0, '', '.');
 
+            $groupKeys = $dataFiltered->map(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun_anggaran)->unique()->toArray();
+            $statuses = Produksi::where('tahun_anggaran', $tahun_anggaran)
+                ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+                ->whereIn(DB::raw("CONCAT(id_regional, '-', triwulan, '-', tahun_anggaran)"), $groupKeys)
+                ->select('id_regional', 'triwulan', 'tahun_anggaran', 'status_kprk')
+                ->get()
+                ->groupBy(fn($item) => $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun_anggaran);
+
+            $statusNames = Status::whereIn('id', [7, 9])->pluck('nama', 'id');
+
+            foreach ($paginatedData as $item) {
+                $key = $item->id_regional . '-' . $item->triwulan . '-' . $item->tahun_anggaran;
+                $statusList = $statuses[$key] ?? collect();
+                $semuaStatusSembilan = $statusList->pluck('status_kprk')->every(fn($status_kprk) => $status_kprk == 9);
+                $status_id = $semuaStatusSembilan ? 9 : 7;
+                $item->status = $statusNames[$status_id] ?? '-';
+            }
+
             return response()->json([
                 'status'      => 'SUCCESS',
                 'offset'      => $offset,
@@ -196,6 +214,7 @@ class VerifikasiProduksiController extends Controller
                 'produksi.id',
                 'produksi.triwulan',
                 'produksi.tahun_anggaran',
+                'produksi.id_kprk',
                 'regional.nama as nama_regional',
                 'regional.id as id_regional',
                 'kprk.id as id_kcu',
@@ -237,12 +256,37 @@ class VerifikasiProduksiController extends Controller
                 $produksiQuery->having('status_id', $status);
             }
 
-            $produksi = $produksiQuery->get();
+        $produksi = $produksiQuery->get();
 
-            foreach ($produksi as $item) {
-                $item->total_produksi = "Rp " . number_format(round($item->total_produksi), 0, '', '.');
-            }
+        // ✅ FIX: Ambil status dari semua KPC per KCU
+        $statuses = Produksi::select('id_kprk', 'id_kpc', 'triwulan', 'tahun_anggaran', 'status_kprk')
+            ->when($tahun_anggaran, fn($q) => $q->where('tahun_anggaran', $tahun_anggaran))
+            ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+            ->when($id_regional, fn($q) => $q->where('id_regional', $id_regional))
+            ->get()
+            ->groupBy(fn($item) => $item->id_kprk . '-' . $item->triwulan . '-' . $item->tahun_anggaran);
 
+        $statusNames = Status::whereIn('id', [7, 9])->pluck('nama', 'id');
+
+        foreach ($produksi as $item) {
+            $key = $item->id_kcu . '-' . $item->triwulan . '-' . $item->tahun_anggaran;
+            
+            // ✅ Ambil semua KPC dalam KCU ini
+            $statusList = $statuses->get($key, collect());
+            $item->nama_kcu = $item->nama_kcu;
+            $item->statusList = $statusList;
+            // ✅ Cek apakah SEMUA KPC di KCU ini status_kprk = 9
+            $semuaStatusSembilan = $statusList->isNotEmpty() && 
+                                   $statusList->every(fn($s) => $s->status_kprk == 9);
+            
+            $status_id = $semuaStatusSembilan ? 9 : 7;
+            $item->status = $statusNames[$status_id] ?? '-';
+            $item->total_produksi = "Rp " . number_format(round($item->total_produksi), 0, '', '.');
+            
+            // Debug info (opsional, bisa dihapus di production)
+            // $item->debug_total_kpc = $statusList->count();
+            // $item->debug_status_9 = $statusList->where('status_kprk', 9)->count();
+        }
             return response()->json([
                 'status' => 'SUCCESS',
                 'offset' => $offset,
@@ -355,7 +399,19 @@ class VerifikasiProduksiController extends Controller
 
             $statusList = Status::whereIn('id', [7, 9])->get()->keyBy('id');
 
+            $statuses = Produksi::select('id_kprk', 'triwulan', 'tahun_anggaran', 'status_kprk', 'status_regional')
+                        ->when($tahun_anggaran, fn($q) => $q->where('tahun_anggaran', $tahun_anggaran))
+                        ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+                        ->when($id_kcu, fn($q) => $q->where('id_kprk', $id_kcu))
+                        ->get()
+                        ->groupBy(fn($item) => $item->id_kprk . '-' . $item->triwulan . '-' . $item->tahun_anggaran);
+
+            $statusNames = Status::whereIn('id', [7, 9])->pluck('nama', 'id');
+
             foreach ($produksi as $item) {
+                $key = $item->id_kprk . '-' . $item->triwulan . '-' . $item->tahun_anggaran;
+                $statusEntry = $statuses->get($key, collect())->first();
+                $item->status = $statusEntry ? ($statusNames[$statusEntry->status_kprk] ?? 'Unknown') : 'Unknown';
                 $item->total_produksi = "Rp " . number_format(round($item->total_produksi), 0, '', '.');
                 $item->nama_regional  = $regionals[$item->id_regional]->nama ?? '';
                 $item->nama_kcu       = $kprs[$item->id_kcu]->nama ?? '';
@@ -619,23 +675,38 @@ class VerifikasiProduksiController extends Controller
     public function submit(Request $request)
     {
         try {
-            $produksi = Produksi::where('id', $request->data)->first();
-            $produksi->update([
-                'status_regional' => 9,
-                'status_kprk'     => 9,
-            ]);
+            $seed = Produksi::select('id', 'id_kpc', 'id_kprk', 'triwulan', 'tahun_anggaran')
+                ->where('id', $request->data)
+                ->firstOrFail();
+
+            $updated = Produksi::where('id_kpc', $seed->id_kpc)
+                ->where('id_kprk', $seed->id_kprk)
+                ->where('tahun_anggaran', $seed->tahun_anggaran)
+                ->where('triwulan', $seed->triwulan)
+                ->update([
+                    'status_regional' => 9,
+                    'status_kprk'     => 9,
+                ]);
 
             $userLog = [
                 'timestamp' => now(),
-                'aktifitas' => 'Update Status Produksi',
+                'aktifitas' => 'Update Status Produksi (Triwulan ' . $seed->triwulan . ')',
                 'modul'     => 'Produksi',
-                'id_user'   => Auth::user(),
+                'id_user'   => Auth::user()->id,
             ];
             UserLog::create($userLog);
 
-            // Dihilangkan: Artisan::call('cache:clear'); // tidak ada cache lagi
-
-            return response()->json(['status' => 'SUCCESS', 'data' => $produksi]);
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => "Berhasil update {$updated} bulan dalam triwulan {$seed->triwulan}",
+                'data' => [
+                    'id_kpc' => $seed->id_kpc,
+                    'id_kprk' => $seed->id_kprk,
+                    'triwulan' => $seed->triwulan,
+                    'tahun_anggaran' => $seed->tahun_anggaran,
+                    'total_updated' => $updated,
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
