@@ -848,12 +848,14 @@ class VerifikasiBiayaRutinController extends Controller
             $bulan = str_pad(request()->get('bulan', ''), 2, '0', STR_PAD_LEFT);
             $id_kcu = request()->get('id_kcu', '');
             $id_kpc = request()->get('id_kpc', '');
+            $jenis_biaya = request()->get('jenis_biaya', 'RUTIN'); // ✅ Default RUTIN
 
             $validator = Validator::make($request->all(), [
                 'bulan' => 'required|numeric|max:12',
                 'id_verifikasi_biaya_rutin' => 'required|string|exists:verifikasi_biaya_rutin,id',
                 'id_kpc' => 'required|string|exists:kpc,id',
                 'id_kcu' => 'required|string|exists:kprk,id',
+                'jenis_biaya' => 'nullable|string|in:LTK,NPP,RUTIN', // ✅ Validasi jenis_biaya
             ]);
 
             if ($validator->fails()) {
@@ -865,18 +867,8 @@ class VerifikasiBiayaRutinController extends Controller
             }
 
             $bulanIndonesia = [
-                'Januari',
-                'Februari',
-                'Maret',
-                'April',
-                'Mei',
-                'Juni',
-                'Juli',
-                'Agustus',
-                'September',
-                'Oktober',
-                'November',
-                'Desember',
+                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
             ];
 
             $lampiranDistinct = DB::table('verifikasi_biaya_rutin_detail_lampiran')
@@ -913,13 +905,7 @@ class VerifikasiBiayaRutinController extends Controller
             ->get();
 
             $isLockStatus = false;
-
             $firstItem = $rutin->first();
-            $lockVerifikasi = null;
-            $npp = null;
-            $produksi = 0;
-            $produksi_nasional = 0;
-            $kpcTotal = 2460;
             $tahun = null;
             $kodeRekening = null;
 
@@ -929,207 +915,168 @@ class VerifikasiBiayaRutinController extends Controller
 
                 $lockVerifikasi = LockVerifikasi::where('tahun', $tahun)->where('bulan', $bulan)->first();
                 $isLockStatus = $lockVerifikasi?->status ?? false;
-
-                $npp = Npp::where('id_rekening_biaya', $kodeRekening)
-                    ->where('tahun', $tahun)
-                    ->where('bulan', $bulan)
-                    ->first();
-
-                $lastTwoDigits = substr($kodeRekening, -2);
-                $produksiRek = ["06", "07", "08", "09"];
-                $pendapatanRek = ["10", "11"];
-                $sumField = null;
-                $sumFieldKCP = null;
-                $dataType = null;
-
-                if (in_array($lastTwoDigits, $pendapatanRek)) {
-                    $sumField = 'jml_pendapatan';
-                    $sumFieldKCP = 'bsu_bruto';
-                    $dataType = 'pendapatan';
-                } elseif (in_array($lastTwoDigits, $produksiRek)) {
-                    $sumField = 'jml_produksi';
-                    $sumFieldKCP = 'bilangan';
-                    $dataType = 'produksi';
-                }
-
-                $produksi_nasional = 0;
-                $produksi = 0;
-                if ($sumField && $dataType) {
-                    $produksi_nasional = ProduksiNasional::where('tahun', $tahun)
-                        ->where('bulan', $bulan)
-                        ->where('status', 'OUTGOING')
-                        ->sum($sumField);
-
-                    $produksi = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
-                        ->where('produksi.tahun_anggaran', $tahun)
-                        ->where('produksi_detail.nama_bulan', $bulan)
-                        ->where('jenis_produksi', 'PENERIMAAN/OUTGOING')
-                        ->sum('produksi_detail.' . $sumFieldKCP);
-                }
             }
 
+            // ✅ OPTIMISASI: Hanya jalankan query sesuai jenis_biaya
+            if ($jenis_biaya === 'LTK') {
+                // ========== LOGIC KHUSUS LTK ==========
+                $this->processLTK($rutin, $tahun, $bulan, $id_kpc);
+            } elseif ($jenis_biaya === 'NPP') {
+                // ========== LOGIC KHUSUS NPP ==========
+                $this->processNPP($rutin, $tahun, $bulan, $kodeRekening);
+            } else {
+                // ========== LOGIC KHUSUS RUTIN (Default) ==========
+                $this->processRutin($rutin);
+            }
+
+            // Format data umum
             foreach ($rutin as $item) {
                 $item->pelaporan = "Rp " . number_format(round($item->pelaporan), 0, '', '.');
                 $item->verifikasi = "Rp " . number_format(round($item->verifikasi), 0, '', '.');
-
-                // if ($item->kode_rekening == '5000000010') {
-                //     $ltk = VerifikasiLtk::select(
-                //         'verifikasi_ltk.id',
-                //         'verifikasi_ltk.kode_rekening',
-                //         'rekening_biaya.nama as nama_rekening',
-                //         'verifikasi_ltk.bulan',
-                //         'verifikasi_ltk.tahun',
-                //         'verifikasi_ltk.mtd_akuntansi',
-                //         'verifikasi_ltk.verifikasi_akuntansi',
-                //         'verifikasi_ltk.biaya_pso',
-                //         'verifikasi_ltk.verifikasi_pso',
-                //         'verifikasi_ltk.mtd_biaya_pos',
-                //         'verifikasi_ltk.mtd_biaya_hasil',
-                //         'verifikasi_ltk.proporsi_rumus',
-                //         'verifikasi_ltk.verifikasi_proporsi',
-                //         'verifikasi_ltk.keterangan',
-                //         'verifikasi_ltk.catatan_pemeriksa',
-                //         'verifikasi_ltk.nama_file',
-                //         'verifikasi_ltk.kategori_cost',
-                //     )->join('rekening_biaya', 'verifikasi_ltk.kode_rekening', '=', 'rekening_biaya.id')
-                //         ->where('verifikasi_ltk.bulan', $bulan)
-                //         ->where('verifikasi_ltk.tahun', $tahun)
-                //         ->get();
-
-                //     // Check if collection is empty instead of null
-                //     if ($ltk->isEmpty()) {
-                //         continue; // Use continue instead of break to skip this iteration
-                //     }
-
-                //     $ltkSums = [
-                //         'mtd_akuntansi' => $ltk->sum('mtd_akuntansi'),
-                //         'verifikasi_akuntansi' => $ltk->sum('verifikasi_akuntansi'),
-                //         'biaya_pso' => $ltk->sum('biaya_pso'),
-                //         'verifikasi_pso' => $ltk->sum('verifikasi_pso'),
-                //         'mtd_biaya_pos' => $ltk->sum('mtd_biaya_pos'),
-                //         'mtd_biaya_hasil' => $ltk->sum('mtd_biaya_hasil'),
-                //         'proporsi_rumus' => $ltk->sum('proporsi_rumus'),
-                //         'verifikasi_proporsi' => $ltk->sum('verifikasi_proporsi'),
-                //     ];
-
-                //     $item->sums = $ltkSums;
-
-                //     $kategoriCost = 'FULL';
-                //     $mtdBiayaLtk = $ltkSums['mtd_akuntansi'];
-                //     $biayaPso = $ltkSums['biaya_pso'];
-
-                //     $proporsiCalculation = $this->calculateProporsiByCategory(
-                //         $mtdBiayaLtk,
-                //         $kategoriCost,
-                //         $biayaPso,
-                //         $tahun,
-                //         $bulan
-                //     );
-
-                //     foreach ($proporsiCalculation as $key => $value) {
-                //         $item->$key = $value;
-                //     }
-                // }
-
                 $item->url_lampiran = config('app.env_config_path') . $item->nama_file;
-
-                $proporsi = 0;
-                if (($produksi ?? 0) != 0 && ($produksi_nasional ?? 0) != 0 && ($npp->bsu ?? 0) != 0) {
-                    $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
-                    $roundProporsi = round($persentaseProporsiProduksi, 2);
-                    $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
-                    $proporsi = $npp_verifikasi * $roundProporsi / 100;
-                }
-
-                $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
-                $item->npp = "Rp " . number_format(($npp_verifikasi ?? 0), 0, '', '.');
-                $item->proporsi = "Rp " . number_format(($proporsi), 0, '', '.');
-
-                // Prevent division by zero
-                $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
-                $item->biaya_per_npp = "Rp " . number_format($biayaPerNpp, 0, '', '.');
-                $item->biaya_per_npp_raw = $biayaPerNpp;
             }
 
             if ($isLockStatus) {
                 $rutin = [];
-            }
-            $verifikasiLtkQuery = VerifikasiLtk::select('verifikasi_ltk.id', 'verifikasi_ltk.keterangan', 'verifikasi_ltk.id_status',  'verifikasi_ltk.nama_rekening as nama_rekening', 'verifikasi_ltk.kode_rekening', 'verifikasi_ltk.mtd_akuntansi', 'verifikasi_ltk.verifikasi_akuntansi', 'verifikasi_ltk.biaya_pso',  'verifikasi_ltk.verifikasi_pso', 'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan', 'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi', 'verifikasi_ltk.proporsi_rumus', 'verifikasi_ltk.verifikasi_proporsi', 'tahun', 'bulan')
-                ->whereNot('kategori_cost', 'PENDAPATAN');
-
-            if ($tahun !== '') {
-                $verifikasiLtkQuery->where('verifikasi_ltk.tahun', $tahun);
-            }
-
-            if ($bulan !== '') {
-                $verifikasiLtkQuery->where('verifikasi_ltk.bulan', $bulan);
-            }
-
-            $verifikasiLtk = $verifikasiLtkQuery->get();
-            $verifikasiLtk = $verifikasiLtk->map(function ($verifikasiLtk) {
-                $verifikasiLtk->nominal = (int) $verifikasiLtk->nominal;
-                $verifikasiLtk->proporsi_rumus = (float) $verifikasiLtk->proporsi_rumus ?? "0.00";
-                $verifikasiLtk->verifikasi_pso = (float) $verifikasiLtk->verifikasi_pso ?? "0.00";
-                $verifikasiLtk->verifikasi_akuntansi = (float) $verifikasiLtk->verifikasi_akuntansi ?? "0.00";
-                $verifikasiLtk->verifikasi_proporsi = (float) $verifikasiLtk->verifikasi_proporsi ?? "0.00";
-                $verifikasiLtk->mtd_ltk_pelaporan = (float) $verifikasiLtk->mtd_ltk_pelaporan ?? "0.00";
-                $verifikasiLtk->mtd_ltk_verifikasi = (float) $verifikasiLtk->mtd_ltk_verifikasi ?? "0.00";
-                $verifikasiLtk->proporsi_rumus = $verifikasiLtk->keterangan;
-                $verifikasiLtk->tahun = $verifikasiLtk->tahun ?? '';
-                $verifikasiLtk->bulan = $verifikasiLtk->bulan ?? '';
-                return $verifikasiLtk;
-            });
-            // return $verifikasiLtk;
-            $grand_total_fase_1 = 0;
-            foreach ($verifikasiLtk as $item) {
-                $kategoriCost = $item->keterangan;
-                $mtdLTKVerifikasi = $item->mtd_ltk_verifikasi;
-                $fase1 = $this->ltkHelper->calculateProporsiByCategory(
-                    $mtdLTKVerifikasi,
-                    $kategoriCost,
-                    $item->tahun,
-                    $item->bulan
-                );
-                // Ambil hasil_perhitungan_fase_1, hilangkan format ribuan
-                $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1_raw']) ? $fase1['hasil_perhitungan_fase_1_raw'] : 0;
-                $grand_total_fase_1 += (float) $hasilFase1;
-            }
-            $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
-
-            $perhitunganFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
-            $perhitunganFase3 = $this->ltkHelper->calculateFase3($perhitunganFase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
-            $hasilFase2 = "Rp " . number_format(round($perhitunganFase2['hasil_fase_2']), 0, '', '.');
-            $hasilFase3 = "Rp " . number_format(round($perhitunganFase3['hasil_fase_3']), 0, '', '.');
-            $produksi_nasional = $perhitunganFase2['produksi_jaskug_nasional'] ?? 0;
-            $total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10 = $perhitunganFase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] ?? 0;
-            $produksi_kcp_lpu_a = $perhitunganFase3['produksi_kcp_lpu_a'] ?? 0;
-            $total_produksi_ltk_kantor_lpu = $perhitunganFase3['total_produksi_ltk_kantor_lpu'] ?? 0;
-
-            // Masukkan hasil perhitungan fase ke dalam setiap item rutin
-            foreach ($rutin as $item) {
-                $item->hasil_perhitungan_fase_1 = $hasilFase1PerBulan;
-                $item->hasil_perhitungan_fase_1_raw = $grand_total_fase_1;
-                $item->rumus_fase_2 = '(Total Produksi LTK Kantor LPU(prod meterai dibagi 10) / Total Produksi Jaskug Nasional(prod meterai dibagi 10)) x Hasil Perhitungan Fase 1';
-                $item->total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10 = $total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10;
-                $item->produksi_jaskug_nasional = $produksi_nasional;
-                $item->hasil_perhitungan_fase_2 = $hasilFase2;
-                $item->hasil_perhitungan_fase_2_raw = $perhitunganFase2['hasil_fase_2'] ?? 0;
-                $item->rumus_fase_3 = '(Produksi KCP LPU A / Total Produksi LTK Kantor LPU) x Hasil Perhitungan Fase 2';
-                $item->produksi_kcp_lpu_a = $produksi_kcp_lpu_a;
-                $item->total_produksi_ltk_kantor_lpu = $total_produksi_ltk_kantor_lpu;
-                $item->hasil_perhitungan_fase_3 = $hasilFase3;
-                $item->hasil_perhitungan_fase_3_raw = $perhitunganFase3['hasil_fase_3'] ?? 0;
             }
 
             return response()->json([
                 'status' => 'SUCCESS',
                 'isLock' => $isLockStatus,
                 'link' => config('app.env_config_path'),
+                'jenis_biaya' => $jenis_biaya,
                 'data' => $rutin,
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    // ✅ PRIVATE METHOD: Process LTK
+    private function processLTK(&$rutin, $tahun, $bulan, $id_kpc)
+    {
+        $verifikasiLtkQuery = VerifikasiLtk::select(
+            'verifikasi_ltk.id',
+            'verifikasi_ltk.keterangan',
+            'verifikasi_ltk.id_status',
+            'verifikasi_ltk.nama_rekening as nama_rekening',
+            'verifikasi_ltk.kode_rekening',
+            'verifikasi_ltk.mtd_akuntansi',
+            'verifikasi_ltk.verifikasi_akuntansi',
+            'verifikasi_ltk.biaya_pso',
+            'verifikasi_ltk.verifikasi_pso',
+            'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan',
+            'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi',
+            'verifikasi_ltk.proporsi_rumus',
+            'verifikasi_ltk.verifikasi_proporsi',
+            'tahun',
+            'bulan'
+        )
+        ->whereNot('kategori_cost', 'PENDAPATAN')
+        ->where('verifikasi_ltk.tahun', $tahun)
+        ->where('verifikasi_ltk.bulan', $bulan)
+        ->get();
+
+        $grand_total_fase_1 = 0;
+        foreach ($verifikasiLtkQuery as $item) {
+            $kategoriCost = $item->keterangan;
+            $mtdLTKVerifikasi = $item->mtd_ltk_verifikasi;
+            $fase1 = $this->ltkHelper->calculateProporsiByCategory(
+                $mtdLTKVerifikasi,
+                $kategoriCost,
+                $item->tahun,
+                $item->bulan
+            );
+            $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1_raw']) ? $fase1['hasil_perhitungan_fase_1_raw'] : 0;
+            $grand_total_fase_1 += (float) $hasilFase1;
+        }
+
+        $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
+        $perhitunganFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
+        $perhitunganFase3 = $this->ltkHelper->calculateFase3($perhitunganFase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
+        
+        $hasilFase2 = "Rp " . number_format(round($perhitunganFase2['hasil_fase_2']), 0, '', '.');
+        $hasilFase3 = "Rp " . number_format(round($perhitunganFase3['hasil_fase_3']), 0, '', '.');
+
+        foreach ($rutin as $item) {
+            $item->hasil_perhitungan_fase_1 = $hasilFase1PerBulan;
+            $item->hasil_perhitungan_fase_1_raw = $grand_total_fase_1;
+            $item->rumus_fase_2 = '(Total Produksi LTK Kantor LPU(prod meterai dibagi 10) / Total Produksi Jaskug Nasional(prod meterai dibagi 10)) x Hasil Perhitungan Fase 1';
+            $item->total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10 = $perhitunganFase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] ?? 0;
+            $item->produksi_jaskug_nasional = $perhitunganFase2['produksi_jaskug_nasional'] ?? 0;
+            $item->hasil_perhitungan_fase_2 = $hasilFase2;
+            $item->hasil_perhitungan_fase_2_raw = $perhitunganFase2['hasil_fase_2'] ?? 0;
+            $item->rumus_fase_3 = '(Produksi KCP LPU A / Total Produksi LTK Kantor LPU) x Hasil Perhitungan Fase 2';
+            $item->produksi_kcp_lpu_a = $perhitunganFase3['produksi_kcp_lpu_a'] ?? 0;
+            $item->total_produksi_ltk_kantor_lpu = $perhitunganFase3['total_produksi_ltk_kantor_lpu'] ?? 0;
+            $item->hasil_perhitungan_fase_3 = $hasilFase3;
+            $item->hasil_perhitungan_fase_3_raw = $perhitunganFase3['hasil_fase_3'] ?? 0;
+        }
+    }
+
+    // ✅ PRIVATE METHOD: Process NPP
+    private function processNPP(&$rutin, $tahun, $bulan, $kodeRekening)
+    {
+        $npp = Npp::where('id_rekening_biaya', $kodeRekening)
+            ->where('tahun', $tahun)
+            ->where('bulan', $bulan)
+            ->first();
+
+        $lastTwoDigits = substr($kodeRekening, -2);
+        $produksiRek = ["06", "07", "08", "09"];
+        $pendapatanRek = ["10", "11"];
+        $sumField = null;
+        $sumFieldKCP = null;
+
+        if (in_array($lastTwoDigits, $pendapatanRek)) {
+            $sumField = 'jml_pendapatan';
+            $sumFieldKCP = 'bsu_bruto';
+        } elseif (in_array($lastTwoDigits, $produksiRek)) {
+            $sumField = 'jml_produksi';
+            $sumFieldKCP = 'bilangan';
+        }
+
+        $produksi_nasional = 0;
+        $produksi = 0;
+        $kpcTotal = 2460;
+
+        if ($sumField) {
+            $produksi_nasional = ProduksiNasional::where('tahun', $tahun)
+                ->where('bulan', $bulan)
+                ->where('status', 'OUTGOING')
+                ->sum($sumField);
+
+            $produksi = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                ->where('produksi.tahun_anggaran', $tahun)
+                ->where('produksi_detail.nama_bulan', $bulan)
+                ->where('jenis_produksi', 'PENERIMAAN/OUTGOING')
+                ->sum('produksi_detail.' . $sumFieldKCP);
+        }
+
+        foreach ($rutin as $item) {
+            $proporsi = 0;
+            if (($produksi ?? 0) != 0 && ($produksi_nasional ?? 0) != 0 && ($npp->bsu ?? 0) != 0) {
+                $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
+                $roundProporsi = round($persentaseProporsiProduksi, 2);
+                $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
+                $proporsi = $npp_verifikasi * $roundProporsi / 100;
+            }
+
+            $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
+            $item->npp = "Rp " . number_format(($npp_verifikasi ?? 0), 0, '', '.');
+            $item->proporsi = "Rp " . number_format(($proporsi), 0, '', '.');
+
+            $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
+            $item->biaya_per_npp = "Rp " . number_format($biayaPerNpp, 0, '', '.');
+            $item->biaya_per_npp_raw = $biayaPerNpp;
+        }
+    }
+
+    // ✅ PRIVATE METHOD: Process RUTIN
+    private function processRutin(&$rutin)
+    {
+        // Tidak ada logic tambahan untuk RUTIN
+        // Hanya return data biasa
     }
 
     public function downloadLampiran(Request $request)
