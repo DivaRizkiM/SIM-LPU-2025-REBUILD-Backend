@@ -952,52 +952,44 @@ class VerifikasiBiayaRutinController extends Controller
         }
     }
 
-    // ✅ PRIVATE METHOD: Process LTK
+    // ✅ PRIVATE METHOD: Process LTK (OPTIMIZED)
     private function processLTK(&$rutin, $tahun, $bulan, $id_kpc)
     {
-        $verifikasiLtkQuery = VerifikasiLtk::select(
-            'verifikasi_ltk.id',
-            'verifikasi_ltk.keterangan',
-            'verifikasi_ltk.id_status',
-            'verifikasi_ltk.nama_rekening as nama_rekening',
-            'verifikasi_ltk.kode_rekening',
-            'verifikasi_ltk.mtd_akuntansi',
-            'verifikasi_ltk.verifikasi_akuntansi',
-            'verifikasi_ltk.biaya_pso',
-            'verifikasi_ltk.verifikasi_pso',
-            'verifikasi_ltk.mtd_biaya_pos as mtd_ltk_pelaporan',
-            'verifikasi_ltk.mtd_biaya_hasil as mtd_ltk_verifikasi',
-            'verifikasi_ltk.proporsi_rumus',
-            'verifikasi_ltk.verifikasi_proporsi',
+        // ✅ 1. Ambil semua data LTK sekaligus dengan query minimal
+        $verifikasiLtkData = VerifikasiLtk::select(
+            'keterangan',
+            'mtd_biaya_hasil as mtd_ltk_verifikasi',
             'tahun',
             'bulan'
         )
         ->whereNot('kategori_cost', 'PENDAPATAN')
-        ->where('verifikasi_ltk.tahun', $tahun)
-        ->where('verifikasi_ltk.bulan', $bulan)
+        ->where('tahun', $tahun)
+        ->where('bulan', $bulan)
         ->get();
 
+        // ✅ 2. Hitung grand total fase 1 tanpa loop berulang
         $grand_total_fase_1 = 0;
-        foreach ($verifikasiLtkQuery as $item) {
-            $kategoriCost = $item->keterangan;
-            $mtdLTKVerifikasi = $item->mtd_ltk_verifikasi;
+        
+        foreach ($verifikasiLtkData as $item) {
             $fase1 = $this->ltkHelper->calculateProporsiByCategory(
-                $mtdLTKVerifikasi,
-                $kategoriCost,
+                $item->mtd_ltk_verifikasi,
+                $item->keterangan,
                 $item->tahun,
                 $item->bulan
             );
-            $hasilFase1 = isset($fase1['hasil_perhitungan_fase_1_raw']) ? $fase1['hasil_perhitungan_fase_1_raw'] : 0;
-            $grand_total_fase_1 += (float) $hasilFase1;
+            $grand_total_fase_1 += (float) ($fase1['hasil_perhitungan_fase_1_raw'] ?? 0);
         }
 
-        $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
+        // ✅ 3. Hitung fase 2 dan 3 sekali saja (di luar loop)
         $perhitunganFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
         $perhitunganFase3 = $this->ltkHelper->calculateFase3($perhitunganFase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
         
+        // ✅ 4. Format angka sekali saja
+        $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
         $hasilFase2 = "Rp " . number_format(round($perhitunganFase2['hasil_fase_2']), 0, '', '.');
         $hasilFase3 = "Rp " . number_format(round($perhitunganFase3['hasil_fase_3']), 0, '', '.');
 
+        // ✅ 5. Assign data ke semua item sekaligus
         foreach ($rutin as $item) {
             $item->hasil_perhitungan_fase_1 = $hasilFase1PerBulan;
             $item->hasil_perhitungan_fase_1_raw = $grand_total_fase_1;
