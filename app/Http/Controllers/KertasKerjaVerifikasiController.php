@@ -111,13 +111,13 @@ class KertasKerjaVerifikasiController extends Controller
             $data = collect($result)->map(fn($item) => [
                 'id_kprk'                    => $item->id_kprk,
                 'nama_kprk'                  => $item->nama_kprk,
-                'hasil_pelaporan_biaya'      => round($item->hasil_pelaporan_biaya),
-                'hasil_pelaporan_pendapatan' => round($item->hasil_pelaporan_pendapatan),
-                'hasil_verifikasi_biaya'     => round($item->hasil_verifikasi_biaya),
-                'hasil_verifikasi_pendapatan'=> round($item->hasil_verifikasi_pendapatan),
-                'deviasi_biaya'              => round($item->hasil_pelaporan_biaya - $item->hasil_verifikasi_biaya),
-                'deviasi_produksi'           => round($item->hasil_pelaporan_pendapatan - $item->hasil_verifikasi_pendapatan),
-                'deviasi_akhir'              => round($item->hasil_verifikasi_biaya - $item->hasil_verifikasi_pendapatan),
+                'hasil_pelaporan_biaya'      => (float) $item->hasil_pelaporan_biaya,
+                'hasil_pelaporan_pendapatan' => (float) $item->hasil_pelaporan_pendapatan,
+                'hasil_verifikasi_biaya'     => (float) $item->hasil_verifikasi_biaya,
+                'hasil_verifikasi_pendapatan'=> (float) $item->hasil_verifikasi_pendapatan,
+                'deviasi_biaya'              => round((float) $item->hasil_pelaporan_biaya - (float) $item->hasil_verifikasi_biaya),
+                'deviasi_produksi'           => round((float) $item->hasil_pelaporan_pendapatan - (float) $item->hasil_verifikasi_pendapatan),
+                'deviasi_akhir'              => round((float) $item->hasil_verifikasi_biaya - (float) $item->hasil_verifikasi_pendapatan),
             ]);
 
             return response()->json([
@@ -214,16 +214,23 @@ class KertasKerjaVerifikasiController extends Controller
                 $b = $biaya[$item->id]    ?? (object)['pelaporan' => 0, 'hasil_verifikasi' => 0];
                 $p = $produksi[$item->id] ?? (object)['pelaporan' => 0, 'hasil_verifikasi' => 0];
 
+                // ✅ Cast ke float dulu
+                $pelaporan_biaya = (float) $b->pelaporan;
+                $verifikasi_biaya = (float) $b->hasil_verifikasi;
+                $pelaporan_pendapatan = (float) $p->pelaporan;
+                $verifikasi_pendapatan = (float) $p->hasil_verifikasi;
+
                 return [
                     'id_kpc'                      => $item->id_kpc,
                     'nama_kpc'                    => $item->nama_kpc,
-                    'hasil_pelaporan_biaya'       => round($b->pelaporan),
-                    'hasil_verifikasi_biaya'      => round($b->hasil_verifikasi),
-                    'hasil_pelaporan_pendapatan'  => round($p->pelaporan),
-                    'hasil_verifikasi_pendapatan' => round($p->hasil_verifikasi),
-                    'deviasi_biaya'               => round($b->pelaporan - $b->hasil_verifikasi),
-                    'deviasi_produksi'            => round($p->pelaporan - $p->hasil_verifikasi),
-                    'deviasi_akhir'               => round($b->hasil_verifikasi - $p->hasil_verifikasi),
+                    'hasil_pelaporan_biaya'       => $pelaporan_biaya,
+                    'hasil_verifikasi_biaya'      => $verifikasi_biaya,
+                    'hasil_pelaporan_pendapatan'  => $pelaporan_pendapatan,
+                    'hasil_verifikasi_pendapatan' => $verifikasi_pendapatan,
+                    // ✅ Round setelah operasi
+                    'deviasi_biaya'               => round($pelaporan_biaya - $verifikasi_biaya),
+                    'deviasi_produksi'            => round($pelaporan_pendapatan - $verifikasi_pendapatan),
+                    'deviasi_akhir'               => round($verifikasi_biaya - $verifikasi_pendapatan),
                 ];
             });
 
