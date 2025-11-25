@@ -115,9 +115,9 @@ class KertasKerjaVerifikasiController extends Controller
                 'hasil_pelaporan_pendapatan' => round($item->hasil_pelaporan_pendapatan),
                 'hasil_verifikasi_biaya'     => round($item->hasil_verifikasi_biaya),
                 'hasil_verifikasi_pendapatan'=> round($item->hasil_verifikasi_pendapatan),
-                'deviasi_biaya'              => round($item->hasil_pelaporan_biaya) - round($item->hasil_verifikasi_biaya),
-                'deviasi_produksi'           => round($item->hasil_pelaporan_pendapatan) - round($item->hasil_verifikasi_pendapatan),
-                'deviasi_akhir'              => round($item->hasil_verifikasi_biaya) - round($item->hasil_verifikasi_pendapatan),
+                'deviasi_biaya'              => round($item->hasil_pelaporan_biaya - $item->hasil_verifikasi_biaya),
+                'deviasi_produksi'           => round($item->hasil_pelaporan_pendapatan - $item->hasil_verifikasi_pendapatan),
+                'deviasi_akhir'              => round($item->hasil_verifikasi_biaya - $item->hasil_verifikasi_pendapatan),
             ]);
 
             return response()->json([
