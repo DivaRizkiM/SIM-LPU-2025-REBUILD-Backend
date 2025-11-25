@@ -109,15 +109,15 @@ class KertasKerjaVerifikasiController extends Controller
                 ->count('kprk.id');
 
             $data = collect($result)->map(fn($item) => [
-                'id_kprk'                    => $item->id_kprk,
-                'nama_kprk'                  => $item->nama_kprk,
-                'hasil_pelaporan_biaya'      => round($item->hasil_pelaporan_biaya),
-                'hasil_pelaporan_pendapatan' => round($item->hasil_pelaporan_pendapatan),
-                'hasil_verifikasi_biaya'     => round($item->hasil_verifikasi_biaya),
-                'hasil_verifikasi_pendapatan'=> round($item->hasil_verifikasi_pendapatan),
-                'deviasi_biaya'              => round($item->hasil_pelaporan_biaya - $item->hasil_verifikasi_biaya),
-                'deviasi_produksi'           => round($item->hasil_pelaporan_pendapatan - $item->hasil_verifikasi_pendapatan),
-                'deviasi_akhir'              => round($item->hasil_verifikasi_biaya - $item->hasil_verifikasi_pendapatan),
+                'id_kprk'   => $item->id_kprk,
+                'nama_kprk' => $item->nama_kprk,
+                'hasil_pelaporan_biaya'      => (float) $item->hasil_pelaporan_biaya,
+                'hasil_pelaporan_pendapatan' => (float) $item->hasil_pelaporan_pendapatan,
+                'hasil_verifikasi_biaya'     => (float) $item->hasil_verifikasi_biaya,
+                'hasil_verifikasi_pendapatan'=> (float) $item->hasil_verifikasi_pendapatan,
+                'deviasi_biaya' => (int) bcsub((string) $item->hasil_pelaporan_biaya, (string) $item->hasil_verifikasi_biaya, 0),
+                'deviasi_produksi' => (int) bcsub((string) $item->hasil_pelaporan_pendapatan, (string) $item->hasil_verifikasi_pendapatan, 0),
+                'deviasi_akhir' => (int) bcsub((string) $item->hasil_verifikasi_biaya, (string) $item->hasil_verifikasi_pendapatan, 0),
             ]);
 
             return response()->json([
