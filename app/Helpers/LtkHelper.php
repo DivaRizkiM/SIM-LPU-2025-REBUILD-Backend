@@ -316,10 +316,11 @@ class LtkHelper
 
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
     {
-        $produksiKcpLpuA = ProduksiDetail::whereHas('produksi', function ($query) use ($tahun, $id_kcp) {
-            $query->where('tahun_anggaran', (string)$tahun)
-                ->where('id_kpc', $id_kcp);
-        })
+        $produksiKcpLpuA = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereHas('produksi', function ($query) use ($tahun, $id_kcp) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('id_kpc', $id_kcp);
+            })
             ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->sum('bilangan');
 
