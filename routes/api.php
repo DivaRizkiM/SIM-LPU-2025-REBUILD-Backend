@@ -192,6 +192,12 @@ Route::middleware('auth:api')->group(function () {
         Route::apiResource('jenis-kantor', JenisKantorController::class);
         Route::apiResource('kprk', KprkController::class);
         Route::apiResource('kpc', KpcController::class);
+        Route::prefix('kpc')->group(function () {
+            Route::get('/{id}/qr-code', [KpcController::class, 'generateQrCode']);
+            Route::get('/qr/{id}/download', [KpcController::class, 'downloadQrCode']);
+            Route::get('/qr/{uuid}', [KpcController::class, 'getByQrCode']);
+            Route::post('/qr-code/batch', [KpcController::class, 'batchGenerateQrCode']);
+        });
         Route::apiResource('petugas-kpc', PetugasKpcController::class);
         Route::apiResource('penyelenggara', PenyelenggaraController::class);
         Route::apiResource('regional', RegionalController::class);

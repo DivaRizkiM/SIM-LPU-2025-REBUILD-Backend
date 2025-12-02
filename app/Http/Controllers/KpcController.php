@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Str;
 
 class KpcController extends Controller
 {
@@ -587,6 +589,192 @@ class KpcController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate QR Code untuk KPC
+     * QR berisi URL ke endpoint detail KPC
+     */
+    public function generateQrCode($id)
+    {
+        try {
+            $kpc = Kpc::findOrFail($id);
+            
+            // ✅ Generate UUID jika belum ada (simpan di database)
+            if (!$kpc->qr_uuid) {
+                $kpc->qr_uuid = Str::uuid()->toString();
+                $kpc->save();
+            }
+            
+            // ✅ URL yang di-encode ke QR (bisa diubah data KPC, QR tetap sama)
+            $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+            
+            // ✅ Generate QR Code (format SVG/PNG)
+            $qrCode = QrCode::size(300)
+                ->format('svg')
+                ->generate($qrUrl);
+            
+            return response()->json([
+                'status' => 'SUCCESS',
+                'data' => [
+                    'id_kpc' => $kpc->id,
+                    'nama_kpc' => $kpc->nama,
+                    'qr_uuid' => $kpc->qr_uuid,
+                    'qr_url' => $qrUrl,
+                    'qr_code' => base64_encode($qrCode), // SVG as base64
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download QR Code sebagai file PNG
+     */
+    public function downloadQrCode($id)
+    {
+        try {
+            $kpc = Kpc::findOrFail($id);
+            
+            if (!$kpc->qr_uuid) {
+                $kpc->qr_uuid = Str::uuid()->toString();
+                $kpc->save();
+            }
+            
+            $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+            
+            // ✅ Generate QR Code as PNG
+            $qrCode = QrCode::format('png')
+                ->size(500)
+                ->margin(2)
+                ->generate($qrUrl);
+            
+            $filename = "QR_KPC_{$kpc->nomor_dirian}.png";
+            
+            return response($qrCode)
+                ->header('Content-Type', 'image/png')
+                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Endpoint yang dipanggil saat QR Code di-scan
+     * Menampilkan profil KPC terbaru dari database
+     */
+    public function getByQrCode($uuid)
+    {
+        try {
+            // ✅ Cari KPC berdasarkan UUID yang di-encode di QR
+            $kpc = Kpc::where('qr_uuid', $uuid)
+                ->with(['regional:id,nama', 'kprk:id,nama'])
+                ->firstOrFail();
+            
+            // ✅ Return data profil KPC (data selalu update meski QR sama)
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => 'Data Profil KPC',
+                'data' => [
+                    'id' => $kpc->id,
+                    'nomor_dirian' => $kpc->nomor_dirian,
+                    'nama' => $kpc->nama,
+                    'jenis_kantor' => $kpc->jenis_kantor,
+                    'tipe_kantor' => $kpc->tipe_kantor,
+                    'alamat' => $kpc->alamat,
+                    'nomor_telpon' => $kpc->nomor_telpon,
+                    'nomor_fax' => $kpc->nomor_fax,
+                    'koordinat' => [
+                        'latitude' => $kpc->koordinat_latitude,
+                        'longitude' => $kpc->koordinat_longitude,
+                    ],
+                    'regional' => $kpc->regional?->nama,
+                    'kprk' => $kpc->kprk?->nama,
+                    'jam_kerja' => [
+                        'senin_kamis' => $kpc->jam_kerja_senin_kamis,
+                        'jumat' => $kpc->jam_kerja_jumat,
+                        'sabtu' => $kpc->jam_kerja_sabtu,
+                    ],
+                    'kondisi_gedung' => $kpc->kondisi_gedung,
+                    'fasilitas_publik_dalam' => $kpc->fasilitas_publik_dalam,
+                    'fasilitas_publik_halaman' => $kpc->fasilitas_publik_halaman,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => 'QR Code tidak valid atau data tidak ditemukan'
+            ], 404);
+        }
+    }
+
+    /**
+     * Generate QR Code untuk banyak KPC sekaligus (batch)
+     */
+    public function batchGenerateQrCode(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'id_kprk' => 'nullable|exists:kprk,id',
+                'id_regional' => 'nullable|exists:regional,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => $validator->errors()
+                ], 422);
+            }
+
+            $query = Kpc::query();
+            
+            if ($request->id_kprk) {
+                $query->where('id_kprk', $request->id_kprk);
+            }
+            
+            if ($request->id_regional) {
+                $query->where('id_regional', $request->id_regional);
+            }
+            
+            $kpcs = $query->get();
+            
+            $results = [];
+            
+            foreach ($kpcs as $kpc) {
+                if (!$kpc->qr_uuid) {
+                    $kpc->qr_uuid = Str::uuid()->toString();
+                    $kpc->save();
+                }
+                
+                $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+                
+                $results[] = [
+                    'id_kpc' => $kpc->id,
+                    'nama_kpc' => $kpc->nama,
+                    'nomor_dirian' => $kpc->nomor_dirian,
+                    'qr_uuid' => $kpc->qr_uuid,
+                    'qr_url' => $qrUrl,
+                ];
+            }
+            
+            return response()->json([
+                'status' => 'SUCCESS',
+                'total' => count($results),
+                'data' => $results
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => $e->getMessage()
             ], 500);
         }
     }
