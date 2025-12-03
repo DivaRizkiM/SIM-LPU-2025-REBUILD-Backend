@@ -607,10 +607,15 @@ class KpcController extends Controller
                 $kpc->save();
             }
             
-            // ✅ Manual append API prefix dari env
-            $apiPrefix = env('API_PREFIX', 'api');
+            // ✅ Build URL dengan API prefix hanya jika ada
+            $apiPrefix = env('API_PREFIX', '');
             $baseUrl = config('app.url');
-            $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+            
+            if (!empty($apiPrefix)) {
+                $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+            } else {
+                $qrUrl = "{$baseUrl}/kpc/qr/{$kpc->qr_uuid}";
+            }
             
             $qrCode = QrCode::size(300)
                 ->format('svg')
@@ -647,10 +652,15 @@ class KpcController extends Controller
                 $kpc->save();
             }
             
-            // ✅ Manual append API prefix
-            $apiPrefix = env('API_PREFIX', 'api');
+            // ✅ Build URL dengan API prefix hanya jika ada
+            $apiPrefix = env('API_PREFIX', '');
             $baseUrl = config('app.url');
-            $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+            
+            if (!empty($apiPrefix)) {
+                $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+            } else {
+                $qrUrl = "{$baseUrl}/kpc/qr/{$kpc->qr_uuid}";
+            }
             
             $qrCode = QrCode::format('png')
                 ->size(500)
@@ -804,8 +814,8 @@ class KpcController extends Controller
             $kpcs = $query->get();
             $results = [];
             
-            // ✅ Manual append API prefix
-            $apiPrefix = env('API_PREFIX', 'api');
+            // ✅ Build URL dengan API prefix hanya jika ada
+            $apiPrefix = env('API_PREFIX', '');
             $baseUrl = config('app.url');
             
             foreach ($kpcs as $kpc) {
@@ -814,7 +824,11 @@ class KpcController extends Controller
                     $kpc->save();
                 }
                 
-                $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+                if (!empty($apiPrefix)) {
+                    $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
+                } else {
+                    $qrUrl = "{$baseUrl}/kpc/qr/{$kpc->qr_uuid}";
+                }
                 
                 $results[] = [
                     'id_kpc' => $kpc->id,
