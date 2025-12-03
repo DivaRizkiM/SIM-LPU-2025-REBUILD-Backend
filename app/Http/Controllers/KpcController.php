@@ -675,12 +675,36 @@ class KpcController extends Controller
     public function getByQrCode($uuid)
     {
         try {
-            // ✅ Cari KPC berdasarkan UUID yang di-encode di QR
-            $kpc = Kpc::where('qr_uuid', $uuid)
-                ->with(['regional:id,nama', 'kprk:id,nama'])
-                ->firstOrFail();
+            // ✅ Validasi format UUID
+            if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid)) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => 'Format UUID tidak valid'
+                ], 400);
+            }
+
+            // ✅ Cari KPC berdasarkan UUID
+            $kpc = Kpc::where('qr_uuid', $uuid)->first();
             
-            // ✅ Return data profil KPC (data selalu update meski QR sama)
+            if (!$kpc) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => 'QR Code tidak valid atau data tidak ditemukan',
+                    'hint' => 'Pastikan QR Code sudah di-generate terlebih dahulu'
+                ], 404);
+            }
+
+            // ✅ Load relasi secara manual untuk avoid error
+            $kpc->load([
+                'regional:id,nama',
+                'kprk:id,nama',
+                'provinsi:id,nama',
+                'kabupaten:id,nama',
+                'kecamatan:id,nama',
+                'kelurahan:id,nama'
+            ]);
+            
+            // ✅ Return data profil KPC dengan batas wilayah
             return response()->json([
                 'status' => 'SUCCESS',
                 'message' => 'Data Profil KPC',
@@ -697,8 +721,34 @@ class KpcController extends Controller
                         'latitude' => $kpc->koordinat_latitude,
                         'longitude' => $kpc->koordinat_longitude,
                     ],
-                    'regional' => $kpc->regional?->nama,
-                    'kprk' => $kpc->kprk?->nama,
+                    // ✅ Struktur organisasi
+                    'regional' => [
+                        'id' => $kpc->regional?->id,
+                        'nama' => $kpc->regional?->nama,
+                    ],
+                    'kprk' => [
+                        'id' => $kpc->kprk?->id,
+                        'nama' => $kpc->kprk?->nama,
+                    ],
+                    // ✅ Batas wilayah administratif
+                    'wilayah' => [
+                        'provinsi' => [
+                            'id' => $kpc->provinsi?->id,
+                            'nama' => $kpc->provinsi?->nama,
+                        ],
+                        'kabupaten_kota' => [
+                            'id' => $kpc->kabupaten?->id,
+                            'nama' => $kpc->kabupaten?->nama,
+                        ],
+                        'kecamatan' => [
+                            'id' => $kpc->kecamatan?->id,
+                            'nama' => $kpc->kecamatan?->nama,
+                        ],
+                        'kelurahan' => [
+                            'id' => $kpc->kelurahan?->id,
+                            'nama' => $kpc->kelurahan?->nama,
+                        ],
+                    ],
                     'jam_kerja' => [
                         'senin_kamis' => $kpc->jam_kerja_senin_kamis,
                         'jumat' => $kpc->jam_kerja_jumat,
@@ -707,13 +757,17 @@ class KpcController extends Controller
                     'kondisi_gedung' => $kpc->kondisi_gedung,
                     'fasilitas_publik_dalam' => $kpc->fasilitas_publik_dalam,
                     'fasilitas_publik_halaman' => $kpc->fasilitas_publik_halaman,
+                    'lingkungan_kantor' => $kpc->lingkungan_kantor ?? null,
+                    'lingkungan_sekitar_kantor' => $kpc->lingkungan_sekitar_kantor ?? null,
                 ]
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'ERROR',
-                'message' => 'QR Code tidak valid atau data tidak ditemukan'
-            ], 404);
+                'message' => 'Terjadi kesalahan sistem',
+                'error' => $e->getMessage(),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null
+            ], 500);
         }
     }
 

@@ -19,6 +19,7 @@ class Kpc extends Model
 
     protected $fillable = [
         'id',
+        'qr_uuid',
         'id_regional',
         'id_kprk',
         'nomor_dirian',
