@@ -602,16 +602,16 @@ class KpcController extends Controller
         try {
             $kpc = Kpc::findOrFail($id);
             
-            // ✅ Generate UUID jika belum ada (simpan di database)
             if (!$kpc->qr_uuid) {
                 $kpc->qr_uuid = Str::uuid()->toString();
                 $kpc->save();
             }
             
-            // ✅ URL yang di-encode ke QR (bisa diubah data KPC, QR tetap sama)
-            $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+            // ✅ Manual append API prefix dari env
+            $apiPrefix = env('API_PREFIX', 'api');
+            $baseUrl = config('app.url');
+            $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
             
-            // ✅ Generate QR Code (format SVG/PNG)
             $qrCode = QrCode::size(300)
                 ->format('svg')
                 ->generate($qrUrl);
@@ -623,7 +623,7 @@ class KpcController extends Controller
                     'nama_kpc' => $kpc->nama,
                     'qr_uuid' => $kpc->qr_uuid,
                     'qr_url' => $qrUrl,
-                    'qr_code' => base64_encode($qrCode), // SVG as base64
+                    'qr_code' => base64_encode($qrCode),
                 ]
             ]);
         } catch (\Exception $e) {
@@ -647,9 +647,11 @@ class KpcController extends Controller
                 $kpc->save();
             }
             
-            $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+            // ✅ Manual append API prefix
+            $apiPrefix = env('API_PREFIX', 'api');
+            $baseUrl = config('app.url');
+            $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
             
-            // ✅ Generate QR Code as PNG
             $qrCode = QrCode::format('png')
                 ->size(500)
                 ->margin(2)
@@ -800,8 +802,11 @@ class KpcController extends Controller
             }
             
             $kpcs = $query->get();
-            
             $results = [];
+            
+            // ✅ Manual append API prefix
+            $apiPrefix = env('API_PREFIX', 'api');
+            $baseUrl = config('app.url');
             
             foreach ($kpcs as $kpc) {
                 if (!$kpc->qr_uuid) {
@@ -809,7 +814,7 @@ class KpcController extends Controller
                     $kpc->save();
                 }
                 
-                $qrUrl = url("/api/kpc/qr/{$kpc->qr_uuid}");
+                $qrUrl = "{$baseUrl}/{$apiPrefix}/kpc/qr/{$kpc->qr_uuid}";
                 
                 $results[] = [
                     'id_kpc' => $kpc->id,

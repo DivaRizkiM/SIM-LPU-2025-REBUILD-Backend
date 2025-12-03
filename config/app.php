@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Facade;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Application Name
@@ -57,6 +56,8 @@ return [
      */
 
     'url' => env('APP_URL', 'http://localhost'),
+
+    'api_prefix' => env('API_PREFIX', 'api'),
 
     'asset_url' => env('ASSET_URL'),
 
