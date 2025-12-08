@@ -6,12 +6,173 @@ use App\Models\Kpc;
 use App\Models\MitraLpu;
 use App\Models\Rekonsiliasi;
 use App\Models\PencatatanKantor;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
 class MonitoringController extends Controller
 {
+        /**
+         * Cari dua kantor (asal & tujuan) dan hitung jarak antar koordinat.
+         * Parameter dapat berupa:
+         * - origin_id / destination_id: ID KPC
+         * - origin_name / destination_name: Nama kantor (LIKE)
+         * Jika keduanya dikirim (id dan name), prioritas menggunakan ID.
+         * Response berisi data kantor asal, tujuan, dan jarak (km).
+         */
+        public function searchKantorDistance(Request $request)
+        {
+            $origin = $this->findKpc(
+                $request->get('origin_id'),
+                $request->get('origin_name'),
+                $request->get('origin_jenis_kantor')
+            );
+
+            $destination = $this->findKpc(
+                $request->get('destination_id'),
+                $request->get('destination_name'),
+                $request->get('destination_jenis_kantor')
+            );
+
+            if (!$origin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kantor asal tidak ditemukan',
+                ], 404);
+            }
+
+            if (!$destination) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kantor tujuan tidak ditemukan',
+                ], 404);
+            }
+
+            // Pastikan koordinat tersedia dan dapat dikonversi ke float
+            $oLon = $this->toFloat($origin->koordinat_longitude);
+            $oLat = $this->toFloat($origin->koordinat_latitude);
+            $dLon = $this->toFloat($destination->koordinat_longitude);
+            $dLat = $this->toFloat($destination->koordinat_latitude);
+
+            if ($oLon === null || $oLat === null || $dLon === null || $dLat === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Koordinat kantor tidak lengkap',
+                    'origin' => $origin,
+                    'destination' => $destination,
+                ], 422);
+            }
+
+            // Normalize coordinates: if lat looks like longitude (>90) and lng looks like latitude (<=90), swap them
+            [$oLat, $oLon] = $this->normalizeLatLng($oLat, $oLon);
+            [$dLat, $dLon] = $this->normalizeLatLng($dLat, $dLon);
+
+            $distanceKm = $this->haversine($oLat, $oLon, $dLat, $dLon);
+
+            // Simple path for frontend to render a line between two points
+            $pathCoords = [
+                ['lat' => $oLat, 'lng' => $oLon],
+                ['lat' => $dLat, 'lng' => $dLon],
+            ];
+
+            // GeoJSON LineString for map libraries that accept GeoJSON directly
+            $geoJson = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'LineString',
+                    'coordinates' => [
+                        [$oLon, $oLat],
+                        [$dLon, $dLat],
+                    ],
+                ],
+                'properties' => [
+                    'distance_km' => $distanceKm,
+                ],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'origin' => [
+                        'id' => $origin->id,
+                        'nama' => $origin->nama_kantor ?? $origin->nama ?? null,
+                        'jenis_kantor' => $origin->jenis_kantor ?? null,
+                        'alamat' => $origin->alamat ?? null,
+                        'longitude' => $oLon,
+                        'latitude' => $oLat,
+                    ],
+                    'destination' => [
+                        'id' => $destination->id,
+                        'nama' => $destination->nama_kantor ?? $destination->nama ?? null,
+                        'jenis_kantor' => $destination->jenis_kantor ?? null,
+                        'alamat' => $destination->alamat ?? null,
+                        'longitude' => $dLon,
+                        'latitude' => $dLat,
+                    ],
+                    'distance_km' => $distanceKm,
+                    'path_coords' => $pathCoords,
+                    'geojson' => $geoJson,
+                ]
+            ]);
+        }
+
+        private function findKpc($id = null, $name = null, $jenisKantor = null)
+        {
+            $query = Kpc::query();
+
+            if ($id) {
+                return $query->find($id);
+            }
+
+            if ($jenisKantor) {
+                $query->where('jenis_kantor', $jenisKantor);
+            }
+
+            if ($name) {
+                $query->where(function($q) use ($name) {
+                    $q->where('nama', 'LIKE', "%$name%")
+                      ->orWhere('nama', 'LIKE', "%$name%");
+                });
+            }
+
+            return $query->first();
+        }
+
+        private function toFloat($value)
+        {
+            if ($value === null) return null;
+            // Handle values with comma decimal separators stored as strings
+            $str = is_string($value) ? str_replace(',', '.', $value) : $value;
+            return is_numeric($str) ? floatval($str) : null;
+        }
+
+        private function haversine($lat1, $lon1, $lat2, $lon2)
+        {
+            $earthRadius = 6371; // km
+            $dLat = deg2rad($lat2 - $lat1);
+            $dLon = deg2rad($lon2 - $lon1);
+            $a = sin($dLat/2) * sin($dLat/2) +
+                 cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+                 sin($dLon/2) * sin($dLon/2);
+            $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+            return round($earthRadius * $c, 3);
+        }
+
+        private function normalizeLatLng($lat, $lng)
+        {
+            // Latitude must be in [-90, 90], Longitude in [-180, 180]
+            // If values look swapped, fix them.
+            if ($lat !== null && $lng !== null) {
+                $absLat = abs($lat);
+                $absLng = abs($lng);
+                if ($absLat > 90 && $absLng <= 90) {
+                    // Swap suspected
+                    return [$lng, $lat];
+                }
+            }
+            return [$lat, $lng];
+        }
     /**
      * GET /monitoring
      * Params utama:

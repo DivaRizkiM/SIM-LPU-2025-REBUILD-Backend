@@ -224,6 +224,8 @@ Route::middleware('auth:api')->group(function () {
 
         Route::get('monitoring', [MonitoringController::class, 'index'])->name('monitoring');
         Route::get('monitoring-detail', [MonitoringController::class, 'show'])->name('monitoring-detail');
+        // Search kantor pertama & kedua, balikan jarak (km)
+        Route::get('monitoring/kantor-distance', [MonitoringController::class, 'searchKantorDistance'])->name('monitoring-kantor-distance');
 
         Route::apiResource('rekonsiliasi', RekonsiliasiController::class);
         Route::post('rekonsiliasi-import', [RekonsiliasiController::class, 'multistore'])->name('rekonsiliasi-import');
@@ -348,30 +350,33 @@ Route::get('/phpinfo', function () {
     phpinfo();
 });
 
+
 // ✅ API Eksternal - Khusus untuk integrasi aplikasi lain (hanya butuh API Key)
 Route::middleware('api_key')->prefix('external')->group(function () {
     // API Regional
     Route::get('regional', [RegionalController::class, 'apiList'])->name('external.regional');
     Route::get('regional/{id}', [RegionalController::class, 'apiDetail'])->name('external.regional.detail');
-    
+
     // API KCU
     Route::get('kcu', [KprkController::class, 'apiList'])->name('external.kcu');
     Route::get('kcu/{id}', [KprkController::class, 'apiDetail'])->name('external.kcu.detail');
     Route::get('kcu/regional/{id_regional}', [KprkController::class, 'getByr    egional'])->name('external.kcu.by-regional');
-    
+
     // API KCP
     Route::get('kcp', [KpcController::class, 'apiList'])->name('external.kcp');
     Route::get('kcp/{id}', [KpcController::class, 'apiDetail'])->name('external.kcp.detail');
     Route::get('kcp/regional/{id_regional}', [KpcController::class, 'getByregional'])->name('external.kcp.by-regional');
     Route::get('kcp/kcu/{id_kprk}', [KpcController::class, 'getBykprk'])->name('external.kcp.by-kcu');
-    
+
+    // (migrated) kantor-distance is now public above
+
     // API Kategori Biaya
     Route::get('kategori-biaya', [KategoriBiayaController::class, 'apiList'])->name('external.kategori-biaya');
     Route::get('kategori-biaya/{id}', [KategoriBiayaController::class, 'apiDetail'])->name('external.kategori-biaya.detail');
-    
+
     // API Biaya Rutin
     Route::get('biaya-rutin', [VerifikasiBiayaRutinController::class, 'index'])->name('external.biaya-rutin');
-    
+
     // API Lampiran Biaya
     Route::get('lampiran-biaya', [VerifikasiBiayaRutinController::class, 'apiLampiran'])->name('external.lampiran-biaya');
     Route::get('lampiran-biaya/download/{id}', [VerifikasiBiayaRutinController::class, 'apiDownloadLampiran'])->name('external.lampiran-biaya.download');
