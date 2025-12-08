@@ -57,20 +57,28 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
             $totalSumber = 0;
             $allFetchedData = [];
 
+            // ✅ Loop KPC
             foreach ($this->list as $ls) {
                 $kategori_biaya = KategoriBiaya::get();
+                
+                // ✅ Loop Kategori Biaya
                 foreach ($kategori_biaya as $kb) {
+                    $kbid = str_pad($kb->id, 2, '0', STR_PAD_LEFT);
+                    
                     $apiController = new ApiController();
-                    $url_request = $this->endpoint . '?kategoribiaya=' . $kb->id  . '&nopend=' . $ls->id . '&tahun=' . $this->tahun . '&triwulan=' . $this->triwulan;
-                    $request = request(); // Create request instance
+                    $url_request = $this->endpoint . '?kategoribiaya=' . $kbid . '&nopend=' . $ls->nomor_dirian . '&tahun=' . $this->tahun . '&triwulan=' . $this->triwulan;
+                    
+                    $request = request();
                     $request->merge(['end_point' => $url_request]);
                     $response = $apiController->makeRequest($request);
-                    $ssid = $response["access_token"] ?? null;
+                    
+                    Log::info('ProcessSyncBiayaPrognosaJob: SUKSES request ke API.', ['url' => $url_request]);
+                    
                     $dataBiayaRutin = $response['data'] ?? [];
-                    foreach ($dataBiayaRutin as $data) {
-                        if (empty($dataBiayaRutin)) {
-                            continue;
-                        } else {
+                    
+                    if (!empty($dataBiayaRutin)) {
+                        foreach ($dataBiayaRutin as $data) {
+                            Log::info($dataBiayaRutin);
                             $allFetchedData[] = $data;
                             $totalTarget++;
                         }
@@ -80,25 +88,23 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
 
             $this->updateApiRequestLog($apiRequestLog, $totalTarget, $allFetchedData);
 
+            // ✅ Process each data dan update payload secara incremental
             foreach ($allFetchedData as $data) {
                 $this->processFetchedData($data, $payload);
                 $totalSumber++;
                 $this->updateApiRequestLogProgress($apiRequestLog, $totalSumber, $totalTarget, $payload);
             }
         } catch (\Exception $e) {
-            // ✅ Jika terjadi error, update status menjadi "gagal"
             if ($apiRequestLog) {
                 $apiRequestLog->update([
                     'status' => 'gagal',
                 ]);
             }
 
-            // ✅ Log error ke file
             Log::error('Job ProcessSyncBiayaPrognosaJob gagal: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // ✅ Lanjutkan throw agar job masuk ke failed_jobs table
             throw $e;
         }
     }
@@ -130,14 +136,6 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
         ]);
     }
 
-    protected function fetchData($kategoriBiayaId, $nopend)
-    {
-        $apiController = new ApiController();
-        $urlRequest = "{$this->endpoint}?bulan={$this->bulan}&kategoribiaya={$kategoriBiayaId}&nopend={$nopend}&tahun={$this->tahun}";
-        $request = request()->merge(['end_point' => $urlRequest]);
-        return $apiController->makeRequest($request);
-    }
-
     protected function updateApiRequestLog($apiRequestLog, $totalTarget, $allFetchedData)
     {
         $status = empty($allFetchedData) ? 'data tidak tersedia' : 'on progress';
@@ -151,16 +149,12 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
 
     protected function processFetchedData($data, $payload)
     {
-        // Initialize size as 0
-        $data['size'] = 0; // Change here to set size key in $data
-
         // Generate unique identifier for VerifikasiBiayaRutin
         $idVerifikasiBiayaRutin = trim($data['id_kpc']) . trim($data['tahun_anggaran']) . trim($data['triwulan']);
 
         // Update or create VerifikasiBiayaRutin
         $biayaRutin = VerifikasiBiayaRutin::updateOrCreate(
             [
-
                 'id' => $idVerifikasiBiayaRutin,
             ],
             [
@@ -174,14 +168,12 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
                 'id_status' => 7,
                 'id_status_kprk' => 7,
                 'id_status_kpc' => 7,
-
             ]
         );
 
         // Update or create VerifikasiBiayaRutinDetail
         VerifikasiBiayaRutinDetail::updateOrCreate(
             [
-
                 'id' => $data['id'],
             ],
             [
@@ -196,16 +188,18 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
             ]
         );
 
+        // Hitung total pelaporan prognosa
         $totalPelaporanPrognosa = VerifikasiBiayaRutinDetail::where('id_verifikasi_biaya_rutin', $idVerifikasiBiayaRutin)
             ->sum('pelaporan_prognosa');
-        $biayaRutinTotal = VerifikasiBiayaRutin::where('id', $idVerifikasiBiayaRutin)
-            ->first();
+
+        $biayaRutinTotal = VerifikasiBiayaRutin::where('id', $idVerifikasiBiayaRutin)->first();
         $biayaRutinTotal->update([
             'total_biaya_prognosa' => (float) ($totalPelaporanPrognosa ?? 0),
             'id_status' => 7,
             'id_status_kprk' => 7,
         ]);
 
+        // Handle lampiran jika ada
         if ($data['lampiran'] === 'Y') {
             $apiControllerLapiran = new ApiController();
             $url_request_lampiran = 'lampiran_biaya?id_biaya=' . $data['id'];
@@ -230,39 +224,43 @@ class ProcessSyncBiayaPrognosaJob implements ShouldQueue
                 );
             }
         }
-        // Update the payload with the current data
+
+        // ✅ Update payload secara incremental (sama seperti ProcessSyncBiayaJob)
         $this->updatePayload($data, $payload);
-    }
-
-    protected function fetchLampiranData($idBiaya)
-    {
-        $apiControllerLampiran = new ApiController();
-        $url_request_lampiran = 'lampiran_biaya?id_biaya=' . $idBiaya;
-        $request = request()->merge(['end_point' => $url_request_lampiran]);
-        $response = $apiControllerLampiran->makeRequest($request);
-        $lampiran = $response['data'] ?? [];
-        return $lampiran;
-    }
-
-    protected function rsyncLampiran($namaFile)
-    {
-        $destinationPath = storage_path('/app/public/lampiran');
-        $rsyncCommand = "export RSYNC_PASSWORD='k0minf0!'; rsync -arvz --delete rsync://kominfo2@103.123.39.227:/lpu/{$namaFile} {$destinationPath} 2>&1";
-        $output = shell_exec($rsyncCommand);
-        // Handle output if needed
     }
 
     protected function updatePayload($data, $payload)
     {
-        $payload->update(['payload' => json_encode($data)]);
+        $updated_payload = $payload->payload ?? '';
+        $jsonData = json_encode($data);
+        $fileSize = strlen($jsonData);
+        $data['size'] = $fileSize;
+
+        if ($updated_payload !== '' || $payload->payload !== null) {
+            // ✅ Decode existing payload dari JSON string ke PHP array
+            $existing_payload = json_decode($updated_payload, true);
+            $existing_payload = is_array($existing_payload) ? $existing_payload : [$existing_payload];
+            
+            // ✅ Tambahkan data baru ke array
+            $existing_payload[] = (object) $data;
+            
+            // ✅ Encode kembali ke JSON
+            $updated_payload = json_encode($existing_payload);
+        } else {
+            $updated_payload = json_encode([(object) $data]);
+        }
+
+        $payload->update(['payload' => $updated_payload]);
     }
 
     protected function updateApiRequestLogProgress($apiRequestLog, $totalSumber, $totalTarget, $payload)
     {
+        // ✅ Fix: Status berubah jadi "success" saat 100%
+        $status = ($totalSumber == $totalTarget) ? 'success' : 'on progress';
+        
         $apiRequestLog->update([
             'successful_records' => $totalSumber,
-            'status' => 'on progress',
+            'status' => $status,
         ]);
-        // You can also log the payload if needed
     }
 }
