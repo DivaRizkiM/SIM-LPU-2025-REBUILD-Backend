@@ -401,11 +401,11 @@ class MonitoringController extends Controller
 
                 $foto = [];
                 if ($data && $data->id_kpc_ref) {
-                    $foto = PencatatanKantor::with('files:id,id_parent,nama,file')
+                    $foto = PencatatanKantor::with('files')
                         ->where('id_kpc', $data->id_kpc_ref)
                         ->get()
                         ->flatMap(fn($p) => $p->files->map(fn($f) => [
-                            'id' => $f->id,
+                            'id' => $f->rowid_parent ?? $f->id ?? null,
                             'nama' => $f->nama,
                             'url' => Storage::url($f->file),
                         ]))->values()->all();
@@ -439,11 +439,11 @@ class MonitoringController extends Controller
 
                 if ($data) {
                     $idForPhoto = $data->id_kpc ?? $data->id;
-                    $foto = PencatatanKantor::with('files:id,id_parent,nama,file')
+                    $foto = PencatatanKantor::with('files')
                         ->where('id_kpc', $idForPhoto)
                         ->get()
                         ->flatMap(fn($p) => $p->files->map(fn($f) => [
-                            'id' => $f->id,
+                            'id' => $f->rowid_parent ?? $f->id ?? null,
                             'nama' => $f->nama,
                             'url' => Storage::url($f->file),
                         ]))->values()->all();
