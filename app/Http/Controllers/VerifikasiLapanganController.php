@@ -55,7 +55,7 @@ class VerifikasiLapanganController extends Controller
             $tahun      = $request->get('tahun', '');
             $bulan      = $request->get('bulan', '');
 
-            $defaultOrder = $getOrder ?: "pencatatan_kantor.id_kelurahan ASC";
+            $defaultOrder = $getOrder ?: "pencatatan_kantor.created DESC";
             $orderMappings = [
                 'namaASC'       => 'kprk.nama ASC',                 // pastikan kolom ini valid kalau dipakai
                 'namaDESC'      => 'kprk.nama DESC',
@@ -356,8 +356,8 @@ class VerifikasiLapanganController extends Controller
                     $item->aspek_pegawai
                 ) / 4;
 
-                $kesimpulan = ($nilai_akhir < 50 
-                    ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU' 
+                $kesimpulan = ($nilai_akhir < 50
+                    ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU'
                     : 'Melanjutkan Mendapatkan Subsidi Operasional LPU');
 
                 $data[] = [
@@ -459,7 +459,7 @@ class VerifikasiLapanganController extends Controller
             DB::beginTransaction();
 
             $pk = $payload['pencatatan_kantor'];
-            
+
             if (!empty($pk['id']) && $existing = PencatatanKantor::find($pk['id'])) {
                 $existing->fill($pk);
                 $existing->save();
@@ -474,7 +474,7 @@ class VerifikasiLapanganController extends Controller
                      'id_parent' => $pencatatan->id,
                      'id_user' => $pkUser['id_user'] ?? $pk['id_user'],
                  ];
-                 
+
                 DB::table('pencatatan_kantor_user')->insert($insertUser);
             }
 
