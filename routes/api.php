@@ -211,7 +211,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('pencatatan', [PencatatanController::class, 'index']);
         Route::get('user-log', [UserLogController::class, 'index']);
         Route::get('pencatatan/{id}', [PencatatanController::class, 'show']);
-        Route::post('pencatatan/save/{id?}', [PencatatanController::class, 'save']);
+        // Route::post('pencatatan/save/{id?}', [PencatatanController::class, 'save']);
         Route::get('RealisasiBiaya-pie', [DashboardController::class, 'RealisasiBiaya']);
         Route::get('RealisasiPendapatan-donut', [DashboardController::class, 'RealisasiPendapatan']);
         Route::get('RealisasiBiaya-chart', [DashboardController::class, 'RealisasiBiayaChart']);
@@ -322,7 +322,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('monitoring-kantor-usulan/export', [MonitoringKantorUsulanController::class, 'export'])->name('monitoring-kantor-usulan-export');
 
         Route::get('verifikasi-lapangan', [VerifikasiLapanganController::class, 'index'])->name('verifikasi-lapangan');
-        Route::post('verifikasi-lapangan', [VerifikasiLapanganController::class, 'store'])->name('verifikasi-lapangan-store');
+        Route::post('pencatatan/save', [VerifikasiLapanganController::class, 'store'])->name('verifikasi-lapangan-store');
         Route::get('verifikasi-lapangan/export', [VerifikasiLapanganController::class, 'export'])->name('verifikasi-lapangan-export');
 
         Route::get('perbaikan-ringan', [PerbaikanRinganController::class, 'index'])->name('perbaikan-ringan');
