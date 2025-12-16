@@ -20,11 +20,8 @@ class ApiControllerV2 extends Controller
 
     public function getProfileRegional(Request $request)
     {
-        $kategoriBiaya = $request->input('kategoribiaya', '2'); // Default ke 2 (Biaya Prognosa)
-        $nopend = $request->input('nopend', '57523'); // Default ke 57523
-        $tahun = $request->input('tahun', date('Y')); // Default ke tahun berjalan
-        $triwulan = $request->input('triwulan', '4'); // Default ke 4
-        $endpoint = "biaya_prognosa?kategoribiaya=$kategoriBiaya&nopend=$nopend&tahun=$tahun&triwulan=$triwulan";
+        // $tahunbulan = $request->input('tahunbulan', '202503');
+        $endpoint = "mitra_lpu?nopend_kpc=45464";
 
         // Untuk contoh, ambil endpoint pertama
         $request->merge(['end_point' => $endpoint]);
