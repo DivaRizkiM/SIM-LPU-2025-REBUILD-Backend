@@ -2294,7 +2294,7 @@ class SyncApiController extends Controller
             $agent->setUserAgent($userAgent);
 
             $validator = Validator::make($request->all(), [
-                'id_regional' => 'required|exists:regional,id_regional',
+                'id_regional' => 'required',
             ]);
 
             if ($validator->fails()) {
