@@ -1593,9 +1593,9 @@ class SyncApiController extends Controller
             // Ambil dari verifikasi_biaya_rutin_detail yang punya lampiran
             if ($source === 'verifikasi' || $source === 'all') {
                 $queryVerifikasi = VerifikasiBiayaRutinDetail::leftJoin(
-                    'verifikasi_biaya_rutin', 
-                    'verifikasi_biaya_rutin.id', 
-                    '=', 
+                    'verifikasi_biaya_rutin',
+                    'verifikasi_biaya_rutin.id',
+                    '=',
                     'verifikasi_biaya_rutin_detail.id_verifikasi_biaya_rutin'
                 )
                 ->leftJoin(
@@ -2281,6 +2281,44 @@ class SyncApiController extends Controller
                 'status'  => 'ERROR',
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function syncMitraLpu(Request $request)
+    {
+        try {
+            $endpoint = 'mitra_lpu';
+            $id_kpc = $request->id_kpc;
+
+            $agent = new Agent();
+            $userAgent = $request->header('User-Agent');
+            $agent->setUserAgent($userAgent);
+
+            $validator = Validator::make($request->all(), [
+                'id_kpc' => 'required|exists:kpc,nomor_dirian',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['status' => 'ERROR', 'message' => $validator->errors()], 422);
+            }
+
+            $userLog = [
+                'timestamp' => now(),
+                'aktifitas' => 'Sinkronisasi Mitra LPU',
+                'modul' => 'mitra lpu',
+                'id_user' => $this->auth(),
+            ];
+
+            UserLog::create($userLog);
+
+            ProcessSyncMitraLpuJob::dispatch($endpoint, $id_kpc, $userAgent);
+
+            return response()->json([
+                'status' => 'IN_PROGRESS',
+                'message' => 'Sinkronisasi sedang di proses',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
 }
