@@ -2288,18 +2288,29 @@ class SyncApiController extends Controller
     {
         try {
             $endpoint = 'mitra_lpu';
-            $id_kpc = $request->id_kpc;
 
             $agent = new Agent();
             $userAgent = $request->header('User-Agent');
             $agent->setUserAgent($userAgent);
 
             $validator = Validator::make($request->all(), [
-                'id_kpc' => 'required|exists:kpc,nomor_dirian',
+                'id_regional' => 'required|exists:regional,nomor_regional',
             ]);
 
             if ($validator->fails()) {
                 return response()->json(['status' => 'ERROR', 'message' => $validator->errors()], 422);
+            }
+
+            $id_regional = $request->id_regional;
+
+            // Get all KPC in the region
+            $kpcList = Kpc::where('id_regional', $id_regional)->get();
+
+            if ($kpcList->isEmpty()) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => 'Tidak ada KPC ditemukan untuk regional ini'
+                ], 404);
             }
 
             $userLog = [
@@ -2311,11 +2322,14 @@ class SyncApiController extends Controller
 
             UserLog::create($userLog);
 
-            ProcessSyncMitraLpuJob::dispatch($endpoint, $id_kpc, $userAgent);
+            // Dispatch job for each KPC in the region
+            foreach ($kpcList as $kpc) {
+                ProcessSyncMitraLpuJob::dispatch($endpoint, $kpc->nomor_dirian, $userAgent);
+            }
 
             return response()->json([
                 'status' => 'IN_PROGRESS',
-                'message' => 'Sinkronisasi sedang di proses',
+                'message' => 'Sinkronisasi sedang di proses untuk ' . $kpcList->count() . ' kantor',
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
