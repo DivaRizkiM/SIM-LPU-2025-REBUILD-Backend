@@ -226,6 +226,8 @@ Route::middleware('auth:api')->group(function () {
         Route::get('monitoring-detail', [MonitoringController::class, 'show'])->name('monitoring-detail');
         // Search kantor pertama & kedua, balikan jarak (km)
         Route::get('monitoring/kantor-distance', [MonitoringController::class, 'searchKantorDistance'])->name('monitoring-kantor-distance');
+        // Autocomplete untuk pencarian kantor
+        Route::get('monitoring/kantor-autocomplete', [MonitoringController::class, 'autocompleteKantor'])->name('monitoring-kantor-autocomplete');
 
         Route::apiResource('rekonsiliasi', RekonsiliasiController::class);
         Route::post('rekonsiliasi-import', [RekonsiliasiController::class, 'multistore'])->name('rekonsiliasi-import');

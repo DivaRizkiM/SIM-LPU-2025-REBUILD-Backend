@@ -14,10 +14,58 @@ use Illuminate\Support\Facades\Storage;
 class MonitoringController extends Controller
 {
         /**
+         * Autocomplete untuk pencarian kantor
+         * Params: q (search query), jenis_kantor, id_regional, id_kprk, limit
+         */
+        public function autocompleteKantor(Request $request)
+        {
+            $search = trim($request->get('q', ''));
+            $jenisKantor = $request->get('jenis_kantor');
+            $idRegional = $request->get('id_regional');
+            $idKprk = $request->get('id_kprk');
+            $limit = min((int) $request->get('limit', 10), 50);
+
+            $query = Kpc::select('id', 'nomor_dirian', 'nama', 'jenis_kantor', 'alamat', 'id_regional', 'id_kprk')
+                ->where(function($q) use ($search) {
+                    if ($search) {
+                        $q->where('nama', 'LIKE', "%$search%")
+                          ->orWhere('nomor_dirian', 'LIKE', "%$search%")
+                          ->orWhere('alamat', 'LIKE', "%$search%");
+                    }
+                });
+
+            if ($jenisKantor) {
+                $query->where('jenis_kantor', $jenisKantor);
+            }
+
+            if ($idRegional) {
+                $query->where('id_regional', $idRegional);
+            }
+
+            if ($idKprk) {
+                $query->where('id_kprk', $idKprk);
+            }
+
+            // Only show offices with valid coordinates
+            $query->whereNotNull('koordinat_latitude')
+                  ->whereNotNull('koordinat_longitude')
+                  ->where('koordinat_latitude', '!=', 0)
+                  ->where('koordinat_longitude', '!=', 0);
+
+            $results = $query->limit($limit)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $results
+            ]);
+        }
+
+        /**
          * Cari dua kantor (asal & tujuan) dan hitung jarak antar koordinat.
          * Parameter dapat berupa:
          * - origin_id / destination_id: ID KPC
          * - origin_name / destination_name: Nama kantor (LIKE)
+         * - Filter: jenis_kantor, id_regional, id_kprk untuk origin dan destination
          * Jika keduanya dikirim (id dan name), prioritas menggunakan ID.
          * Response berisi data kantor asal, tujuan, dan jarak (km).
          */
@@ -26,13 +74,17 @@ class MonitoringController extends Controller
             $origin = $this->findKpc(
                 $request->get('origin_id'),
                 $request->get('origin_name'),
-                $request->get('origin_jenis_kantor')
+                $request->get('origin_jenis_kantor'),
+                $request->get('origin_id_regional'),
+                $request->get('origin_id_kprk')
             );
 
             $destination = $this->findKpc(
                 $request->get('destination_id'),
                 $request->get('destination_name'),
-                $request->get('destination_jenis_kantor')
+                $request->get('destination_jenis_kantor'),
+                $request->get('destination_id_regional'),
+                $request->get('destination_id_kprk')
             );
 
             if (!$origin) {
@@ -117,7 +169,7 @@ class MonitoringController extends Controller
             ]);
         }
 
-        private function findKpc($id = null, $name = null, $jenisKantor = null)
+        private function findKpc($id = null, $name = null, $jenisKantor = null, $idRegional = null, $idKprk = null)
         {
             $query = Kpc::query();
 
@@ -129,10 +181,19 @@ class MonitoringController extends Controller
                 $query->where('jenis_kantor', $jenisKantor);
             }
 
+            if ($idRegional) {
+                $query->where('id_regional', $idRegional);
+            }
+
+            if ($idKprk) {
+                $query->where('id_kprk', $idKprk);
+            }
+
             if ($name) {
                 $query->where(function($q) use ($name) {
                     $q->where('nama', 'LIKE', "%$name%")
-                      ->orWhere('nama', 'LIKE', "%$name%");
+                      ->orWhere('nomor_dirian', 'LIKE', "%$name%")
+                      ->orWhere('alamat', 'LIKE', "%$name%");
                 });
             }
 
