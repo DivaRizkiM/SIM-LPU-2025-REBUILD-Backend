@@ -769,7 +769,7 @@ class BiayaAtribusiController extends Controller
                 }
 
                 $id_biaya_atribusi_detail = $data['id_biaya_atribusi_detail'];
-                
+
                 $biaya_atribusi_detail = BiayaAtribusiDetail::with('biayaAtribusi')->find($id_biaya_atribusi_detail);
 
                 if (!$biaya_atribusi_detail) {
@@ -778,7 +778,7 @@ class BiayaAtribusiController extends Controller
                 }
 
                 $verifikasiInput = $data['verifikasi'] ?? null;
-                
+
                 if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
                     $verifikasiValue = $biaya_atribusi_detail->pelaporan;
                 } else {
@@ -789,7 +789,7 @@ class BiayaAtribusiController extends Controller
                     } elseif (is_string($verifikasiInput)) {
                         // Format string: "Rp 3.353.438" atau "3.353.438,57"
                         $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
-                        
+
                         if (strpos($cleaned, ',') !== false) {
                             $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
                             $verifikasiValue = (float) $cleaned;
@@ -801,7 +801,7 @@ class BiayaAtribusiController extends Controller
                         $verifikasiValue = $biaya_atribusi_detail->pelaporan;
                     }
                 }
-                
+
                 $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
                 $id_validator = Auth::user()->id;
                 $tanggal_verifikasi = now();
@@ -840,6 +840,30 @@ class BiayaAtribusiController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+    public function submit(Request $request)
+    {
+        try {
+            $rutin = BiayaAtribusi::where('id', $request->data)->first();
+
+            $rutin->update([
+                'id_status' => 9,
+            ]);
+
+            $userLog = [
+                'timestamp' => now(),
+                'aktifitas' => 'Update Verifikasi Biaya Atribusi',
+                'modul' => 'Biaya Atribusi',
+                'id_user' => Auth::user(),
+            ];
+
+            $userLog = UserLog::create($userLog);
+            Artisan::call('cache:clear');
+
+            return response()->json(['status' => 'SUCCESS', 'data' => $rutin]);
+        } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }

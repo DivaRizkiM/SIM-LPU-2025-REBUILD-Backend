@@ -244,6 +244,8 @@ Route::middleware('auth:api')->group(function () {
         Route::get('atribusi-kcu', [BiayaAtribusiController::class, 'getPerKCU'])->name('atribusi-kcu');
         Route::get('atribusi-detail', [BiayaAtribusiController::class, 'getDetail'])->name('atribusi-detail');
         Route::post('atribusi-verifikasi', [BiayaAtribusiController::class, 'verifikasi'])->name('atribusi-verifikasi');
+        Route::post('atribusi-verifikasi/all', [BiayaAtribusiController::class, 'submit'])->name('atribusi-verifikasi-submit');
+
 
         Route::get('rutin-tahun', [VerifikasiBiayaRutinController::class, 'getPerTahun'])->name('rutin-tahun');
         Route::get('rutin-regional', [VerifikasiBiayaRutinController::class, 'getPerRegional'])->name('rutin-regional');
