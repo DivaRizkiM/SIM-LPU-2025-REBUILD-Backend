@@ -29,6 +29,54 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    public function testProduksiPrognosa(Request $request)
+    {
+        // Ambil parameter dari request
+        $nopend_kpc = $request->input('nopend_kpc', ''); // nomor dirian KPC
+        $triwulan = $request->input('triwulan', '1');
+        $tahun = $request->input('tahun', date('Y'));
+        $tipe_bisnis = $request->input('tipe_bisnis', '');
+
+        // Build endpoint dengan parameter
+        $params = [];
+        if ($nopend_kpc) $params[] = "nopend_kpc={$nopend_kpc}";
+        if ($triwulan) $params[] = "triwulan={$triwulan}";
+        if ($tahun) $params[] = "tahun={$tahun}";
+        if ($tipe_bisnis) $params[] = "tipe_bisnis={$tipe_bisnis}";
+
+        $endpoint = "produksi_prognosa";
+        if (!empty($params)) {
+            $endpoint .= "?" . implode("&", $params);
+        }
+
+        $request->merge(['end_point' => $endpoint]);
+
+        return $this->makeRequest($request);
+    }
+
+    public function testBiayaPrognosa(Request $request)
+    {
+        // Ambil parameter dari request
+        $nopend_kpc = $request->input('nopend_kpc', ''); // nomor dirian KPC
+        $triwulan = $request->input('triwulan', '1');
+        $tahun = $request->input('tahun', date('Y'));
+
+        // Build endpoint dengan parameter
+        $params = [];
+        if ($nopend_kpc) $params[] = "nopend_kpc={$nopend_kpc}";
+        if ($triwulan) $params[] = "triwulan={$triwulan}";
+        if ($tahun) $params[] = "tahun={$tahun}";
+
+        $endpoint = "biaya_prognosa";
+        if (!empty($params)) {
+            $endpoint .= "?" . implode("&", $params);
+        }
+
+        $request->merge(['end_point' => $endpoint]);
+
+        return $this->makeRequest($request);
+    }
+
 
     public function makeRequest(Request $request)
     {
