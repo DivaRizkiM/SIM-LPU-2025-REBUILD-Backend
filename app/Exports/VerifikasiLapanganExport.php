@@ -55,10 +55,10 @@ class VerifikasiLapanganExport
             $sheet->setCellValue('M' . $row, $item['aspek_pegawai']); // Aspek Pegawai
             $sheet->setCellValue('N' . $row, $item['nilai_akhir']); // Nilai Akhir
             $sheet->setCellValue('O' . $row, $item['kesimpulan']); // Kesimpulan
-            $sheet->setCellValue('P' . $row, $item['foto_tampak_depan'] ?? ''); // Link Foto Tampak Depan
-            $sheet->setCellValue('Q' . $row, $item['foto_tampak_belakang'] ?? ''); // Link Foto Tampak Belakang
-            $sheet->setCellValue('R' . $row, $item['foto_tampak_samping'] ?? ''); // Link Foto Tampak Samping
-            $sheet->setCellValue('S' . $row, $item['foto_tampak_dalam'] ?? ''); // Link Foto Tampak Dalam
+            $sheet->setCellValue('Q' . $row, $item['foto_tampak_depan'] ?? ''); // Link Foto Tampak Depan
+            $sheet->setCellValue('R' . $row, $item['foto_tampak_belakang'] ?? ''); // Link Foto Tampak Belakang
+            $sheet->setCellValue('S' . $row, $item['foto_tampak_samping'] ?? ''); // Link Foto Tampak Samping
+            $sheet->setCellValue('T' . $row, $item['foto_tampak_dalam'] ?? ''); // Link Foto Tampak Dalam
 
             $row++;
         }
