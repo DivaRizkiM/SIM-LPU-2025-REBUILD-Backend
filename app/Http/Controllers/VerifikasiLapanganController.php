@@ -181,10 +181,10 @@ class VerifikasiLapanganController extends Controller
                         ? 'Tidak Diusulkan Mendapatkan Subsidi Operasional LPU'
                         : 'Melanjutkan Mendapatkan Subsidi Operasional LPU'),
                     // ✅ 4 Kolom foto terpisah
-                    'foto_tampak_depan'     => $fotoTampakDepan ? url('storage/' . $fotoTampakDepan->file) : null,
-                    'foto_tampak_belakang'  => $fotoTampakBelakang ? url('storage/' . $fotoTampakBelakang->file) : null,
-                    'foto_tampak_samping'   => $fotoTampakSamping ? url('storage/' . $fotoTampakSamping->file) : null,
-                    'foto_tampak_dalam'     => $fotoTampakDalam ? url('storage/' . $fotoTampakDalam->file) : null,
+                    'foto_tampak_depan'     => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDepan->file : null,
+                    'foto_tampak_belakang'  => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakBelakang->file : null,
+                    'foto_tampak_samping'   => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakSamping->file : null,
+                    'foto_tampak_dalam'     => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDalam->file : null,
                 ];
             }
 
@@ -377,10 +377,10 @@ class VerifikasiLapanganController extends Controller
                     'nilai_akhir' => round($nilai_akhir),
                     'kesimpulan' => $kesimpulan,
                     // ✅ 4 Kolom foto terpisah (untuk Excel)
-                    'foto_tampak_depan' => $fotoTampakDepan ? url('storage/' . $fotoTampakDepan->file) : '',
-                    'foto_tampak_belakang' => $fotoTampakBelakang ? url('storage/' . $fotoTampakBelakang->file) : '',
-                    'foto_tampak_samping' => $fotoTampakSamping ? url('storage/' . $fotoTampakSamping->file) : '',
-                    'foto_tampak_dalam' => $fotoTampakDalam ? url('storage/' . $fotoTampakDalam->file) : '',
+                    'foto_tampak_depan' => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakDepan->file : '',
+                    'foto_tampak_belakang' => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakBelakang->file : '',
+                    'foto_tampak_samping' => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakSamping->file : '',
+                    'foto_tampak_dalam' => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakDalam->file : '',
                 ];
             }
 
