@@ -377,10 +377,10 @@ class VerifikasiLapanganController extends Controller
                     'nilai_akhir' => round($nilai_akhir),
                     'kesimpulan' => $kesimpulan,
                     // ✅ 4 Kolom foto terpisah (untuk Excel)
-                    'foto_tampak_depan' => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDepan->file : '',
-                    'foto_tampak_belakang' => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakBelakang->file : '',
-                    'foto_tampak_samping' => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakSamping->file : '',
-                    'foto_tampak_dalam' => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDalam->file : '',
+                    'foto_tampak_depan' => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakDepan->file : '',
+                    'foto_tampak_belakang' => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakBelakang->file : '',
+                    'foto_tampak_samping' => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakSamping->file : '',
+                    'foto_tampak_dalam' => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/backend/storage/pencatatan' . $fotoTampakDalam->file : '',
                 ];
             }
 
