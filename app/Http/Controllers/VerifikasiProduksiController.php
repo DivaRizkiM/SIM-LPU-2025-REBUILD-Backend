@@ -270,19 +270,19 @@ class VerifikasiProduksiController extends Controller
 
         foreach ($produksi as $item) {
             $key = $item->id_kcu . '-' . $item->triwulan . '-' . $item->tahun_anggaran;
-            
+
             // ✅ Ambil semua KPC dalam KCU ini
             $statusList = $statuses->get($key, collect());
             $item->nama_kcu = $item->nama_kcu;
             $item->statusList = $statusList;
             // ✅ Cek apakah SEMUA KPC di KCU ini status_kprk = 9
-            $semuaStatusSembilan = $statusList->isNotEmpty() && 
+            $semuaStatusSembilan = $statusList->isNotEmpty() &&
                                    $statusList->every(fn($s) => $s->status_kprk == 9);
-            
+
             $status_id = $semuaStatusSembilan ? 9 : 7;
             $item->status = $statusNames[$status_id] ?? '-';
             $item->total_produksi = "Rp " . number_format(round($item->total_produksi), 0, '', '.');
-            
+
             // Debug info (opsional, bisa dihapus di production)
             // $item->debug_total_kpc = $statusList->count();
             // $item->debug_status_9 = $statusList->where('status_kprk', 9)->count();
@@ -783,9 +783,11 @@ class VerifikasiProduksiController extends Controller
                 }
             }
 
-            if ($isLockStatus == true) {
-                $produksi = [];
-            }
+            // Removed the code that emptied $produksi when locked
+            // Frontend already handles read-only mode when isLock is true
+            // if ($isLockStatus == true) {
+            //     $produksi = [];
+            // }
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -802,7 +804,7 @@ class VerifikasiProduksiController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'data.*.id_produksi_detail' => 'required|string|exists:produksi_detail,id',
-                'data.*.verifikasi'         => 'nullable|numeric', 
+                'data.*.verifikasi'         => 'nullable|numeric',
                 'data.*.catatan_pemeriksa'  => 'nullable|string',
             ]);
 
@@ -827,7 +829,7 @@ class VerifikasiProduksiController extends Controller
                 return response()->json(['status' => 'ERROR', 'message' => 'Detail produksi tidak ditemukan'], 404);
             }
             $verifikasiInput = $data['verifikasi'] ?? null;
-            
+
             if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
                 $verifikasiValue = $produksi_detail->pelaporan;
             } else {
@@ -835,7 +837,7 @@ class VerifikasiProduksiController extends Controller
                     $verifikasiValue = (float) $verifikasiInput;
                 } elseif (is_string($verifikasiInput)) {
                     $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
-                    
+
                     if (strpos($cleaned, ',') !== false) {
                         $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
                         $verifikasiValue = (float) $cleaned;
@@ -848,7 +850,7 @@ class VerifikasiProduksiController extends Controller
                 }
             }
 
-            
+
             $catatan_pemeriksa  = $data['catatan_pemeriksa'] ?? '';
             $id_validator       = Auth::user()->id;
             $tanggal_verifikasi = now();
@@ -884,7 +886,7 @@ class VerifikasiProduksiController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
-            
+
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
