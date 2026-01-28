@@ -728,9 +728,11 @@ class BiayaAtribusiController extends Controller
                 }
             }
 
-            if ($isLockStatus) {
-                $atribusi = [];
-            }
+            // Removed the code that emptied $atribusi when locked
+            // Frontend already handles read-only mode when isLock is true
+            // if ($isLockStatus) {
+            //     $atribusi = [];
+            // }
 
             return response()->json([
                 'status' => 'SUCCESS',

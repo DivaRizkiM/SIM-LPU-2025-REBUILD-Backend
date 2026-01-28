@@ -658,6 +658,7 @@ class VerifikasiBiayaRutinController extends Controller
                 ->select([
                     'd.*',
                     'v.triwulan',
+                    'v.tahun',
                     'r.kode_rekening',
                     'r.nama as nama_rekening',
                     'l.nama_file as lampiran_nama_file',
@@ -679,7 +680,9 @@ class VerifikasiBiayaRutinController extends Controller
                 'Desember'
             ];
 
-            $lockStatusMap = LockVerifikasi::where('tahun', now()->year)
+            // ✅ FIX: Get tahun from the data to ensure consistency with Detail API
+            $tahunData = $details->first()->tahun ?? now()->year;
+            $lockStatusMap = LockVerifikasi::where('tahun', $tahunData)
                 ->pluck('status', 'bulan')
                 ->toArray();
 
@@ -936,9 +939,11 @@ class VerifikasiBiayaRutinController extends Controller
                 $item->url_lampiran = config('app.env_config_path') . $item->nama_file;
             }
 
-            if ($isLockStatus) {
-                $rutin = [];
-            }
+            // Removed the code that emptied $rutin when locked
+            // Frontend already handles read-only mode when isLock is true
+            // if ($isLockStatus) {
+            //     $rutin = [];
+            // }
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -969,7 +974,7 @@ class VerifikasiBiayaRutinController extends Controller
 
         // ✅ 2. Hitung grand total fase 1 tanpa loop berulang
         $grand_total_fase_1 = 0;
-        
+
         foreach ($verifikasiLtkData as $item) {
             $fase1 = $this->ltkHelper->calculateProporsiByCategory(
                 $item->mtd_ltk_verifikasi,
@@ -983,7 +988,7 @@ class VerifikasiBiayaRutinController extends Controller
         // ✅ 3. Hitung fase 2 dan 3 sekali saja (di luar loop)
         $perhitunganFase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
         $perhitunganFase3 = $this->ltkHelper->calculateFase3($perhitunganFase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
-        
+
         // ✅ 4. Format angka sekali saja
         $hasilFase1PerBulan = "Rp " . number_format(round($grand_total_fase_1), 0, '', '.');
         $hasilFase2 = "Rp " . number_format(round($perhitunganFase2['hasil_fase_2']), 0, '', '.');
@@ -1179,7 +1184,7 @@ class VerifikasiBiayaRutinController extends Controller
                     $source = 'pelaporan';
                 } else {
                     $verifikasiInput = $data['verifikasi'];
-                    
+
                     // ✅ Jika user input null atau string kosong → gunakan pelaporan
                     if ($verifikasiInput === null || $verifikasiInput === '') {
                         $verifikasiValue = $biaya_rutin_detail->pelaporan;
@@ -1190,7 +1195,7 @@ class VerifikasiBiayaRutinController extends Controller
                             $verifikasiValue = (float) $verifikasiInput;
                         } elseif (is_string($verifikasiInput)) {
                             $cleaned = str_replace(['Rp.', 'Rp', ' '], '', $verifikasiInput);
-                            
+
                             if (strpos($cleaned, ',') !== false) {
                                 // Format Indonesia: 3.353.438,57
                                 $cleaned = str_replace(['.', ','], ['', '.'], $cleaned);
@@ -1244,7 +1249,7 @@ class VerifikasiBiayaRutinController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
         }
     }
@@ -1444,7 +1449,7 @@ class VerifikasiBiayaRutinController extends Controller
     {
         try {
             $lampiran = VerifikasiBiayaRutinDetailLampiran::find($id);
-            
+
             if (!$lampiran || !$lampiran->nama_file) {
                 return response()->json([
                     'success' => false,
@@ -1453,7 +1458,7 @@ class VerifikasiBiayaRutinController extends Controller
             }
 
             $filePath = storage_path('app/public/lampiran/' . $lampiran->nama_file);
-            
+
             if (!file_exists($filePath)) {
                 return response()->json([
                     'success' => false,

@@ -222,9 +222,11 @@ class BiayaGajiController extends Controller
                 $item->periode = $bulanIndonesia[$item->bulan - 1];
             }
 
-            if ($isLockStatus) {
-                $pegawai = [];
-            }
+            // Removed the code that emptied $pegawai when locked
+            // Frontend already handles read-only mode when isLock is true
+            // if ($isLockStatus) {
+            //     $pegawai = [];
+            // }
 
             return response()->json([
                 'status' => 'SUCCESS',
@@ -272,8 +274,8 @@ class BiayaGajiController extends Controller
 
                 $catatan_pemeriksa = $data['catatan_pemeriksa'] ?? '';
                 $verifikasi = str_replace(['Rp.', ',', '.'], '', $data['verifikasi']);
-                $verifikasiFloat = round((float) $verifikasi);  
-                $verifikasiFormatted = (string) $verifikasiFloat;                 
+                $verifikasiFloat = round((float) $verifikasi);
+                $verifikasiFormatted = (string) $verifikasiFloat;
                 $pegawai->update([
                     'verifikasi' => $verifikasi,
                     'id_status' => 9,
