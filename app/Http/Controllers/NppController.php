@@ -119,8 +119,8 @@ class NppController extends Controller
                         $isLockStatus = $isLock->status;
                     }
                     $item->isLock = $isLockStatus;
-                    $item->nama_rekening = $item->rekeningBiaya->nama ?? '-';  
-                    $item->kode_rekening = $item->rekeningBiaya->kode_rekening ?? '-'; 
+                    $item->nama_rekening = $item->rekeningBiaya->nama ?? '-';
+                    $item->kode_rekening = $item->rekeningBiaya->kode_rekening ?? '-';
                     unset($item->rekeningBiaya);
                 }
             }
@@ -342,10 +342,14 @@ class NppController extends Controller
 
             $isLockStatus = $lock->status ?? false;
 
-            $responseData = [];
-            if (!$isLockStatus) {
-                $responseData = [$npp];
-            }
+            // Removed the code that emptied responseData when locked
+            // Frontend already handles read-only mode when isLock is true
+            // $responseData = [];
+            // if (!$isLockStatus) {
+            //     $responseData = [$npp];
+            // }
+
+            $responseData = [$npp];
 
             return response()->json([
                 'status' => 'SUCCESS',
