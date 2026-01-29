@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as WriterXlsx;
 use Illuminate\Support\Facades\Storage;
@@ -411,7 +412,7 @@ class VerifikasiLapanganController extends Controller
     {
         try {
             // Log request info untuk debug
-            \Log::info('=== VERLAP STORE: Request Received ===', [
+            Log::info('=== VERLAP STORE: Request Received ===', [
                 'timestamp' => now()->toDateTimeString(),
                 'content_length' => $request->header('Content-Length'),
                 'content_type' => $request->header('Content-Type'),
@@ -463,7 +464,7 @@ class VerifikasiLapanganController extends Controller
 
             $validator = Validator::make($payload, $rules);
             if ($validator->fails()) {
-                \Log::error('VERLAP STORE: Validation Failed', [
+                Log::error('VERLAP STORE: Validation Failed', [
                     'errors' => $validator->errors()->toArray(),
                     'payload_keys' => array_keys($payload),
                     'pencatatan_kantor' => $payload['pencatatan_kantor'] ?? 'missing',
@@ -502,7 +503,7 @@ class VerifikasiLapanganController extends Controller
             $uploadedFiles = $request->file('pencatatan_kantor_kuis') ?? [];
             $allUploadedFiles = $request->file('file') ?? []; // ✅ Android kirim dengan key "file"
 
-            \Log::info('VERLAP STORE: Processing files', [
+            Log::info('VERLAP STORE: Processing files', [
                 'total_kuis' => count($kuisList),
                 'has_pencatatan_kantor_kuis_files' => !empty($uploadedFiles),
                 'has_file_key' => !empty($allUploadedFiles),
@@ -536,23 +537,14 @@ class VerifikasiLapanganController extends Controller
                     $fileFromRequest = $uploadedFiles[$index]['file']['file'];
                 }
 
-                \Log::info('VERLAP STORE: Checking file for kuis', [
+                Log::info('VERLAP STORE: Checking file for kuis', [
                     'index' => $index,
                     'id_tanya' => $kuis['id_tanya'] ?? null,
                     'has_file_object' => is_object($fileFromRequest),
                     'file_class' => is_object($fileFromRequest) ? get_class($fileFromRequest) : null,
                 ]);
 
-                if (
-                    \Log::info('VERLAP STORE: File saved to DB', [
-                        'id_parent' => $pencatatan->id,
-                        'file_name' => $fileRecord['file_name'],
-                        'file_path' => $fileRecord['file'],
-                        'file_size_kb' => round($fileFromRequest->getSize() / 1024, 2),
-                        'file_type' => $fileRecord['file_type'],
-                    ]);
-
-                    $fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
+                if ($fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
                     // store uploaded file
                     $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
                     $origName = $fileFromRequest->getClientOriginalName();
@@ -588,7 +580,7 @@ class VerifikasiLapanganController extends Controller
                     $decoded = base64_decode($b64);
                     if ($decoded === false || $decoded === null || strlen($decoded) === 0) {
                         // skip invalid base64
-                        \Log::warning('VERLAP STORE: Base64 decode FAILED', [
+                        Log::warning('VERLAP STORE: Base64 decode FAILED', [
                             'id_parent' => $pencatatan->id,
                             'id_tanya' => $kuis['id_tanya'] ?? null,
                             'file_nama' => $file['nama'] ?? 'unknown',
@@ -639,7 +631,7 @@ class VerifikasiLapanganController extends Controller
 
                     DB::table('pencatatan_kantor_file')->insert($fileRecord);
 
-                    \Log::info('VERLAP STORE: File saved to DB', [
+                    Log::info('VERLAP STORE: File saved to DB', [
                         'id_parent' => $pencatatan->id,
                         'file_name' => $fileRecord['file_name'],
                         'file_path' => $fileRecord['file'],
@@ -651,7 +643,7 @@ class VerifikasiLapanganController extends Controller
 
             DB::commit();
 
-            \Log::info('=== VERLAP STORE: SUCCESS ===', [
+            Log::info('=== VERLAP STORE: SUCCESS ===', [
                 'id_pencatatan' => $pencatatan->id,
                 'total_files_processed' => count($kuisList),
             ]);
