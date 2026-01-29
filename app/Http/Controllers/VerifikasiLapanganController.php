@@ -410,6 +410,16 @@ class VerifikasiLapanganController extends Controller
     public function store(Request $request)
     {
         try {
+            // Log request info untuk debug
+            \Log::info('=== VERLAP STORE: Request Received ===', [
+                'timestamp' => now()->toDateTimeString(),
+                'content_length' => $request->header('Content-Length'),
+                'content_type' => $request->header('Content-Type'),
+                'has_multipart_files' => $request->hasFile('pencatatan_kantor_kuis'),
+                'payload_size_kb' => round(strlen($request->getContent()) / 1024, 2),
+                'ip' => $request->ip(),
+            ]);
+
             $rules = [
                 'pencatatan_kantor' => 'required|array',
                 'pencatatan_kantor.id_kpc' => 'required|numeric',
@@ -531,6 +541,13 @@ class VerifikasiLapanganController extends Controller
                     $decoded = base64_decode($b64);
                     if ($decoded === false || $decoded === null || strlen($decoded) === 0) {
                         // skip invalid base64
+                        \Log::warning('VERLAP STORE: Base64 decode FAILED', [
+                            'id_parent' => $pencatatan->id,
+                            'id_tanya' => $kuis['id_tanya'] ?? null,
+                            'file_nama' => $file['nama'] ?? 'unknown',
+                            'base64_preview' => substr($b64, 0, 50) . '...',
+                            'base64_length' => strlen($b64),
+                        ]);
                         continue;
                     }
 
@@ -574,10 +591,23 @@ class VerifikasiLapanganController extends Controller
                     ];
 
                     DB::table('pencatatan_kantor_file')->insert($fileRecord);
+
+                    \Log::info('VERLAP STORE: File saved to DB', [
+                        'id_parent' => $pencatatan->id,
+                        'file_name' => $fileRecord['file_name'],
+                        'file_path' => $fileRecord['file'],
+                        'file_size_kb' => round(strlen($decoded) / 1024, 2),
+                        'file_type' => $fileRecord['file_type'],
+                    ]);
                 }
             }
 
             DB::commit();
+
+            \Log::info('=== VERLAP STORE: SUCCESS ===', [
+                'id_pencatatan' => $pencatatan->id,
+                'total_files_processed' => count($kuisList),
+            ]);
 
             return response()->json([
                 'status' => 'SUCCESS',
