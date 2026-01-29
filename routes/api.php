@@ -97,6 +97,10 @@ use App\Http\Controllers\BeritaAcaraVerifikasiBulananController;
 //     return '<h1>storage linked</h1>';
 // })->name('optimize');
 
+Route::get('/site/kebijakan', function () {
+    return view('site.kebijakan');
+});
+
 // Route::middleware(['csp'])->group(function () {
 // Route::get('berita-acara-penarikan/pdf', [BeritaAcaraPenarikanController::class, 'pdf'])->name('berita-acara-penarikan');
 
