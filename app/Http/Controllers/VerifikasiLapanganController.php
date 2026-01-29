@@ -416,7 +416,10 @@ class VerifikasiLapanganController extends Controller
                 'content_length' => $request->header('Content-Length'),
                 'content_type' => $request->header('Content-Type'),
                 'has_multipart_files' => $request->hasFile('pencatatan_kantor_kuis'),
-                'payload_size_kb' => round(strlen($request->getContent()) / 1024, 2),
+                'all_files' => $request->allFiles(),
+                'request_keys' => array_keys($request->all()),
+                'has_pencatatan_kantor' => $request->has('pencatatan_kantor'),
+                'has_pencatatan_kantor_kuis' => $request->has('pencatatan_kantor_kuis'),
                 'ip' => $request->ip(),
             ]);
 
@@ -460,6 +463,11 @@ class VerifikasiLapanganController extends Controller
 
             $validator = Validator::make($payload, $rules);
             if ($validator->fails()) {
+                \Log::error('VERLAP STORE: Validation Failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'payload_keys' => array_keys($payload),
+                    'pencatatan_kantor' => $payload['pencatatan_kantor'] ?? 'missing',
+                ]);
                 return response()->json([
                     'status' => 'ERROR',
                     'message' => $validator->errors()
