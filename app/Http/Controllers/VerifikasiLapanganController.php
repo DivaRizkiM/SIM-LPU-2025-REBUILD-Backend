@@ -498,8 +498,16 @@ class VerifikasiLapanganController extends Controller
 
             $kuisList = $payload['pencatatan_kantor_kuis'] ?? [];
 
-            // ambil file multipart jika ada (indexed same structure)
+            // ambil file multipart jika ada
             $uploadedFiles = $request->file('pencatatan_kantor_kuis') ?? [];
+            $allUploadedFiles = $request->file('file') ?? []; // ✅ Android kirim dengan key "file"
+
+            \Log::info('VERLAP STORE: Processing files', [
+                'total_kuis' => count($kuisList),
+                'has_pencatatan_kantor_kuis_files' => !empty($uploadedFiles),
+                'has_file_key' => !empty($allUploadedFiles),
+                'file_structure' => array_keys($allUploadedFiles),
+            ]);
 
             foreach ($kuisList as $index => $kuis) {
                 $kuisInsert = [
@@ -511,9 +519,40 @@ class VerifikasiLapanganController extends Controller
 
                 DB::table('pencatatan_kantor_kuis')->insert($kuisInsert);
 
-                // ===== new: handle UploadedFile first =====
-                $fileFromRequest = $uploadedFiles[$index]['file']['file'] ?? null;
-                if ($fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
+                // ===== Handle UploadedFile from Android =====
+                // Try multiple file structures
+                $fileFromRequest = null;
+
+                // Structure 1: file[index]
+                if (isset($allUploadedFiles[$index])) {
+                    $fileFromRequest = $allUploadedFiles[$index];
+                }
+                // Structure 2: file[index+1] (1-indexed)
+                elseif (isset($allUploadedFiles[$index + 1])) {
+                    $fileFromRequest = $allUploadedFiles[$index + 1];
+                }
+                // Structure 3: pencatatan_kantor_kuis[index][file][file]
+                elseif (isset($uploadedFiles[$index]['file']['file'])) {
+                    $fileFromRequest = $uploadedFiles[$index]['file']['file'];
+                }
+
+                \Log::info('VERLAP STORE: Checking file for kuis', [
+                    'index' => $index,
+                    'id_tanya' => $kuis['id_tanya'] ?? null,
+                    'has_file_object' => is_object($fileFromRequest),
+                    'file_class' => is_object($fileFromRequest) ? get_class($fileFromRequest) : null,
+                ]);
+
+                if (
+                    \Log::info('VERLAP STORE: File saved to DB', [
+                        'id_parent' => $pencatatan->id,
+                        'file_name' => $fileRecord['file_name'],
+                        'file_path' => $fileRecord['file'],
+                        'file_size_kb' => round($fileFromRequest->getSize() / 1024, 2),
+                        'file_type' => $fileRecord['file_type'],
+                    ]);
+
+                    $fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
                     // store uploaded file
                     $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
                     $origName = $fileFromRequest->getClientOriginalName();
