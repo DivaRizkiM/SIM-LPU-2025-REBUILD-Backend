@@ -77,6 +77,31 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    public function testBiayaRutin(Request $request)
+    {
+        // Ambil parameter dari request
+        $kategoribiaya = $request->input('kategoribiaya', '1'); // 1=Biaya Operasi, 2=Biaya Gaji
+        $nopend = $request->input('nopend', ''); // Nomor Dirian KPC
+        $tahun = $request->input('tahun', date('Y'));
+        $triwulan = $request->input('triwulan', '1');
+
+        // Build endpoint dengan parameter
+        $params = [];
+        if ($kategoribiaya) $params[] = "kategoribiaya={$kategoribiaya}";
+        if ($nopend) $params[] = "nopend={$nopend}";
+        if ($tahun) $params[] = "tahun={$tahun}";
+        if ($triwulan) $params[] = "triwulan={$triwulan}";
+
+        $endpoint = "biaya";
+        if (!empty($params)) {
+            $endpoint .= "?" . implode("&", $params);
+        }
+
+        $request->merge(['end_point' => $endpoint]);
+
+        return $this->makeRequest($request);
+    }
+
 
     public function makeRequest(Request $request)
     {
