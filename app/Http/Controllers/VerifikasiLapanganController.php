@@ -425,7 +425,7 @@ class VerifikasiLapanganController extends Controller
 
             $rules = [
                 'pencatatan_kantor' => 'required|array',
-                'pencatatan_kantor.id_kpc' => 'required|numeric',
+                'pencatatan_kantor.id_kpc' => 'required|string', // ✅ Changed to string (KPC ID bisa alphanumeric)
                 'pencatatan_kantor.id_user' => 'required|numeric',
                 'pencatatan_kantor.id_provinsi' => 'nullable|numeric',
                 'pencatatan_kantor.id_kabupaten' => 'nullable|numeric',
