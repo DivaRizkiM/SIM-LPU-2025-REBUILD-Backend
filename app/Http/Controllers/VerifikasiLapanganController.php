@@ -336,18 +336,22 @@ class VerifikasiLapanganController extends Controller
                     ->select('file', 'file_name', 'nama')
                     ->get();
 
-                // ✅ Filter foto berdasarkan nama
+                // ✅ Filter foto berdasarkan nama (support both "#1" and "1" format)
                 $fotoTampakDepan = $fotos->first(function($f) {
-                    return stripos($f->nama, 'Tampak Depan #1') !== false;
+                    return stripos($f->nama, 'Tampak Depan') !== false &&
+                           (stripos($f->nama, '#1') !== false || stripos($f->nama, ' 1') !== false);
                 });
                 $fotoTampakBelakang = $fotos->first(function($f) {
-                    return stripos($f->nama, 'Tampak Belakang #1') !== false;
+                    return stripos($f->nama, 'Tampak Belakang') !== false &&
+                           (stripos($f->nama, '#1') !== false || stripos($f->nama, ' 1') !== false);
                 });
                 $fotoTampakSamping = $fotos->first(function($f) {
-                    return stripos($f->nama, 'Tampak Samping #1') !== false;
+                    return stripos($f->nama, 'Tampak Samping') !== false &&
+                           (stripos($f->nama, '#1') !== false || stripos($f->nama, ' 1') !== false);
                 });
                 $fotoTampakDalam = $fotos->first(function($f) {
-                    return stripos($f->nama, 'Tampak Dalam #1') !== false;
+                    return stripos($f->nama, 'Tampak Dalam') !== false &&
+                           (stripos($f->nama, '#1') !== false || stripos($f->nama, ' 1') !== false);
                 });
 
                 $nilai_akhir = (
