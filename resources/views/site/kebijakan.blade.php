@@ -20,6 +20,9 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        p, li {
+            text-align: justify;
+        }
         h1 {
             color: #2c3e50;
             border-bottom: 3px solid #3498db;
@@ -142,7 +145,7 @@
 
         <div class="contact-info">
             <h2>Hubungi Kami</h2>
-            <p>Jika Anda memiliki pertanyaan mengenai privasi saat menggunakan Aplikasi, atau memiliki pertanyaan tentang praktik, silakan hubungi Penyedia Layanan melalui email.</p>
+            <p>Jika Anda memiliki pertanyaan mengenai privasi saat menggunakan Aplikasi, atau memiliki pertanyaan tentang praktik, silakan hubungi Penyedia Layanan melalui email di <strong>cipt001@komdigi.go.id</strong></p>
         </div>
     </div>
 </body>
