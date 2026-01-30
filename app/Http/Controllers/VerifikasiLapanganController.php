@@ -382,10 +382,10 @@ class VerifikasiLapanganController extends Controller
                     'nilai_akhir' => round($nilai_akhir),
                     'kesimpulan' => $kesimpulan,
                     // ✅ 4 Kolom foto terpisah (untuk Excel)
-                    'foto_tampak_depan' => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/storage/' . $fotoTampakDepan->file : '',
-                    'foto_tampak_belakang' => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/storage/' . $fotoTampakBelakang->file : '',
-                    'foto_tampak_samping' => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/storage/' . $fotoTampakSamping->file : '',
-                    'foto_tampak_dalam' => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/storage/' . $fotoTampakDalam->file : '',
+                    'foto_tampak_depan' => $fotoTampakDepan ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDepan->file : '',
+                    'foto_tampak_belakang' => $fotoTampakBelakang ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakBelakang->file : '',
+                    'foto_tampak_samping' => $fotoTampakSamping ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakSamping->file : '',
+                    'foto_tampak_dalam' => $fotoTampakDalam ? 'https://verifikasilpu.komdigi.go.id/backend/storage/' . $fotoTampakDalam->file : '',
                 ];
             }
 
@@ -550,7 +550,7 @@ class VerifikasiLapanganController extends Controller
 
                 if ($fileFromRequest && is_object($fileFromRequest) && method_exists($fileFromRequest, 'getClientOriginalName')) {
                     // store uploaded file
-                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
+                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis';
                     $origName = $fileFromRequest->getClientOriginalName();
                     $ext = $fileFromRequest->getClientOriginalExtension() ?: pathinfo($origName, PATHINFO_EXTENSION);
                     $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . time() . '_' . Str::random(6) . '.' . ($ext ?: 'bin');
@@ -626,9 +626,9 @@ class VerifikasiLapanganController extends Controller
                         $ext = $map[$detectedMime] ?? 'bin';
                     }
 
-                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis/';
+                    $storePath = 'pencatatan_kantor/' . $pencatatan->id . '/kuis';
                     $storedName = ($kuis['id_tanya'] ?? 'tanya') . '_' . time() . '_' . Str::random(6) . '.' . $ext;
-                    $fullPath = $storePath . $storedName;
+                    $fullPath = $storePath . '/' . $storedName;
 
                     Storage::disk('public')->makeDirectory($storePath);
                     Storage::disk('public')->put($fullPath, $decoded);
