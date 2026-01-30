@@ -566,6 +566,16 @@ class VerifikasiLapanganController extends Controller
                     ];
 
                     DB::table('pencatatan_kantor_file')->insert($fileRecord);
+
+                    Log::info('VERLAP STORE: UploadedFile saved to DB', [
+                        'id_parent' => $pencatatan->id,
+                        'file_name' => $fileRecord['file_name'],
+                        'file_path' => $fileRecord['file'],
+                        'file_type' => $fileRecord['file_type'],
+                        'kuis_index' => $index,
+                        'id_tanya' => $kuis['id_tanya'] ?? null,
+                    ]);
+
                     continue; // lanjut ke next kuis item
                 }
                 // ===== end UploadedFile handling =====
