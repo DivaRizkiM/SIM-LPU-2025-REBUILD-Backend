@@ -676,4 +676,26 @@ class VerifikasiLapanganController extends Controller
         }
     }
 
+    public function cleanupDoubleSlash()
+    {
+        try {
+            $affected = DB::table('pencatatan_kantor_file')
+                ->where('file', 'like', '%//%')
+                ->update([
+                    'file' => DB::raw("REPLACE(file, '//', '/')")
+                ]);
+
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => 'Double slash cleaned',
+                'affected_rows' => $affected
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

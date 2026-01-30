@@ -335,6 +335,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('verifikasi-lapangan', [VerifikasiLapanganController::class, 'index'])->name('verifikasi-lapangan');
         Route::post('pencatatan/save', [VerifikasiLapanganController::class, 'store'])->name('verifikasi-lapangan-store');
         Route::get('verifikasi-lapangan/export', [VerifikasiLapanganController::class, 'export'])->name('verifikasi-lapangan-export');
+        Route::post('verifikasi-lapangan/cleanup-double-slash', [VerifikasiLapanganController::class, 'cleanupDoubleSlash'])->name('verifikasi-lapangan-cleanup');
 
         Route::get('perbaikan-ringan', [PerbaikanRinganController::class, 'index'])->name('perbaikan-ringan');
         Route::get('perbaikan-ringan/export', [PerbaikanRinganController::class, 'export'])->name('perbaikan-ringan-export');
