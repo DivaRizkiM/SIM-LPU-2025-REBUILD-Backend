@@ -1,5 +1,8 @@
 :80 {
     root * /app/public
+
+    # PHP FrankenPHP configuration
     php
+
     file_server
 }
