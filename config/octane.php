@@ -221,4 +221,23 @@ return [
 
     'max_execution_time' => 300,
 
+    /*
+    |--------------------------------------------------------------------------
+    | FrankenPHP Options
+    |--------------------------------------------------------------------------
+    |
+    | The following options configure FrankenPHP server settings including
+    | PHP directives like max_file_uploads, upload_max_filesize, and
+    | post_max_size to handle multiple file uploads.
+    |
+    */
+
+    'frankenphp' => [
+        'php_ini' => [
+            'max_file_uploads' => 50,           // Maximum number of files that can be uploaded at once
+            'upload_max_filesize' => '50M',     // Maximum size for each uploaded file
+            'post_max_size' => '100M',          // Maximum size for POST data (must be larger than upload_max_filesize)
+        ],
+    ],
+
 ];
