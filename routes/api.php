@@ -100,6 +100,13 @@ use App\Http\Controllers\BeritaAcaraVerifikasiBulananController;
 Route::get('/site/kebijakan', function () {
     return view('site.kebijakan');
 });
+Route::get('/__env-check', function () {
+    return [
+        'max_file_uploads' => ini_get('max_file_uploads'),
+        'max_multipart_body_parts' => ini_get('max_multipart_body_parts'),
+        'octane_max_requests' => env('OCTANE_MAX_REQUESTS'),
+    ];
+});
         Route::post('verifikasi-lapangan/cleanup-double-slash', [VerifikasiLapanganController::class, 'cleanupDoubleSlash'])->name('verifikasi-lapangan-cleanup');
 
 
