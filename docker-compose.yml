@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simlpu_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+      - ./.env:/app/.env
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+    networks:
+      - simlpu_network
+
+networks:
+  simlpu_network:
+    driver: bridge
