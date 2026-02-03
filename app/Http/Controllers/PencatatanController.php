@@ -6,6 +6,7 @@ use App\Models\PencatatanKantor;
 use App\Models\PencatatanKantorUser;
 use App\Models\PencatatanKantorKuis;
 use App\Models\PencatatanKantorFile;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;

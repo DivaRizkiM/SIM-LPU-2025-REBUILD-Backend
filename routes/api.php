@@ -343,6 +343,8 @@ Route::middleware('auth:api')->group(function () {
 
         Route::get('verifikasi-lapangan', [VerifikasiLapanganController::class, 'index'])->name('verifikasi-lapangan');
         Route::post('pencatatan/save', [VerifikasiLapanganController::class, 'store'])->name('verifikasi-lapangan-store');
+        Route::post('pencatatan/upload-chunked', [VerifikasiLapanganController::class, 'uploadChunked'])->name('verifikasi-lapangan-upload-chunked');
+        Route::post('pencatatan/finalize-chunked', [VerifikasiLapanganController::class, 'finalizeChunked'])->name('verifikasi-lapangan-finalize-chunked');
         Route::get('verifikasi-lapangan/export', [VerifikasiLapanganController::class, 'export'])->name('verifikasi-lapangan-export');
 
         Route::get('perbaikan-ringan', [PerbaikanRinganController::class, 'index'])->name('perbaikan-ringan');

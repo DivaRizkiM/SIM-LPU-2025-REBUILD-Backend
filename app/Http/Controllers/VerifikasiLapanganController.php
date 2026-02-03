@@ -698,4 +698,244 @@ class VerifikasiLapanganController extends Controller
         }
     }
 
+    /**
+     * Upload foto secara chunked (batch per 5 foto)
+     */
+    public function uploadChunked(Request $request)
+    {
+        try {
+            $sessionId = $request->input('session_id', Str::uuid()->toString());
+            $batchNumber = (int) $request->input('batch_number', 1);
+            $totalBatches = (int) $request->input('total_batches', 1);
+
+            $files = $request->file('files', []);
+            if (count($files) > 5) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => 'Maksimal 5 foto per batch'
+                ], 422);
+            }
+
+            $uploadedFiles = [];
+            $tempPath = "temp_uploads/{$sessionId}";
+
+            foreach ($files as $index => $file) {
+                if ($file && $file->isValid()) {
+                    $fileName = time() . '_' . $batchNumber . '_' . $index . '_' . $file->getClientOriginalName();
+                    $filePath = $file->storeAs($tempPath, $fileName, 'public');
+
+                    $uploadedFiles[] = [
+                        'index' => ($batchNumber - 1) * 5 + $index,
+                        'original_name' => $file->getClientOriginalName(),
+                        'stored_name' => $fileName,
+                        'file_path' => $filePath,
+                        'file_type' => $file->getClientMimeType(),
+                        'file_size' => $file->getSize(),
+                    ];
+                }
+            }
+
+            $cacheKey = "upload_session_{$sessionId}";
+            $existingData = cache()->get($cacheKey, [
+                'session_id' => $sessionId,
+                'batches_received' => 0,
+                'total_batches' => $totalBatches,
+                'files' => []
+            ]);
+
+            $existingData['batches_received'] = $batchNumber;
+            $existingData['files'] = array_merge($existingData['files'], $uploadedFiles);
+            $existingData['last_update'] = now()->toDateTimeString();
+            cache()->put($cacheKey, $existingData, now()->addHour());
+
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => ($batchNumber >= $totalBatches) ? 'Semua batch berhasil diupload' : 'Batch berhasil diupload',
+                'data' => [
+                    'session_id' => $sessionId,
+                    'batch_number' => $batchNumber,
+                    'total_batches' => $totalBatches,
+                    'uploaded_count' => count($uploadedFiles),
+                    'total_files' => count($existingData['files']),
+                    'is_complete' => $batchNumber >= $totalBatches
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Upload Chunked Error', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Finalize chunked upload
+     */
+    public function finalizeChunked(Request $request)
+    {
+        try {
+            $sessionId = $request->input('session_id');
+            if (!$sessionId) {
+                return response()->json(['status' => 'ERROR', 'message' => 'session_id required'], 422);
+            }
+
+            $cacheKey = "upload_session_{$sessionId}";
+            $uploadData = cache()->get($cacheKey);
+
+            if (!$uploadData) {
+                return response()->json(['status' => 'ERROR', 'message' => 'Session tidak ditemukan atau sudah expired'], 404);
+            }
+
+            if ($uploadData['batches_received'] < $uploadData['total_batches']) {
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => "Masih ada batch yang belum diupload. Received: {$uploadData['batches_received']}/{$uploadData['total_batches']}"
+                ], 400);
+            }
+
+            // Parse payload (sama seperti store method)
+            $payload = $request->all();
+            $raw = $request->getContent();
+            if (empty($payload) && !empty($raw)) {
+                $decodedRaw = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedRaw)) {
+                    $payload = $decodedRaw;
+                }
+            }
+
+            foreach (['pencatatan_kantor', 'pencatatan_kantor_user', 'pencatatan_kantor_kuis'] as $key) {
+                if (isset($payload[$key]) && is_string($payload[$key])) {
+                    $decoded = json_decode($payload[$key], true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $payload[$key] = $decoded;
+                    }
+                }
+            }
+
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            // Validation (sama seperti store method)
+            $rules = [
+                'pencatatan_kantor' => 'required|array',
+                'pencatatan_kantor.id_kpc' => 'required|string',
+                'pencatatan_kantor.id_user' => 'required|numeric',
+                'pencatatan_kantor.id_provinsi' => 'nullable|numeric',
+                'pencatatan_kantor.id_kabupaten' => 'nullable|numeric',
+                'pencatatan_kantor.id_kecamatan' => 'nullable|numeric',
+                'pencatatan_kantor.id_kelurahan' => 'nullable|numeric',
+                'pencatatan_kantor.jenis' => 'nullable|string',
+                'pencatatan_kantor.latitude' => 'nullable|numeric',
+                'pencatatan_kantor.longitude' => 'nullable|numeric',
+                'pencatatan_kantor.tanggal' => 'nullable|date',
+                'pencatatan_kantor_user' => 'nullable|array',
+                'pencatatan_kantor_kuis' => 'nullable|array',
+            ];
+
+            $validator = Validator::make($payload, $rules);
+            if ($validator->fails()) {
+                Log::error('VERLAP FINALIZE CHUNKED: Validation Failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'payload_keys' => array_keys($payload),
+                ]);
+                return response()->json([
+                    'status' => 'ERROR',
+                    'message' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $pk = $payload['pencatatan_kantor'];
+
+            // Handle update or create (sama seperti store)
+            if (!empty($pk['id']) && $existing = PencatatanKantor::find($pk['id'])) {
+                $existing->fill($pk);
+                $existing->save();
+                $pencatatan = $existing;
+            } else {
+                $pencatatan = PencatatanKantor::create($pk);
+            }
+
+            // Insert users (sama seperti store)
+            $pkUser = $payload['pencatatan_kantor_user'] ?? null;
+            if (!empty($pkUser) && is_array($pkUser)) {
+                $insertUser = [
+                    'id_parent' => $pencatatan->id,
+                    'id_user' => $pkUser['id_user'] ?? $pk['id_user'],
+                ];
+                DB::table('pencatatan_kantor_user')->insert($insertUser);
+            }
+
+            // Insert kuis dan link files
+            $kuisList = $payload['pencatatan_kantor_kuis'] ?? [];
+            $uploadedFiles = $uploadData['files'] ?? [];
+
+            Log::info('VERLAP FINALIZE CHUNKED: Processing files', [
+                'total_kuis' => count($kuisList),
+                'total_uploaded_files' => count($uploadedFiles),
+                'session_id' => $sessionId,
+            ]);
+
+            foreach ($kuisList as $index => $kuis) {
+                $kuisInsert = [
+                    'id_parent' => $pencatatan->id,
+                    'id_tanya' => $kuis['id_tanya'] ?? null,
+                    'id_jawab' => $kuis['id_jawab'] ?? null,
+                    'data' => $kuis['data'] ?? null,
+                ];
+                DB::table('pencatatan_kantor_kuis')->insert($kuisInsert);
+
+                // Link file yang sudah diupload
+                $matchedFile = collect($uploadedFiles)->firstWhere('index', $index);
+                if ($matchedFile) {
+                    $tempPath = $matchedFile['file_path'];
+                    $permanentPath = str_replace('temp_uploads/', 'pencatatan_kantor/', $tempPath);
+
+                    // Pindahkan dari temp ke permanent
+                    Storage::disk('public')->move($tempPath, $permanentPath);
+
+                    $fileRecord = [
+                        'id_parent' => $pencatatan->id,
+                        'id_tanya' => $kuis['id_tanya'] ?? null,
+                        'nama' => $kuis['file']['nama'] ?? $matchedFile['original_name'],
+                        'file' => $permanentPath,
+                        'file_name' => $matchedFile['original_name'],
+                        'file_type' => $matchedFile['file_type'],
+                        'created' => now(),
+                        'updated' => now(),
+                    ];
+                    DB::table('pencatatan_kantor_file')->insert($fileRecord);
+
+                    Log::info('VERLAP FINALIZE CHUNKED: File linked to kuis', [
+                        'id_parent' => $pencatatan->id,
+                        'index' => $index,
+                        'id_tanya' => $kuis['id_tanya'] ?? null,
+                        'file_path' => $permanentPath,
+                    ]);
+                }
+            }
+
+            // Cleanup temp storage
+            Storage::disk('public')->deleteDirectory("temp_uploads/{$sessionId}");
+            cache()->forget($cacheKey);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'SUCCESS',
+                'message' => 'Pencatatan berhasil disimpan',
+                'data' => ['id' => $pencatatan->id, 'total_files' => count($uploadedFiles)]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('VERLAP FINALIZE CHUNKED Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
+        }
+    }
+
 }
