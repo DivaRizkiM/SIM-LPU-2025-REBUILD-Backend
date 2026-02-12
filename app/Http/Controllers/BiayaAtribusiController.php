@@ -781,7 +781,7 @@ class BiayaAtribusiController extends Controller
 
                 $verifikasiInput = $data['verifikasi'] ?? null;
 
-                if ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0 || $verifikasiInput === '0') {
+                if ($verifikasiInput === null || $verifikasiInput === '') {
                     $verifikasiValue = $biaya_atribusi_detail->pelaporan;
                 } else {
                     // Jika ada nilai, proses sesuai format
@@ -821,7 +821,7 @@ class BiayaAtribusiController extends Controller
                     'verifikasi_raw' => $verifikasiValue,
                     'pelaporan' => "Rp " . number_format(round($biaya_atribusi_detail->pelaporan), 0, '', '.'),
                     'catatan_pemeriksa' => $catatan_pemeriksa,
-                    'source' => ($verifikasiInput === null || $verifikasiInput === '' || $verifikasiInput === 0) ? 'pelaporan' : 'input',
+                    'source' => ($verifikasiInput === null || $verifikasiInput === '') ? 'pelaporan' : 'input',
                 ];
             }
 
