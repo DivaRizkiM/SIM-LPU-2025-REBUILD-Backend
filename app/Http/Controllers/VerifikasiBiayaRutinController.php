@@ -945,12 +945,99 @@ class VerifikasiBiayaRutinController extends Controller
             //     $rutin = [];
             // }
 
+            // Tambahan: detail perhitungan (jika LTK/NPP)
+            $perhitungan = [];
+            if ($jenis_biaya === 'LTK' && $firstItem) {
+                // Fase 1
+                $verifikasiLtkData = \App\Models\VerifikasiLtk::select('keterangan','mtd_biaya_hasil as mtd_ltk_verifikasi','tahun','bulan')
+                    ->whereNot('kategori_cost', 'PENDAPATAN')
+                    ->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->get();
+                $fase1s = [];
+                $grand_total_fase_1 = 0;
+                foreach ($verifikasiLtkData as $item) {
+                    $fase1 = $this->ltkHelper->calculateProporsiByCategory(
+                        $item->mtd_ltk_verifikasi,
+                        $item->keterangan,
+                        $item->tahun,
+                        $item->bulan
+                    );
+                    $fase1s[] = [
+                        'keterangan' => $item->keterangan,
+                        'mtd_ltk_verifikasi' => $item->mtd_ltk_verifikasi,
+                        'detail' => $fase1
+                    ];
+                    $grand_total_fase_1 += (float) ($fase1['hasil_perhitungan_fase_1_raw'] ?? 0);
+                }
+                // Fase 2
+                $fase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
+                // Fase 3 (pakai id_kpc dari request)
+                $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
+                $perhitungan = [
+                    'fase_1' => $fase1s,
+                    'grand_total_fase_1' => $grand_total_fase_1,
+                    'fase_2' => $fase2,
+                    'fase_3' => $fase3
+                ];
+            } elseif ($jenis_biaya === 'NPP' && $firstItem) {
+                // NPP
+                $npp = \App\Models\Npp::where('id_rekening_biaya', $kodeRekening)
+                    ->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->first();
+                $lastTwoDigits = substr($kodeRekening, -2);
+                $produksiRek = ["06", "07", "08", "09"];
+                $pendapatanRek = ["10", "11"];
+                $sumField = null;
+                $sumFieldKCP = null;
+                if (in_array($lastTwoDigits, $pendapatanRek)) {
+                    $sumField = 'jml_pendapatan';
+                    $sumFieldKCP = 'bsu_bruto';
+                } elseif (in_array($lastTwoDigits, $produksiRek)) {
+                    $sumField = 'jml_produksi';
+                    $sumFieldKCP = 'bilangan';
+                }
+                $produksi_nasional = 0;
+                $produksi = 0;
+                $kpcTotal = 2460;
+                if ($sumField) {
+                    $produksi_nasional = \App\Models\ProduksiNasional::where('tahun', $tahun)
+                        ->where('bulan', $bulan)
+                        ->where('status', 'OUTGOING')
+                        ->sum($sumField);
+                    $produksi = \App\Models\ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                        ->where('produksi.tahun_anggaran', $tahun)
+                        ->where('produksi_detail.nama_bulan', $bulan)
+                        ->where('jenis_produksi', 'PENERIMAAN/OUTGOING')
+                        ->sum('produksi_detail.' . $sumFieldKCP);
+                }
+                $proporsi = 0;
+                $persentaseProporsiProduksi = 0;
+                $npp_verifikasi = $npp->verifikasi ?? $npp->bsu ?? 0;
+                if (($produksi ?? 0) != 0 && ($produksi_nasional ?? 0) != 0 && ($npp->bsu ?? 0) != 0) {
+                    $persentaseProporsiProduksi = ($produksi / $produksi_nasional) * 100;
+                    $roundProporsi = round($persentaseProporsiProduksi, 2);
+                    $proporsi = $npp_verifikasi * $roundProporsi / 100;
+                }
+                $biayaPerNpp = $kpcTotal > 0 ? ($proporsi / $kpcTotal) : 0;
+                $perhitungan = [
+                    'npp' => $npp_verifikasi,
+                    'produksi_nasional' => $produksi_nasional,
+                    'produksi' => $produksi,
+                    'persentase_proporsi_produksi' => $persentaseProporsiProduksi,
+                    'proporsi' => $proporsi,
+                    'biaya_per_npp' => $biayaPerNpp
+                ];
+            }
+
             return response()->json([
                 'status' => 'SUCCESS',
                 'isLock' => $isLockStatus,
                 'link' => config('app.env_config_path'),
                 'jenis_biaya' => $jenis_biaya,
                 'data' => $rutin,
+                'perhitungan' => $perhitungan,
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'ERROR', 'message' => $e->getMessage()], 500);
