@@ -972,13 +972,19 @@ class VerifikasiBiayaRutinController extends Controller
                 }
                 // Fase 2
                 $fase2 = $this->ltkHelper->calculateFase2($grand_total_fase_1, $tahun, $bulan);
+                // Ambil detail kalkulasi jaskug dari LtkHelper
+                $jaskug_detail = [];
+                if (method_exists($this->ltkHelper, 'calculateJoinCost')) {
+                    $jaskug_detail = $this->ltkHelper->calculateJoinCost('', $tahun, $bulan)['detail_jaskug'] ?? [];
+                }
                 // Fase 3 (pakai id_kpc dari request)
                 $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
                 $perhitungan = [
                     'fase_1' => $fase1s,
                     'grand_total_fase_1' => $grand_total_fase_1,
                     'fase_2' => $fase2,
-                    'fase_3' => $fase3
+                    'fase_3' => $fase3,
+                    'jaskug_detail' => $jaskug_detail
                 ];
             } elseif ($jenis_biaya === 'NPP' && $firstItem) {
                 // NPP
