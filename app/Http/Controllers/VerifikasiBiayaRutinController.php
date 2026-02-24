@@ -975,7 +975,14 @@ class VerifikasiBiayaRutinController extends Controller
                 // Ambil detail kalkulasi jaskug dari LtkHelper
                 $jaskug_detail = [];
                 if (method_exists($this->ltkHelper, 'calculateJoinCost')) {
-                    $jaskug_detail = $this->ltkHelper->calculateJoinCost('', $tahun, $bulan)['detail_jaskug'] ?? [];
+                    $jaskug_raw = $this->ltkHelper->calculateJoinCost('', $tahun, $bulan)['detail_jaskug'] ?? [];
+                    // Buat versi lengkap: angka real dan string
+                    foreach ($jaskug_raw as $key => $val) {
+                        $jaskug_detail[$key] = [
+                            'raw' => $val,
+                            'formatted' => 'Rp ' . number_format(round($val), 0, '', '.')
+                        ];
+                    }
                 }
                 // Fase 3 (pakai id_kpc dari request)
                 $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
