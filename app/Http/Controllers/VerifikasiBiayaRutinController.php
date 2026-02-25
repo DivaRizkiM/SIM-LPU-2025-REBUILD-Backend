@@ -991,7 +991,8 @@ class VerifikasiBiayaRutinController extends Controller
                     'grand_total_fase_1' => $grand_total_fase_1,
                     'fase_2' => $fase2,
                     'fase_3' => $fase3,
-                    'jaskug_detail' => $jaskug_detail
+                    'jaskug_detail' => $jaskug_detail,
+                    'rumus_total_produksi_ltk_kantor_lpu' => 'Total Produksi LTK Kantor LPU = SUM(ProduksiDetail kategori_produksi = LAYANAN BERBASIS FEE dan kode_rekening != 2101010006) + (SUM(ProduksiDetail kode_rekening = 2101010006) / 10)'
                 ];
             } elseif ($jenis_biaya === 'NPP' && $firstItem) {
                 // NPP
