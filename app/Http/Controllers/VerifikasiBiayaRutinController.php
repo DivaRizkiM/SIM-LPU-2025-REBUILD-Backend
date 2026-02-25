@@ -986,13 +986,18 @@ class VerifikasiBiayaRutinController extends Controller
                 }
                 // Fase 3 (pakai id_kpc dari request)
                 $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
+                $angka_total_produksi_ltk_kantor_lpu = isset($fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10']) ? $fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] : 0;
                 $perhitungan = [
                     'fase_1' => $fase1s,
                     'grand_total_fase_1' => $grand_total_fase_1,
                     'fase_2' => $fase2,
                     'fase_3' => $fase3,
                     'jaskug_detail' => $jaskug_detail,
-                    'rumus_total_produksi_ltk_kantor_lpu' => 'Total Produksi LTK Kantor LPU = SUM(ProduksiDetail kategori_produksi = LAYANAN BERBASIS FEE dan kode_rekening != 2101010006) + (SUM(ProduksiDetail kode_rekening = 2101010006) / 10)'
+                    'rumus_total_produksi_ltk_kantor_lpu' => 'Total Produksi LTK Kantor LPU = SUM(ProduksiDetail kategori_produksi = LAYANAN BERBASIS FEE dan kode_rekening != 2101010006) + (SUM(ProduksiDetail kode_rekening = 2101010006) / 10)',
+                    'total_produksi_ltk_kantor_lpu' => [
+                        'raw' => $angka_total_produksi_ltk_kantor_lpu,
+                        'formatted' => 'Rp ' . number_format(round($angka_total_produksi_ltk_kantor_lpu), 0, '', '.')
+                    ]
                 ];
             } elseif ($jenis_biaya === 'NPP' && $firstItem) {
                 // NPP
