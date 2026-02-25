@@ -987,6 +987,21 @@ class VerifikasiBiayaRutinController extends Controller
                 // Fase 3 (pakai id_kpc dari request)
                 $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
                 $angka_total_produksi_ltk_kantor_lpu = isset($fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10']) ? $fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] : 0;
+                // Ambil breakdown komponen dari LtkHelper
+                $ltk = \App\Models\ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+                    ->whereNotIn('kode_rekening', ['2101010006'])
+                    ->whereHas('produksi', function ($query) use ($tahun) {
+                        $query->where('tahun_anggaran', (string)$tahun);
+                    })
+                    ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+                    ->sum('bilangan');
+                $matraiLTK = \App\Models\ProduksiDetail::where('kode_rekening', '2101010006')
+                    ->whereHas('produksi', function ($query) use ($tahun) {
+                        $query->where('tahun_anggaran', (string)$tahun);
+                    })
+                    ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+                    ->sum('bilangan');
+                $matraiLTK_bagi_10 = $matraiLTK ? $matraiLTK / 10 : 0;
                 $perhitungan = [
                     'fase_1' => $fase1s,
                     'grand_total_fase_1' => $grand_total_fase_1,
@@ -996,7 +1011,17 @@ class VerifikasiBiayaRutinController extends Controller
                     'rumus_total_produksi_ltk_kantor_lpu' => 'Total Produksi LTK Kantor LPU = SUM(ProduksiDetail kategori_produksi = LAYANAN BERBASIS FEE dan kode_rekening != 2101010006) + (SUM(ProduksiDetail kode_rekening = 2101010006) / 10)',
                     'total_produksi_ltk_kantor_lpu' => [
                         'raw' => $angka_total_produksi_ltk_kantor_lpu,
-                        'formatted' => 'Rp ' . number_format(round($angka_total_produksi_ltk_kantor_lpu), 0, '', '.')
+                        'formatted' => 'Rp ' . number_format(round($angka_total_produksi_ltk_kantor_lpu), 0, '', '.'),
+                        'breakdown' => [
+                            'ltk_raw' => $ltk,
+                            'ltk_formatted' => 'Rp ' . number_format(round($ltk), 0, '', '.'),
+                            'materai_raw' => $matraiLTK,
+                            'materai_formatted' => 'Rp ' . number_format(round($matraiLTK), 0, '', '.'),
+                            'materai_bagi_10_raw' => $matraiLTK_bagi_10,
+                            'materai_bagi_10_formatted' => 'Rp ' . number_format(round($matraiLTK_bagi_10), 0, '', '.'),
+                            'total_raw' => $ltk + $matraiLTK_bagi_10,
+                            'total_formatted' => 'Rp ' . number_format(round($ltk + $matraiLTK_bagi_10), 0, '', '.')
+                        ]
                     ]
                 ];
             } elseif ($jenis_biaya === 'NPP' && $firstItem) {
