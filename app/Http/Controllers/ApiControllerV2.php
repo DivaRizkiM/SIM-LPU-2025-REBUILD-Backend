@@ -107,10 +107,8 @@ class ApiControllerV2 extends Controller
     {
         $bulan = $request->input('bulan', date('m'));
         $tahun = $request->input('tahun', date('Y'));
-        // Parameter lain jika diperlukan bisa ditambah
-
-        // Contoh endpoint, sesuaikan dengan kebutuhan endpoint produksi nasional
-        $endpoint = "produksi_nasional?bulan=" . str_pad($bulan, 2, '0', STR_PAD_LEFT) . "&tahun=" . $tahun;
+        $tahunbulan = $tahun . str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $endpoint = "produksi_nasional?tahunbulan=" . $tahunbulan;
         $request->merge(['end_point' => $endpoint]);
         return $this->makeRequest($request);
     }
