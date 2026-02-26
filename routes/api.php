@@ -118,6 +118,7 @@ Route::get('/profile-regional-test', [ApiControllerV2::class, 'getProfileRegiona
 Route::get('/test-produksi-prognosa', [ApiControllerV2::class, 'testProduksiPrognosa']);
 Route::get('/test-biaya-prognosa', [ApiControllerV2::class, 'testBiayaPrognosa']);
 Route::get('/test-biaya-rutin', [ApiControllerV2::class, 'testBiayaRutin']);
+Route::get('/test-produksi-nasional', [ApiControllerV2::class, 'getProduksiNasionalRaw']);
 
 Route::get('/get-token', [ApiController::class, 'getToken']);
 Route::get('/get-signature', [ApiController::class, 'generateSignature']);
