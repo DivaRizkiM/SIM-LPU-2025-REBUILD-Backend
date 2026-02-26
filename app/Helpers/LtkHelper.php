@@ -112,36 +112,108 @@ class LtkHelper
     }
     public static function calculateFase2($grandTotalFase1, $tahun, $bulan)
     {
-        $ltk = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')->whereNotIn('kode_rekening', ['2101010006'])->whereHas('produksi', function ($query) use ($tahun) {
-            $query->where('tahun_anggaran', (string)$tahun);
-        })->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('bilangan');
-        $matraiLTK = ProduksiDetail::where('kode_rekening', '2101010006')->whereHas('produksi', function ($query) use ($tahun) {
-            $query->where('tahun_anggaran', (string)$tahun);
-        })->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('bilangan');
-        $matraiLTK = $matraiLTK ? $matraiLTK / 10 : 0;
-        $totalProduksiLtkKantorLpu = $ltk + $matraiLTK;
-        $meterai = DB::table('produksi_nasional')->where('produk', 'METERAI')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi');
+        $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // TOTAL LTK (tanpa materai)
+        $ltk = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereNotIn('kode_rekening', ['2101010006'])
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan);
+            })
+            ->sum('bilangan');
+
+        // MATERAI LTK
+        $materaiLtk = ProduksiDetail::where('kode_rekening', '2101010006')
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan);
+            })
+            ->sum('bilangan');
+
+        $materaiLtk = $materaiLtk ? $materaiLtk / 10 : 0;
+
+        $totalProduksiLtkKantorLpu = $ltk + $materaiLtk;
+
+        // ================= NASIONAL =================
+
+        $meterai = DB::table('produksi_nasional')
+            ->where('produk', 'METERAI')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', $bulan)
+            ->sum('jml_produksi');
+
         $meterai = $meterai ? $meterai / 10 : 0;
-        $outgoing = DB::table('produksi_nasional')->whereIn('produk', self::getLayananJaskug())->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])->where('status', 'OUTGOING')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $weselposLN = DB::table('produksi_nasional')->where('produk', 'WESELPOS LN')->whereIn('status', ['INCOMING', 'OUTGOING'])->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $weselpos = DB::table('produksi_nasional')->where('produk', 'WESELPOS')->where('status', 'OUTGOING')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
+
+        $outgoing = DB::table('produksi_nasional')
+            ->whereIn('produk', self::getLayananJaskug())
+            ->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])
+            ->where('status', 'OUTGOING')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', $bulan)
+            ->sum('jml_produksi') ?? 0;
+
+        $weselposLN = DB::table('produksi_nasional')
+            ->where('produk', 'WESELPOS LN')
+            ->whereIn('status', ['INCOMING', 'OUTGOING'])
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', $bulan)
+            ->sum('jml_produksi') ?? 0;
+
+        $weselpos = DB::table('produksi_nasional')
+            ->where('produk', 'WESELPOS')
+            ->where('status', 'OUTGOING')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', $bulan)
+            ->sum('jml_produksi') ?? 0;
+
         $produksiJaskugNasional = $meterai + $outgoing + $weselposLN + $weselpos;
-        $rasio = ($produksiJaskugNasional > 0) ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional) : 0;
+
+        $rasio = ($produksiJaskugNasional > 0)
+            ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional)
+            : 0;
+
         $hasilFase2 = $rasio * $grandTotalFase1;
-        $data = ['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10' => $totalProduksiLtkKantorLpu, 'produksi_jaskug_nasional' => $produksiJaskugNasional, 'rasio' => $rasio, 'hasil_fase_2' => $hasilFase2];
-        return $data;
+
+        return [
+            'total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10' => $totalProduksiLtkKantorLpu,
+            'produksi_jaskug_nasional' => $produksiJaskugNasional,
+            'rasio' => $rasio,
+            'hasil_fase_2' => $hasilFase2
+        ];
     }
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
     {
-        $produksiKcpLpuA = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')->whereHas('produksi', function ($query) use ($tahun, $id_kcp) {
-            $query->where('tahun_anggaran', (string)$tahun)->where('id_kpc', $id_kcp);
-        })->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('bilangan');
-        $produksiLtkKantorLpu = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')->whereHas('produksi', function ($query) use ($tahun) {
-            $query->where('tahun_anggaran', (string)$tahun);
-        })->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('bilangan');
-        $rasio = ($produksiLtkKantorLpu > 0) ? ($produksiKcpLpuA / $produksiLtkKantorLpu) : 0;
+        $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        // PRODUKSI KCP
+        $produksiKcpLpuA = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan, $id_kcp) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan)
+                    ->where('id_kpc', $id_kcp);
+            })
+            ->sum('bilangan');
+
+        // TOTAL LTK KANTOR LPU
+        $produksiLtkKantorLpu = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan);
+            })
+            ->sum('bilangan');
+
+        $rasio = ($produksiLtkKantorLpu > 0)
+            ? ($produksiKcpLpuA / $produksiLtkKantorLpu)
+            : 0;
+
         $hasilFase3 = $rasio * $hasilFase2;
-        $data = ['produksi_kcp_lpu_a' => $produksiKcpLpuA, 'total_produksi_ltk_kantor_lpu' => $produksiLtkKantorLpu, 'rasio' => $rasio, 'hasil_fase_3' => $hasilFase3];
-        return $data;
+
+        return [
+            'produksi_kcp_lpu_a' => $produksiKcpLpuA,
+            'total_produksi_ltk_kantor_lpu' => $produksiLtkKantorLpu,
+            'rasio' => $rasio,
+            'hasil_fase_3' => $hasilFase3
+        ];
     }
 }
