@@ -11,6 +11,43 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LtkHelper
+    /**
+     * Versi konsisten produksi_jaskug_nasional (identik dengan logika calculateJoinCost)
+     */
+    private static function getProduksiJaskugNasionalFixed($tahun, $bulan)
+    {
+        $meterai = DB::table('produksi_nasional')
+            ->where('produk', 'METERAI')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+            ->sum('jml_produksi');
+        $meterai = $meterai ? $meterai / 10 : 0;
+
+        $outgoing = DB::table('produksi_nasional')
+            ->whereIn('produk', self::getLayananJaskug())
+            ->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])
+            ->where('status', 'OUTGOING')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+            ->sum('jml_produksi') ?? 0;
+
+        $weselposLN = DB::table('produksi_nasional')
+            ->where('produk', 'WESELPOS LN')
+            ->whereIn('status', ['INCOMING', 'OUTGOING'])
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+            ->sum('jml_produksi') ?? 0;
+
+        $weselpos = DB::table('produksi_nasional')
+            ->where('produk', 'WESELPOS')
+            ->where('status', 'OUTGOING')
+            ->where('tahun', (string)$tahun)
+            ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+            ->sum('jml_produksi') ?? 0;
+
+        $produkJaskug = $meterai + $outgoing + $weselposLN + $weselpos;
+        return $produkJaskug;
+    }
 {
     public static function calculateJoinCost($periode, $tahun, $bulan)
     {
@@ -141,6 +178,7 @@ class LtkHelper
 
     public static function getJaskugNasional($tahun, $bulan)
     {
+        // TODO: deprecated - inconsistent calculation
         $jaskugKcpLpu = ProduksiNasional::whereIn('produk', self::getLayananJaskug())
             ->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
             ->where('tahun', (string) $tahun)
@@ -163,8 +201,18 @@ class LtkHelper
         $proporsiData = [];
 
         try {
+
             $produksiJaskugKCPLpuNasional = self::getJaskugKcpLpuNasional($tahun, $bulan);
-            $produksiJaskugNasional = self::getJaskugNasional($tahun, $bulan);
+            // Logging perbandingan hasil lama dan baru
+            $produksiJaskugNasionalLama = self::getJaskugNasional($tahun, $bulan);
+            $produksiJaskugNasionalBaru = self::getProduksiJaskugNasionalFixed($tahun, $bulan);
+            Log::info('[LTK] Perbandingan produksi_jaskug_nasional', [
+                'tahun' => $tahun,
+                'bulan' => $bulan,
+                'lama' => $produksiJaskugNasionalLama,
+                'baru' => $produksiJaskugNasionalBaru
+            ]);
+            $produksiJaskugNasional = $produksiJaskugNasionalBaru;
             $totalKcpLPU = Kprk::sum('jumlah_kpc_lpu') ?? 1;
 
             switch (strtoupper($kategoriCost)) {
