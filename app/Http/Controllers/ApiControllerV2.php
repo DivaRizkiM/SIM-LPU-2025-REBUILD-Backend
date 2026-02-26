@@ -113,6 +113,17 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    // Endpoint untuk menampilkan response mentah dari API LTK POS
+    public function getLtkPosRaw(Request $request)
+    {
+        $bulan = $request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+        $tahunbulan = $tahun . str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $endpoint = "ltk?tahunbulan=" . $tahunbulan;
+        $request->merge(['end_point' => $endpoint]);
+        return $this->makeRequest($request);
+    }
+
     public function makeRequest(Request $request)
     {
         $validated = $request->validate([

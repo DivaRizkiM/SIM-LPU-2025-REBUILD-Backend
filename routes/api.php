@@ -120,6 +120,8 @@ Route::get('/test-biaya-prognosa', [ApiControllerV2::class, 'testBiayaPrognosa']
 Route::get('/test-biaya-rutin', [ApiControllerV2::class, 'testBiayaRutin']);
 Route::get('/test-produksi-nasional', [ApiControllerV2::class, 'getProduksiNasionalRaw']);
 
+Route::get('/test-ltk-pos', [ApiControllerV2::class, 'getLtkPosRaw']);
+
 Route::get('/get-token', [ApiController::class, 'getToken']);
 Route::get('/get-signature', [ApiController::class, 'generateSignature']);
 Route::get('/makeRequest', [ApiController::class, 'makeRequest']);
