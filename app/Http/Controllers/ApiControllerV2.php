@@ -102,6 +102,18 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    // Endpoint untuk menampilkan response mentah dari API produksi nasional
+    public function getProduksiNasionalRaw(Request $request)
+    {
+        $bulan = $request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+        // Parameter lain jika diperlukan bisa ditambah
+
+        // Contoh endpoint, sesuaikan dengan kebutuhan endpoint produksi nasional
+        $endpoint = "produksi_nasional?bulan=" . str_pad($bulan, 2, '0', STR_PAD_LEFT) . "&tahun=" . $tahun;
+        $request->merge(['end_point' => $endpoint]);
+        return $this->makeRequest($request);
+    }
 
     public function makeRequest(Request $request)
     {
