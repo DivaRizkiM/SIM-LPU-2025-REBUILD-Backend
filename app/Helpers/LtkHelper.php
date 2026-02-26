@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LtkHelper
+{
     /**
      * Versi konsisten produksi_jaskug_nasional (identik dengan logika calculateJoinCost)
      */
@@ -48,7 +49,6 @@ class LtkHelper
         $produkJaskug = $meterai + $outgoing + $weselposLN + $weselpos;
         return $produkJaskug;
     }
-{
     public static function calculateJoinCost($periode, $tahun, $bulan)
     {
         $produksiKurir = DB::table('produksi_nasional')
