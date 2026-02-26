@@ -119,7 +119,7 @@ class ApiControllerV2 extends Controller
         $bulan = $request->input('bulan', date('m'));
         $tahun = $request->input('tahun', date('Y'));
         $tahunbulan = $tahun . str_pad($bulan, 2, '0', STR_PAD_LEFT);
-        $endpoint = "ltk?tahunbulan=" . $tahunbulan;
+        $endpoint = "mtd_ltk?tahunbulan=" . $tahunbulan;
         $request->merge(['end_point' => $endpoint]);
         return $this->makeRequest($request);
     }
