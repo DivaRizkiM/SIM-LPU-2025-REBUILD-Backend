@@ -186,7 +186,29 @@ class LtkHelper
     {
         $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // PRODUKSI KCP
+        // ================== TOTAL LTK NASIONAL (SAMA PERSIS DENGAN FASE 2) ==================
+
+        $ltk = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereNotIn('kode_rekening', ['2101010006'])
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan);
+            })
+            ->sum('bilangan');
+
+        $materai = ProduksiDetail::where('kode_rekening', '2101010006')
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+                $query->where('tahun_anggaran', (string)$tahun)
+                    ->where('bulan', $bulan);
+            })
+            ->sum('bilangan');
+
+        $materai = $materai ? $materai / 10 : 0;
+
+        $totalProduksiLtkKantorLpu = $ltk + $materai;
+
+        // ================== PRODUKSI KCP ==================
+
         $produksiKcpLpuA = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->whereHas('produksi', function ($query) use ($tahun, $bulan, $id_kcp) {
                 $query->where('tahun_anggaran', (string)$tahun)
@@ -195,23 +217,30 @@ class LtkHelper
             })
             ->sum('bilangan');
 
-        // TOTAL LTK KANTOR LPU
-        $produksiLtkKantorLpu = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
+        // ⚠ kalau KCP juga punya materai, harus dibagi 10 juga
+        $materaiKcp = ProduksiDetail::where('kode_rekening', '2101010006')
+            ->whereHas('produksi', function ($query) use ($tahun, $bulan, $id_kcp) {
                 $query->where('tahun_anggaran', (string)$tahun)
-                    ->where('bulan', $bulan);
+                    ->where('bulan', $bulan)
+                    ->where('id_kpc', $id_kcp);
             })
             ->sum('bilangan');
 
-        $rasio = ($produksiLtkKantorLpu > 0)
-            ? ($produksiKcpLpuA / $produksiLtkKantorLpu)
+        $materaiKcp = $materaiKcp ? $materaiKcp / 10 : 0;
+
+        $produksiKcpLpuA = $produksiKcpLpuA + $materaiKcp;
+
+        // ================== RASIO ==================
+
+        $rasio = ($totalProduksiLtkKantorLpu > 0)
+            ? ($produksiKcpLpuA / $totalProduksiLtkKantorLpu)
             : 0;
 
         $hasilFase3 = $rasio * $hasilFase2;
 
         return [
             'produksi_kcp_lpu_a' => $produksiKcpLpuA,
-            'total_produksi_ltk_kantor_lpu' => $produksiLtkKantorLpu,
+            'total_produksi_ltk_kantor_lpu' => $totalProduksiLtkKantorLpu,
             'rasio' => $rasio,
             'hasil_fase_3' => $hasilFase3
         ];
