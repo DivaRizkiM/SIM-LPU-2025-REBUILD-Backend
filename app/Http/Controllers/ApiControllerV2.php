@@ -135,6 +135,37 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    // Endpoint untuk menampilkan response mentah dari API POS tentang produksi
+    public function getProduksiPosRaw(Request $request)
+    {
+        $bulan = $request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+        $tahunbulan = $tahun . str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $endpoint = "produksi?tahunbulan=" . $tahunbulan;
+        $request->merge(['end_point' => $endpoint]);
+        return $this->makeRequest($request);
+    }
+
+    // Endpoint untuk menampilkan response mentah dari API POS tentang produksi (dengan parameter bisnis, kantor, tahun, triwulan)
+    public function getProduksiPosByParamRaw(Request $request)
+    {
+        $kd_bisnis = $request->input('kd_bisnis');
+        $nopend = $request->input('nopend');
+        $tahun = $request->input('tahun');
+        $triwulan = $request->input('triwulan');
+
+        if (!$kd_bisnis || !$nopend || !$tahun || !$triwulan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter kd_bisnis, nopend, tahun, triwulan wajib diisi.'
+            ], 400);
+        }
+
+        $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}&triwulan={$triwulan}";
+        $request->merge(['end_point' => $endpoint]);
+        return $this->makeRequest($request);
+    }
+
     public function makeRequest(Request $request)
     {
         $validated = $request->validate([

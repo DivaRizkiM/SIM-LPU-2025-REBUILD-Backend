@@ -124,6 +124,10 @@ Route::get('/test-ltk-pos', [ApiControllerV2::class, 'getLtkPosRaw']);
 
 Route::get('/test-produksi-detail-pos', [ApiControllerV2::class, 'getProduksiDetailPosRaw']);
 
+Route::get('/test-produksi-pos', [ApiControllerV2::class, 'getProduksiPosRaw']);
+
+Route::get('/test-produksi-pos-param', [ApiControllerV2::class, 'getProduksiPosByParamRaw']);
+
 Route::get('/get-token', [ApiController::class, 'getToken']);
 Route::get('/get-signature', [ApiController::class, 'generateSignature']);
 Route::get('/makeRequest', [ApiController::class, 'makeRequest']);
