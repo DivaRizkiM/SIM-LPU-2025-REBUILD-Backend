@@ -173,25 +173,23 @@ class ApiControllerV2 extends Controller
         $tahun = $request->input('tahun');
         $bulan = $request->input('bulan');
         $triwulan = $request->input('triwulan');
+        $nopend_list = $request->input('nopend_list'); // array
 
-        if (!$kd_bisnis || !$tahun || !$bulan || !$triwulan) {
+        if (!$kd_bisnis || !$tahun || !$bulan || !$triwulan || !$nopend_list || !is_array($nopend_list)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Parameter kd_bisnis, tahun, bulan, triwulan wajib diisi.'
+                'message' => 'Parameter kd_bisnis, tahun, bulan, triwulan, nopend_list (array) wajib diisi.'
             ], 400);
         }
 
-        // Ambil semua nomor_dirian dari database
-        $dirian_list = \App\Models\Kpc::pluck('nomor_dirian')->toArray();
         $results = [];
-        foreach ($dirian_list as $nomor_dirian) {
-            if (!$nomor_dirian) continue;
-            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nomor_dirian}&tahun={$tahun}&triwulan={$triwulan}";
+        foreach ($nopend_list as $nopend) {
+            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}&triwulan={$triwulan}";
             $req = clone $request;
             $req->merge(['end_point' => $endpoint]);
             $response = $this->makeRequest($req);
             $data = json_decode($response->getContent(), true);
-            $results[$nomor_dirian] = $data;
+            $results[$nopend] = $data;
         }
 
         return response()->json([
