@@ -166,6 +166,73 @@ class ApiControllerV2 extends Controller
         return $this->makeRequest($request);
     }
 
+    // Endpoint untuk menampilkan data produksi POS per bulan, otomatis ambil semua nopend dari database
+    public function getProduksiPosByMonthRaw(Request $request)
+    {
+        $kd_bisnis = $request->input('kd_bisnis');
+        $tahun = $request->input('tahun');
+        $bulan = $request->input('bulan');
+        $triwulan = $request->input('triwulan');
+
+        if (!$kd_bisnis || !$tahun || !$bulan || !$triwulan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter kd_bisnis, tahun, bulan, triwulan wajib diisi.'
+            ], 400);
+        }
+
+        // Ambil semua nopend dari database
+        $nopend_list = \App\Models\Kpc::pluck('nopend')->toArray();
+        $results = [];
+        foreach ($nopend_list as $nopend) {
+            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}&triwulan={$triwulan}";
+            $req = clone $request;
+            $req->merge(['end_point' => $endpoint]);
+            $response = $this->makeRequest($req);
+            $data = json_decode($response->getContent(), true);
+            $results[$nopend] = $data;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data gabungan produksi POS per bulan',
+            'data' => $results
+        ]);
+    }
+
+    // Endpoint untuk menampilkan data produksi POS per bulan untuk banyak KCP (nopend)
+    public function getProduksiPosMultiKcpRaw(Request $request)
+    {
+        $kd_bisnis = $request->input('kd_bisnis');
+        $nopend_list = $request->input('nopend_list'); // array
+        $tahun = $request->input('tahun');
+        $triwulan = $request->input('triwulan');
+
+        if (!$kd_bisnis || !$nopend_list || !$tahun || !$triwulan || !is_array($nopend_list)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter kd_bisnis, nopend_list (array), tahun, triwulan wajib diisi.'
+            ], 400);
+        }
+
+        $results = [];
+        foreach ($nopend_list as $nopend) {
+            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}&triwulan={$triwulan}";
+            $req = clone $request;
+            $req->merge(['end_point' => $endpoint]);
+            $response = $this->makeRequest($req);
+            // Ambil data json dari response
+            $data = json_decode($response->getContent(), true);
+            $results[$nopend] = $data;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data gabungan produksi POS per KCP',
+            'data' => $results
+        ]);
+    }
+
     public function makeRequest(Request $request)
     {
         $validated = $request->validate([

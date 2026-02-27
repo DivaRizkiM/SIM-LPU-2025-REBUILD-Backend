@@ -128,6 +128,10 @@ Route::get('/test-produksi-pos', [ApiControllerV2::class, 'getProduksiPosRaw']);
 
 Route::get('/test-produksi-pos-param', [ApiControllerV2::class, 'getProduksiPosByParamRaw']);
 
+Route::get('/test-produksi-pos-multikcp', [ApiControllerV2::class, 'getProduksiPosMultiKcpRaw']);
+
+Route::get('/test-produksi-pos-bulan', [ApiControllerV2::class, 'getProduksiPosByMonthRaw']);
+
 Route::get('/get-token', [ApiController::class, 'getToken']);
 Route::get('/get-signature', [ApiController::class, 'generateSignature']);
 Route::get('/makeRequest', [ApiController::class, 'makeRequest']);
