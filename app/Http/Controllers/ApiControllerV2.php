@@ -181,16 +181,17 @@ class ApiControllerV2 extends Controller
             ], 400);
         }
 
-        // Ambil semua nopend dari database
-        $nopend_list = \App\Models\Kpc::pluck('nopend')->toArray();
+        // Ambil semua nomor_dirian dari database
+        $dirian_list = \App\Models\Kpc::pluck('nomor_dirian')->toArray();
         $results = [];
-        foreach ($nopend_list as $nopend) {
-            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nopend}&tahun={$tahun}&triwulan={$triwulan}";
+        foreach ($dirian_list as $nomor_dirian) {
+            if (!$nomor_dirian) continue;
+            $endpoint = "produksi?kd_bisnis={$kd_bisnis}&nopend={$nomor_dirian}&tahun={$tahun}&triwulan={$triwulan}";
             $req = clone $request;
             $req->merge(['end_point' => $endpoint]);
             $response = $this->makeRequest($req);
             $data = json_decode($response->getContent(), true);
-            $results[$nopend] = $data;
+            $results[$nomor_dirian] = $data;
         }
 
         return response()->json([
