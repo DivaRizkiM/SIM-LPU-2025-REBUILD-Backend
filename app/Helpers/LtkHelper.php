@@ -12,45 +12,93 @@ use Illuminate\Support\Facades\Log;
 
 class LtkHelper
 {
+    /**
+     * In-memory request-level cache to avoid duplicate queries within the same request.
+     */
+    protected static $memCache = [];
+
+    /**
+     * Get value from memory cache, or compute and store it.
+     */
+    protected static function cached(string $key, callable $callback)
+    {
+        if (!array_key_exists($key, static::$memCache)) {
+            static::$memCache[$key] = $callback();
+        }
+        return static::$memCache[$key];
+    }
+
+    /**
+     * Clear in-memory cache (useful after sync/import).
+     */
+    public static function clearCache()
+    {
+        static::$memCache = [];
+    }
+
     public static function calculateJoinCost($periode, $tahun, $bulan)
     {
-        $produksiKurir = DB::table('produksi_nasional')->whereIn('produk', self::getLayananKurir())->where('status', 'OUTGOING')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $meterai = DB::table('produksi_nasional')->where('produk', 'METERAI')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi');
-        $meterai = $meterai ? $meterai / 10 : 0;
-        $outgoing = DB::table('produksi_nasional')->whereIn('produk', self::getLayananJaskug())->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])->where('status', 'OUTGOING')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $weselposLN = DB::table('produksi_nasional')->where('produk', 'WESELPOS LN')->whereIn('status', ['INCOMING', 'OUTGOING'])->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $weselpos = DB::table('produksi_nasional')->where('produk', 'WESELPOS')->where('status', 'OUTGOING')->where('tahun', (string)$tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('jml_produksi') ?? 0;
-        $produkJaskug = $meterai + $outgoing + $weselposLN + $weselpos;
-        return ['produksi_kurir' => $produksiKurir, 'produksi_jaskug' => $produkJaskug, 'total_produksi' => $produksiKurir + $produkJaskug, 'detail_jaskug' => ['meterai' => $meterai, 'outgoing' => $outgoing, 'weselpos_ln' => $weselposLN, 'weselpos' => $weselpos]];
+        $bulanPad = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
+
+        return static::cached("join_cost_{$tahunStr}_{$bulanPad}", function () use ($tahunStr, $bulanPad) {
+            $produksiKurir = DB::table('produksi_nasional')->whereIn('produk', self::getLayananKurir())->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
+            $meterai = DB::table('produksi_nasional')->where('produk', 'METERAI')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi');
+            $meterai = $meterai ? $meterai / 10 : 0;
+            $outgoing = DB::table('produksi_nasional')->whereIn('produk', self::getLayananJaskug())->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
+            $weselposLN = DB::table('produksi_nasional')->where('produk', 'WESELPOS LN')->whereIn('status', ['INCOMING', 'OUTGOING'])->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
+            $weselpos = DB::table('produksi_nasional')->where('produk', 'WESELPOS')->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
+            $produkJaskug = $meterai + $outgoing + $weselposLN + $weselpos;
+            return ['produksi_kurir' => $produksiKurir, 'produksi_jaskug' => $produkJaskug, 'total_produksi' => $produksiKurir + $produkJaskug, 'detail_jaskug' => ['meterai' => $meterai, 'outgoing' => $outgoing, 'weselpos_ln' => $weselposLN, 'weselpos' => $weselpos]];
+        });
     }
     public static function calculateCommonCost($periode, $tahun, $bulan)
     {
-        try {
-            $kodeRekeningPendapatanLTK = ['4102010001', '4102010002', '4102010003', '4102010004', '4102010005', '4102010006', '4102010007', '4202000001', '4102020001', '4103010002'];
-            $kodeRekeningPendapatanKurir = ['4101010001', '4101010002', '4101010003', '4201000001', '4201000002', '4101020001', '4101020002', '4101020003', '4101020004', '4101020005', '4101020006', '4101030001', '4101030002', '4101030003', '4101030004', '4101030005'];
-            $pendapatanKurir = DB::table('verifikasi_ltk')->whereIn('kode_rekening', $kodeRekeningPendapatanKurir)->where('kategori_cost', 'PENDAPATAN')->where('tahun', $tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('mtd_akuntansi') ?? 0;
-            $pendapatanLTK = DB::table('verifikasi_ltk')->whereIn('kode_rekening', $kodeRekeningPendapatanLTK)->where('kategori_cost', 'PENDAPATAN')->where('tahun', $tahun)->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->sum('mtd_akuntansi') ?? 0;
-            return ['pendapatan_kurir' => $pendapatanKurir, 'pendapatan_ltk' => $pendapatanLTK, 'total_pendapatan' => $pendapatanKurir + $pendapatanLTK,];
-        } catch (\Exception $e) {
-            return ['produksi_kurir' => 0, 'pendapatan_jaskug' => 0, 'total_pendapatan' => 0,];
-        }
+        $bulanPad = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+        return static::cached("common_cost_{$tahun}_{$bulanPad}", function () use ($tahun, $bulanPad) {
+            try {
+                $kodeRekeningPendapatanLTK = ['4102010001', '4102010002', '4102010003', '4102010004', '4102010005', '4102010006', '4102010007', '4202000001', '4102020001', '4103010002'];
+                $kodeRekeningPendapatanKurir = ['4101010001', '4101010002', '4101010003', '4201000001', '4201000002', '4101020001', '4101020002', '4101020003', '4101020004', '4101020005', '4101020006', '4101030001', '4101030002', '4101030003', '4101030004', '4101030005'];
+                $pendapatanKurir = DB::table('verifikasi_ltk')->whereIn('kode_rekening', $kodeRekeningPendapatanKurir)->where('kategori_cost', 'PENDAPATAN')->where('tahun', $tahun)->where('bulan', $bulanPad)->sum('mtd_akuntansi') ?? 0;
+                $pendapatanLTK = DB::table('verifikasi_ltk')->whereIn('kode_rekening', $kodeRekeningPendapatanLTK)->where('kategori_cost', 'PENDAPATAN')->where('tahun', $tahun)->where('bulan', $bulanPad)->sum('mtd_akuntansi') ?? 0;
+                return ['pendapatan_kurir' => $pendapatanKurir, 'pendapatan_ltk' => $pendapatanLTK, 'total_pendapatan' => $pendapatanKurir + $pendapatanLTK,];
+            } catch (\Exception $e) {
+                return ['produksi_kurir' => 0, 'pendapatan_jaskug' => 0, 'total_pendapatan' => 0,];
+            }
+        });
     }
     public static function getJaskugKcpLpuNasional($tahun, $bulan)
     {
-        $jaskugKcpLpu = ProduksiDetail::whereIn('keterangan', self::getLayananJaskug())->whereHas('produksi', function ($query) use ($bulan, $tahun) {
-            $query->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->where('tahun_anggaran', (string) $tahun);
-        })->sum('pelaporan') ?? 0;
-        return $jaskugKcpLpu;
+        $bulanPad = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
+
+        return static::cached("jaskug_kcp_lpu_{$tahunStr}_{$bulanPad}", function () use ($tahunStr, $bulanPad) {
+            return ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                ->whereIn('produksi_detail.keterangan', self::getLayananJaskug())
+                ->where('produksi.bulan', $bulanPad)
+                ->where('produksi.tahun_anggaran', $tahunStr)
+                ->sum('produksi_detail.pelaporan') ?? 0;
+        });
     }
     public static function getJaskugNasional($tahun, $bulan)
     {
-        $jaskugKcpLpu = ProduksiNasional::whereIn('produk', self::getLayananJaskug())->where('bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))->where('tahun', (string) $tahun)->sum('jml_produksi') ?? 0;
-        return $jaskugKcpLpu;
+        $bulanPad = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
+
+        return static::cached("jaskug_nasional_{$tahunStr}_{$bulanPad}", function () use ($tahunStr, $bulanPad) {
+            return ProduksiNasional::whereIn('produk', self::getLayananJaskug())
+                ->where('bulan', $bulanPad)
+                ->where('tahun', $tahunStr)
+                ->sum('jml_produksi') ?? 0;
+        });
     }
     public static function calculateVerifikasiPerKcp($verifikasiAkuntansi)
     {
         try {
-            $totalKcp = Kprk::sum('jumlah_kpc_lpu') ?? 1;
+            $totalKcp = static::cached('total_kcp_lpu', function () {
+                return Kprk::sum('jumlah_kpc_lpu') ?? 1;
+            });
             return $totalKcp > 0 ? ($verifikasiAkuntansi / $totalKcp) : 0;
         } catch (\Exception $e) {
             return 0;
@@ -60,9 +108,8 @@ class LtkHelper
     {
         $proporsiData = [];
         try {
-            $produksiJaskugKCPLpuNasional = self::getJaskugKcpLpuNasional($tahun, $bulan);
-            $produksiJaskugNasional = self::getJaskugNasional($tahun, $bulan);
-            $totalKcpLPU = Kprk::sum('jumlah_kpc_lpu') ?? 1;
+            // Sub-functions (calculateJoinCost, calculateCommonCost, etc.) are
+            // individually cached via static::cached(), so repeated calls are free.
             switch (strtoupper($kategoriCost)) {
                 case 'FULLCOST':
                 case 'FULL':
@@ -104,70 +151,43 @@ class LtkHelper
     }
     public static function getLayananKurir()
     {
-        return LayananKurir::select('nama')->get()->pluck('nama')->toArray();
+        return static::cached('layanan_kurir', function () {
+            return LayananKurir::pluck('nama')->toArray();
+        });
     }
     public static function getLayananJaskug()
     {
-        return LayananJasaKeuangan::select('nama')->get()->pluck('nama')->toArray();
+        return static::cached('layanan_jaskug', function () {
+            return LayananJasaKeuangan::pluck('nama')->toArray();
+        });
     }
     public static function calculateFase2($grandTotalFase1, $tahun, $bulan)
     {
         $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
 
-        // TOTAL LTK (tanpa materai)
-        $ltk = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-            ->whereNotIn('kode_rekening', ['2101010006'])
-            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
-                $query->where('tahun_anggaran', (string)$tahun)
-                    ->where('bulan', $bulan);
-            })
-            ->sum('bilangan');
+        // TOTAL LTK (tanpa materai) — JOIN instead of EXISTS subquery
+        $ltk = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+            ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->whereNotIn('produksi_detail.kode_rekening', ['2101010006'])
+            ->where('produksi.tahun_anggaran', $tahunStr)
+            ->where('produksi.bulan', $bulan)
+            ->sum('produksi_detail.bilangan');
 
-        // MATERAI LTK
-        $materaiLtk = ProduksiDetail::where('kode_rekening', '2101010006')
-            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
-                $query->where('tahun_anggaran', (string)$tahun)
-                    ->where('bulan', $bulan);
-            })
-            ->sum('bilangan');
+        // MATERAI LTK — JOIN instead of EXISTS subquery
+        $materaiLtk = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+            ->where('produksi_detail.kode_rekening', '2101010006')
+            ->where('produksi.tahun_anggaran', $tahunStr)
+            ->where('produksi.bulan', $bulan)
+            ->sum('produksi_detail.bilangan');
 
         $materaiLtk = $materaiLtk ? $materaiLtk / 10 : 0;
 
         $totalProduksiLtkKantorLpu = $ltk + $materaiLtk;
 
-        // ================= NASIONAL =================
-
-        $meterai = DB::table('produksi_nasional')
-            ->where('produk', 'METERAI')
-            ->where('tahun', (string)$tahun)
-            ->where('bulan', $bulan)
-            ->sum('jml_produksi');
-
-        $meterai = $meterai ? $meterai / 10 : 0;
-
-        $outgoing = DB::table('produksi_nasional')
-            ->whereIn('produk', self::getLayananJaskug())
-            ->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])
-            ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
-            ->where('bulan', $bulan)
-            ->sum('jml_produksi') ?? 0;
-
-        $weselposLN = DB::table('produksi_nasional')
-            ->where('produk', 'WESELPOS LN')
-            ->whereIn('status', ['INCOMING', 'OUTGOING'])
-            ->where('tahun', (string)$tahun)
-            ->where('bulan', $bulan)
-            ->sum('jml_produksi') ?? 0;
-
-        $weselpos = DB::table('produksi_nasional')
-            ->where('produk', 'WESELPOS')
-            ->where('status', 'OUTGOING')
-            ->where('tahun', (string)$tahun)
-            ->where('bulan', $bulan)
-            ->sum('jml_produksi') ?? 0;
-
-        $produksiJaskugNasional = $meterai + $outgoing + $weselposLN + $weselpos;
+        // NASIONAL — reuse calculateJoinCost (already cached) instead of 4 separate queries
+        $joinCost = self::calculateJoinCost('', $tahun, $bulan);
+        $produksiJaskugNasional = $joinCost['produksi_jaskug'];
 
         $rasio = ($produksiJaskugNasional > 0)
             ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional)
@@ -185,23 +205,21 @@ class LtkHelper
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
     {
         $bulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
 
-        // PRODUKSI KCP
-        $produksiKcpLpuA = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-            ->whereHas('produksi', function ($query) use ($tahun, $bulan, $id_kcp) {
-                $query->where('tahun_anggaran', (string)$tahun)
-                    ->where('bulan', $bulan)
-                    ->where('id_kpc', $id_kcp);
-            })
-            ->sum('bilangan');
+        // Single JOIN query: KCP-specific + Total (replaces 2 EXISTS subqueries)
+        $data = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+            ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
+            ->where('produksi.tahun_anggaran', $tahunStr)
+            ->where('produksi.bulan', $bulan)
+            ->selectRaw("
+                SUM(CASE WHEN produksi.id_kpc = ? THEN produksi_detail.bilangan ELSE 0 END) as kcp,
+                SUM(produksi_detail.bilangan) as total
+            ", [$id_kcp])
+            ->first();
 
-        // TOTAL LTK KANTOR LPU
-        $produksiLtkKantorLpu = ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-            ->whereHas('produksi', function ($query) use ($tahun, $bulan) {
-                $query->where('tahun_anggaran', (string)$tahun)
-                    ->where('bulan', $bulan);
-            })
-            ->sum('bilangan');
+        $produksiKcpLpuA = (float) ($data->kcp ?? 0);
+        $produksiLtkKantorLpu = (float) ($data->total ?? 0);
 
         $rasio = ($produksiLtkKantorLpu > 0)
             ? ($produksiKcpLpuA / $produksiLtkKantorLpu)

@@ -987,20 +987,18 @@ class VerifikasiBiayaRutinController extends Controller
                 // Fase 3 (pakai id_kpc dari request)
                 $fase3 = $this->ltkHelper->calculateFase3($fase2['hasil_fase_2'], $tahun, $bulan, $id_kpc);
                 $angka_total_produksi_ltk_kantor_lpu = isset($fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10']) ? $fase2['total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10'] : 0;
-                // Ambil breakdown komponen dari LtkHelper
-                $ltk = \App\Models\ProduksiDetail::where('kategori_produksi', 'LAYANAN BERBASIS FEE')
-                    ->whereNotIn('kode_rekening', ['2101010006'])
-                    ->whereHas('produksi', function ($query) use ($tahun) {
-                        $query->where('tahun_anggaran', (string)$tahun);
-                    })
-                    ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
-                    ->sum('bilangan');
-                $matraiLTK = \App\Models\ProduksiDetail::where('kode_rekening', '2101010006')
-                    ->whereHas('produksi', function ($query) use ($tahun) {
-                        $query->where('tahun_anggaran', (string)$tahun);
-                    })
-                    ->where('nama_bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
-                    ->sum('bilangan');
+                // Ambil breakdown komponen — reuse JOIN query instead of whereHas
+                $ltk = \App\Models\ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                    ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
+                    ->whereNotIn('produksi_detail.kode_rekening', ['2101010006'])
+                    ->where('produksi.tahun_anggaran', (string)$tahun)
+                    ->where('produksi.bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+                    ->sum('produksi_detail.bilangan');
+                $matraiLTK = \App\Models\ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
+                    ->where('produksi_detail.kode_rekening', '2101010006')
+                    ->where('produksi.tahun_anggaran', (string)$tahun)
+                    ->where('produksi.bulan', str_pad($bulan, 2, '0', STR_PAD_LEFT))
+                    ->sum('produksi_detail.bilangan');
                 $matraiLTK_bagi_10 = $matraiLTK ? $matraiLTK / 10 : 0;
                 $perhitungan = [
                     'fase_1' => $fase1s,
