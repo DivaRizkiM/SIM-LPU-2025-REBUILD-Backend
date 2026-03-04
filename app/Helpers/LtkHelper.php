@@ -78,6 +78,7 @@ class LtkHelper
                 ->whereIn('produksi_detail.keterangan', self::getLayananJaskug())
                 ->where('produksi.bulan', $bulanPad)
                 ->where('produksi.tahun_anggaran', $tahunStr)
+                ->where('produksi_detail.nama_bulan', $bulanPad)
                 ->sum('produksi_detail.pelaporan') ?? 0;
         });
     }
@@ -168,22 +169,27 @@ class LtkHelper
 
         // ===============================
         // LTK (Tanpa Materai)
+        // Filter ganda: produksi.bulan DAN produksi_detail.nama_bulan
+        // untuk mencegah data bocor dari bulan lain (drift data)
         // ===============================
         $ltk = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
             ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->whereNotIn('produksi_detail.kode_rekening', ['2101010006'])
             ->where('produksi.tahun_anggaran', $tahunStr)
             ->where('produksi.bulan', $bulanPad)
+            ->where('produksi_detail.nama_bulan', $bulanPad)
             ->sum('produksi_detail.bilangan');
 
         // ===============================
         // Materai (HARUS DIFILTER JUGA KATEGORI)
+        // Filter ganda: produksi.bulan DAN produksi_detail.nama_bulan
         // ===============================
         $materaiLtk = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
             ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->where('produksi_detail.kode_rekening', '2101010006')
             ->where('produksi.tahun_anggaran', $tahunStr)
             ->where('produksi.bulan', $bulanPad)
+            ->where('produksi_detail.nama_bulan', $bulanPad)
             ->sum('produksi_detail.bilangan');
 
         $materaiLtk = $materaiLtk ? $materaiLtk / 10 : 0;
@@ -222,10 +228,13 @@ class LtkHelper
         $tahunStr = (string) $tahun;
 
         // Single JOIN query: KCP-specific + Total (replaces 2 EXISTS subqueries)
+        // Filter ganda: produksi.bulan DAN produksi_detail.nama_bulan
+        // untuk mencegah data bocor dari bulan lain (drift data)
         $data = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
             ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->where('produksi.tahun_anggaran', $tahunStr)
             ->where('produksi.bulan', $bulan)
+            ->where('produksi_detail.nama_bulan', $bulan)
             ->selectRaw("
                 SUM(CASE WHEN produksi.id_kpc = ? THEN produksi_detail.bilangan ELSE 0 END) as kcp,
                 SUM(produksi_detail.bilangan) as total
