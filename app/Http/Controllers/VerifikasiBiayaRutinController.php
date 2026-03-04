@@ -1002,7 +1002,7 @@ class VerifikasiBiayaRutinController extends Controller
                     ->where('produksi.bulan', $bulanPadded)
                     ->where('produksi_detail.nama_bulan', $bulanPadded)
                     ->sum('produksi_detail.bilangan');
-                $matraiLTK_bagi_10 = $matraiLTK ? $matraiLTK / 10 : 0;
+                $matraiLTK_bagi_10 = $matraiLTK ? round($matraiLTK / 10) : 0;
                 $perhitungan = [
                     'fase_1' => $fase1s,
                     'grand_total_fase_1' => $grand_total_fase_1,

@@ -150,7 +150,13 @@ class ProcessSyncProduksiPrognosaJob implements ShouldQueue
 
     protected function processFetchedData($data, $payload)
     {
-        $id = trim($data['id_kpc']) . trim($data['tahun_anggaran']) . trim($data['triwulan']);
+        // Fix: ID berbasis bulan (bukan triwulan) agar konsisten dengan ProcessSyncProduksiJob
+        // dan tidak menyebabkan 3 bulan dalam 1 triwulan saling overwrite record produksi
+        $namaBulan = trim($data['nama_bulan'] ?? '');
+        $id = trim($data['id_kpc']) . trim($data['tahun_anggaran']) . $namaBulan;
+
+        // Hitung triwulan dari nama_bulan
+        $tw = is_numeric($namaBulan) ? (int) ceil(((int) $namaBulan) / 3) : ($data['triwulan'] ?? null);
 
         $produksi = Produksi::updateOrCreate(
             [
@@ -161,11 +167,11 @@ class ProcessSyncProduksiPrognosaJob implements ShouldQueue
                 'id_kprk' => $data['id_kprk'],
                 'id_kpc' => $data['id_kpc'],
                 'tahun_anggaran' => $data['tahun_anggaran'],
-                'triwulan' => $data['triwulan'],
+                'triwulan' => $tw,
                 'tgl_singkronisasi' => now(),
                 'status_regional' => 7,
                 'status_kprk' => 7,
-                'bulan' => $data['nama_bulan'],
+                'bulan' => $namaBulan,
             ]
         );
 
