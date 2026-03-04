@@ -161,8 +161,11 @@ class LtkHelper
             return LayananJasaKeuangan::pluck('nama')->toArray();
         });
     }
-    public static function calculateFase2($tahunStr, $bulan)
+    public static function calculateFase2($hasilFase1, $tahun, $bulan)
     {
+        $bulanPad = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $tahunStr = (string) $tahun;
+
         // ===============================
         // LTK (Tanpa Materai)
         // ===============================
@@ -170,30 +173,47 @@ class LtkHelper
             ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->whereNotIn('produksi_detail.kode_rekening', ['2101010006'])
             ->where('produksi.tahun_anggaran', $tahunStr)
-            ->where('produksi.bulan', $bulan)
+            ->where('produksi.bulan', $bulanPad)
             ->sum('produksi_detail.bilangan');
 
         // ===============================
         // Materai (HARUS DIFILTER JUGA KATEGORI)
         // ===============================
         $materaiLtk = ProduksiDetail::join('produksi', 'produksi_detail.id_produksi', '=', 'produksi.id')
-            ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE') // 🔥 FIX DI SINI
+            ->where('produksi_detail.kategori_produksi', 'LAYANAN BERBASIS FEE')
             ->where('produksi_detail.kode_rekening', '2101010006')
             ->where('produksi.tahun_anggaran', $tahunStr)
-            ->where('produksi.bulan', $bulan)
+            ->where('produksi.bulan', $bulanPad)
             ->sum('produksi_detail.bilangan');
 
         $materaiLtk = $materaiLtk ? $materaiLtk / 10 : 0;
 
         // ===============================
-        // TOTAL LTK KANTOR LPU
+        // TOTAL LTK KANTOR LPU (prod meterai dibagi 10)
         // ===============================
         $totalProduksiLtkKantorLpu = $ltk + $materaiLtk;
+
+        // ===============================
+        // PRODUKSI JASKUG NASIONAL (prod meterai dibagi 10)
+        // ===============================
+        $joinCost = self::calculateJoinCost('', $tahun, $bulan);
+        $produksiJaskugNasional = $joinCost['produksi_jaskug'] ?? 0;
+
+        // ===============================
+        // HASIL FASE 2
+        // (Total Produksi LTK Kantor LPU / Total Produksi Jaskug Nasional) x Hasil Fase 1
+        // ===============================
+        $rasio = $produksiJaskugNasional > 0 ? ($totalProduksiLtkKantorLpu / $produksiJaskugNasional) : 0;
+        $hasilFase2 = $rasio * $hasilFase1;
 
         return [
             'ltk' => $ltk,
             'materai_ltk' => $materaiLtk,
             'total_produksi_ltk_kantor_lpu' => $totalProduksiLtkKantorLpu,
+            'total_produksi_ltk_kantor_lpu_prod_materai_dibagi_10' => $totalProduksiLtkKantorLpu,
+            'produksi_jaskug_nasional' => $produksiJaskugNasional,
+            'rasio' => $rasio,
+            'hasil_fase_2' => $hasilFase2,
         ];
     }
     public static function calculateFase3($hasilFase2, $tahun, $bulan, $id_kcp)
