@@ -44,7 +44,7 @@ class LtkHelper
         return static::cached("join_cost_{$tahunStr}_{$bulanPad}", function () use ($tahunStr, $bulanPad) {
             $produksiKurir = DB::table('produksi_nasional')->whereIn('produk', self::getLayananKurir())->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
             $meterai = DB::table('produksi_nasional')->where('produk', 'METERAI')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi');
-            $meterai = $meterai ? round($meterai / 10) : 0;
+            $meterai = $meterai ? floor($meterai / 10) : 0;
             $outgoing = DB::table('produksi_nasional')->whereIn('produk', self::getLayananJaskug())->whereNotIn('produk', ['METERAI', 'WESELPOS', 'WESELPOS LN'])->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
             $weselposLN = DB::table('produksi_nasional')->where('produk', 'WESELPOS LN')->whereIn('status', ['INCOMING', 'OUTGOING'])->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
             $weselpos = DB::table('produksi_nasional')->where('produk', 'WESELPOS')->where('status', 'OUTGOING')->where('tahun', $tahunStr)->where('bulan', $bulanPad)->sum('jml_produksi') ?? 0;
@@ -192,7 +192,7 @@ class LtkHelper
             ->where('produksi_detail.nama_bulan', $bulanPad)
             ->sum('produksi_detail.bilangan');
 
-        $materaiLtk = $materaiLtk ? round($materaiLtk / 10) : 0;
+        $materaiLtk = $materaiLtk ? floor($materaiLtk / 10) : 0;
 
         // ===============================
         // TOTAL LTK KANTOR LPU (prod meterai dibagi 10)
